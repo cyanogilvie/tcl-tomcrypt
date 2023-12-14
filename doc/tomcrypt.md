@@ -29,7 +29,7 @@ This package provides a thin wrapper around a subset of libtomcrypt's functional
 **tomcrypt::ecc_verify** *sig* *message* *pbkey*
 :   Verify the signature *sig* over the message *message* with public key *pbkey*.  *sig* is
     in ANSI X9.62 format, *pbkey* is in ANSI X9.63 section 4.3.6 format or the native libtomcrypt
-    format, and message is the raw bytes (typically a hash result) that was signed.
+    format, and message is the raw bytearray (typically a hash result) that was signed.
     Returns true if the signature is valid, false if not, and throws an error if it
     couldn't parse *sig* or *pbkey*.
 
@@ -92,7 +92,13 @@ libtommath library: https://github.com/libtom/libtommath, and tomsfastmath: http
 ## PROJECT STATUS
 
 This is a very early work in progress.  Currently all that is implemented and
-tested is the **hash** command.  More to come soon.
+tested is the **hash** and **ecc_verify** commands.  More to come soon.
+
+With the nature of this package a lot of care is taken with memory handling
+and test coverage.  There are no known memory leaks or errors, and the
+package is routinely tested by running its test suite (which aims at full
+coverage) through valgrind.  The `make valgrind`, `make test` and `make coverage`
+build targets support these goals.
 
 
 ## LICENSE

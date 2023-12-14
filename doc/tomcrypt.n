@@ -32,7 +32,7 @@ Verify the signature \f[I]sig\f[R] over the message \f[I]message\f[R]
 with public key \f[I]pbkey\f[R].
 \f[I]sig\f[R] is in ANSI X9.62 format, \f[I]pbkey\f[R] is in ANSI X9.63
 section 4.3.6 format or the native libtomcrypt format, and message is
-the raw bytes (typically a hash result) that was signed.
+the raw bytearray (typically a hash result) that was signed.
 Returns true if the signature is valid, false if not, and throws an
 error if it couldn\[cq]t parse \f[I]sig\f[R] or \f[I]pbkey\f[R].
 .SS EXAMPLES
@@ -100,9 +100,17 @@ https://github.com/libtom/tomsfastmath.
 .SS PROJECT STATUS
 .PP
 This is a very early work in progress.
-Currently all that is implemented and tested is the \f[B]hash\f[R]
-command.
+Currently all that is implemented and tested is the \f[B]hash\f[R] and
+\f[B]ecc_verify\f[R] commands.
 More to come soon.
+.PP
+With the nature of this package a lot of care is taken with memory
+handling and test coverage.
+There are no known memory leaks or errors, and the package is routinely
+tested by running its test suite (which aims at full coverage) through
+valgrind.
+The \f[C]make valgrind\f[R], \f[C]make test\f[R] and
+\f[C]make coverage\f[R] build targets support these goals.
 .SS LICENSE
 .PP
 This package is placed in the public domain, the author disclaims
