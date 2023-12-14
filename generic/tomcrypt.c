@@ -6,9 +6,12 @@ static const char* lit_str[L_size] = {
 	"0"
 };
 
+TCL_DECLARE_MUTEX(g_register_mutex);
+static int				g_register_init = 0;
+
 TCL_DECLARE_MUTEX(g_intreps_mutex);
 static Tcl_HashTable	g_intreps;
-int						g_intreps_init = 0;
+static int				g_intreps_init = 0;
 
 // Internal API <<<
 void free_interp_cx(ClientData cdata, Tcl_Interp* interp) //<<<
@@ -115,9 +118,14 @@ DLLEXPORT int Tomcrypt_Init(Tcl_Interp* interp) //<<<
 		return TCL_ERROR;
 #endif
 
-	register_all_ciphers();
-	register_all_hashes();
-	register_all_prngs();
+	Tcl_MutexLock(&g_register_mutex);
+	if (!g_register_init) {
+		register_all_ciphers();
+		register_all_hashes();
+		register_all_prngs();
+		g_register_init = 1;
+	}
+	Tcl_MutexUnlock(&g_register_mutex);
 
 #ifdef USE_LTM
 	ltc_mp = ltm_desc;
@@ -203,6 +211,9 @@ DLLEXPORT int Tomcrypt_Unload(Tcl_Interp* interp, int flags) //<<<
 		Tcl_MutexUnlock(&g_intreps_mutex);
 		Tcl_MutexFinalize(&g_intreps_mutex);
 		g_intreps_mutex = NULL;
+
+		Tcl_MutexFinalize(&g_register_mutex);
+		g_register_mutex = NULL;
 	}
 
 	return code;
