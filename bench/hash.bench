@@ -1,0 +1,46 @@
+if {"bench" ni [info commands bench]} {
+	package require bench
+	namespace import bench::*
+}
+
+package require tomcrypt
+
+proc main {} {
+	bench hash-1.1 {md5} -batch auto -setup { #<<<
+		set data [string repeat a 4096]
+	} -deps {
+		hash		{package require hash}
+	} -compare {
+		hash		{hash::md5 $data}
+		tomcrypt	{tomcrypt::hash md5 $data}
+	} -cleanup {
+		unset -nocomplain data
+	} -result [binary decode hex 21a199c53f422a380e20b162fb6ebe9c]
+	#>>>
+	bench hash-1.2 {sha256} -batch auto -setup { #<<<
+		set data [string repeat a 4096]
+	} -deps {
+		hash		{package require hash}
+	} -compare {
+		hash		{binary decode hex [hash::sha256 $data]}
+		tomcrypt	{tomcrypt::hash sha256 $data}
+	} -cleanup {
+		unset -nocomplain data
+	} -result [binary decode hex c93eee2d0db02f10acc7460d9576e122dcf8cd53c4bf8dfcae1b3e74ebcfff5a]
+	#>>>
+	bench hash-1.3 {sha1} -batch auto -setup { #<<<
+		set data [string repeat a 4096]
+	} -deps {
+		sha1		{package require sha1}
+	} -compare {
+		sha1		{binary decode hex [sha1::sha1 $data]}
+		tomcrypt	{tomcrypt::hash sha1 $data}
+	} -cleanup {
+		unset -nocomplain data
+	} -result [binary decode hex 8c51fb6a0b587ec95ca74acfa43df7539b486297]
+	#>>>
+}
+
+main
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4

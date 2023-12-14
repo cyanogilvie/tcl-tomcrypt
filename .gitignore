@@ -8,3 +8,7 @@ tags
 *.so
 *.o
 *.swp
+*.gcda
+*.gcno
+*~
+last

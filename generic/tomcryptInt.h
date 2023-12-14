@@ -1,5 +1,17 @@
-#include <tcl.h>
+#include "tclstuff.h"
 #include <tomcrypt.h>
+#include <stdint.h>
+
+enum {
+	L_EMPTY,
+	L_TRUE,
+	L_FALSE,
+	L_size
+};
+
+struct interp_cx {
+	Tcl_Obj*	lit[L_size];
+};
 
 #ifdef __cplusplus
 extern "C" {
