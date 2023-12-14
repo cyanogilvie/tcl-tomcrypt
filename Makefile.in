@@ -206,11 +206,13 @@ libraries:
 # end user machine when building from source.
 #========================================================================
 
-doc:
-	@echo "If you have documentation to create, place the commands to"
-	@echo "build the docs in the 'doc:' target.  For example:"
-	@echo "        xml2nroff sample.xml > sample.n"
-	@echo "        xml2html sample.xml > sample.html"
+doc: doc/tomcrypt.n README.md
+
+doc/tomcrypt.n: doc/tomcrypt.md
+	pandoc --standalone --from markdown --to man doc/tomcrypt.md --output doc/tomcrypt.n
+
+README.md: doc/tomcrypt.md
+	pandoc --standalone --from markdown --to gfm doc/tomcrypt.md --output README.md
 
 install: all install-binaries install-libraries install-doc
 
