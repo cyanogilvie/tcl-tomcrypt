@@ -184,7 +184,7 @@ TEA_PROG_TCLSH
 # substituting the AC variables in. Include these here.
 #--------------------------------------------------------------------
 
-AC_CONFIG_FILES([Makefile pkgIndex.tcl teabase/Makefile])
+AC_CONFIG_FILES([Makefile pkgIndex.tcl Makefile.teabase])
 #AC_CONFIG_FILES([sampleConfig.sh])
 
 #--------------------------------------------------------------------

@@ -322,9 +322,10 @@ DIST_ROOT	= /tmp/dist
 DIST_DIR	= $(DIST_ROOT)/$(PKG_DIR)
 
 DIST_INSTALL_DATA	= CPPROG='cp -p' $(INSTALL) -m 644
-DIST_INSTALL_SCRIPT	= CPPROG='cp -p' $(INSTALL) -m 755
+DIST_INSTALL_SCRIPT	= CPPROG='cp -p' $(INSTALL)
+DIST_INSTALL_ASIS	= cp -a
 
-dist-clean:
+dist-clean: deps-clean
 	rm -rf $(DIST_DIR) $(DIST_ROOT)/$(PKG_DIR).tar.*
 
 dist: dist-clean
@@ -341,22 +342,37 @@ dist: dist-clean
 	    $(srcdir)/tclconfig/tcl.m4 $(srcdir)/tclconfig/install-sh \
 	    $(DIST_DIR)/tclconfig/
 
+	$(INSTALL_DATA_DIR) $(DIST_DIR)/teabase
+	$(DIST_INSTALL_DATA) \
+	    $(srcdir)/teabase/teabase.m4 \
+	    $(srcdir)/teabase/ax_cc_for_build.m4 \
+	    $(srcdir)/teabase/ax_check_compile_flag.m4 \
+	    $(srcdir)/teabase/ax_gcc_builtin.m4 \
+	    $(DIST_DIR)/teabase/
+
+	$(INSTALL_DATA_DIR) $(DIST_DIR)/bench
+	$(DIST_INSTALL_DATA) \
+		$(srcdir)/teabase/teabase_bench-0.1.tm \
+		$(DIST_DIR)/bench/
+
 	# Extension files
 	$(DIST_INSTALL_DATA) \
-	    $(srcdir)/ChangeLog \
-	    $(srcdir)/README.sha \
-	    $(srcdir)/license.terms \
-	    $(srcdir)/README \
+	    $(srcdir)/README.md \
+	    $(srcdir)/LICENSE \
 	    $(srcdir)/pkgIndex.tcl.in \
+	    $(srcdir)/Makefile.teabase.in \
+	    $(srcdir)/suppressions \
 	    $(DIST_DIR)/
 
-	list='demos doc generic library mac tests unix win'; \
+	list='demos doc generic library mac tests unix win bench'; \
 	for p in $$list; do \
 	    if test -d $(srcdir)/$$p ; then \
 		$(INSTALL_DATA_DIR) $(DIST_DIR)/$$p; \
 		$(DIST_INSTALL_DATA) $(srcdir)/$$p/* $(DIST_DIR)/$$p/; \
 	    fi; \
 	done
+
+	$(DIST_INSTALL_ASIS) $(srcdir)/deps $(DIST_DIR)/deps/
 
 	(cd $(DIST_ROOT); $(COMPRESS);)
 
@@ -373,10 +389,12 @@ clean:
 	-test -z "$(BINARIES)" || rm -f $(BINARIES)
 	-rm -f *.$(OBJEXT) core *.core
 	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+	-rm -rf local
+
+deps-clean:
 	make -C deps/libtommath clean
 	make -C deps/tomsfastmath clean
 	make -C deps/libtomcrypt clean
-	-rm -rf local
 
 distclean: clean
 	-rm -f *.tab.c
@@ -468,9 +486,9 @@ local/lib/libtomcrypt.a: local/lib/libtommath.a local/lib/libtfm.a
 	make -C deps/libtomcrypt CFLAGS="-I../../local/include -L../../local/lib -fPIC -DUSE_LTM -DLTM_DESC -DTFM_DESC -g" DESTDIR="`pwd`" PREFIX=/local -j 8 install
 
 .PHONY: all binaries clean depend distclean doc install libraries test
-.PHONY: gdb gdb-test valgrind valgrindshell deps
+.PHONY: gdb gdb-test valgrind valgrindshell deps deps-clean
 
-include $(top_builddir)/teabase/Makefile
+include $(top_builddir)/Makefile.teabase
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be tomcrypteeded.
