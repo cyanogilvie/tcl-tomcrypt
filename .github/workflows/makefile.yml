@@ -38,7 +38,7 @@ jobs:
       run: autoconf
       
     - name: configure
-      run: ./configure --with-tcl=/opt/tcl8.7
+      run: ./configure --with-tcl=/opt/tcl8.7/lib
 
     - name: Install dependencies
       run: make
