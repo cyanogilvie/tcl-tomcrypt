@@ -20,7 +20,7 @@ jobs:
 
     steps:
     - name: Build Tcl 8.7
-	  if: steps.cache-tcl.outputs.cache-hit != 'true'
+      if: steps.cache-tcl.outputs.cache-hit != 'true'
       run: |
         mkdir -p /tmp/src/tcl
         cd /tmp/src/tcl
@@ -34,15 +34,12 @@ jobs:
       with:
         submodules: 'true'
 
-    - name: autoconf
-      run: autoconf
-      
-    - name: configure
-      run: ./configure --with-tcl=/opt/tcl8.7/lib
+    - name: Build tcl-tomcrypt
+      run: |
+        autoconf
+        ./configure --with-tcl=/opt/tcl8.7/lib
+        make
 
-    - name: Install dependencies
-      run: make
-
-    - name: Run check
+    - name: Run tests
       run: make test
 
