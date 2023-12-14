@@ -11,6 +11,7 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    steps:
     - name: Cache Tcl build
       id: cache-tcl
       uses: actions/cache@v3
@@ -18,9 +19,8 @@ jobs:
         path: /opt/tcl8.7
         key: ${{ runner.os }}-f7629abff2
 
-    steps:
     - name: Build Tcl 8.7
-	  if: steps.cache-tcl.outputs.cache-hit != 'true'
+      if: steps.cache-tcl.outputs.cache-hit != 'true'
       run: |
         mkdir -p /tmp/src/tcl
         cd /tmp/src/tcl
