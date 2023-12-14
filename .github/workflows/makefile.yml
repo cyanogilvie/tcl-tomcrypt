@@ -12,6 +12,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Build Tcl 8.7
+      run: |
+        mkdir -p /tmp/src/tcl
+        cd /tmp/src/tcl
+        wget https://core.tcl-lang.org/tcl/tarball/f7629abff2/tcl.tar.gz -O - | tar xz --strip-components=1
+        ./configure --prefix=/opt/tcl8.7
+        make -j 8
+        sudo make install
+
+    - name: Cache Tcl build
+      id: cache-tcl
+      uses: actions/cache@v3
+      with:
+        path: |
+          /opt/tcl8.7
+        key: ${{ runner.os }}-f7629abff2
+        
     - uses: actions/checkout@v3
       with:
         submodules: 'true'
@@ -20,7 +37,7 @@ jobs:
       run: autoconf
       
     - name: configure
-      run: ./configure
+      run: ./configure --with-tcl=/opt/tcl8.7
 
     - name: Install dependencies
       run: make
