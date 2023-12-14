@@ -55,10 +55,9 @@ if {$verified} {
 
 ## BUILDING
 
-This package requires Tcl and the libtomcrypt, libtommath and
-tomsfastmath libraries, those will need to be available (in the shared
-library forms, or static libraries compiled with **-fPIC**) before
-building this.
+This package has no external dependencies other than Tcl. The libtom
+libraries it depends on are included as submodules and are built and
+staticly linked as part of the main build process.
 
 Fetch the code and submodules recursively:
 

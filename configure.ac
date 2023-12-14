@@ -73,8 +73,8 @@ TEA_SETUP_COMPILER
 
 TEA_ADD_SOURCES([tomcrypt.c type_ecc_key.c])
 TEA_ADD_HEADERS([])
-TEA_ADD_INCLUDES([])
-TEA_ADD_LIBS([-ltomcrypt -ltommath -lm])
+TEA_ADD_INCLUDES([-Ilocal/include])
+TEA_ADD_LIBS([-Llocal/lib -ltomcrypt -ltommath -lm])
 TEA_ADD_CFLAGS([-std=c11 -DUSE_LTM -DLTM_DESC -DTFM_DESC])
 TEA_ADD_STUB_SOURCES([])
 TEA_ADD_TCL_SOURCES([])

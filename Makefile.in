@@ -281,7 +281,7 @@ depend:
 # source files above.
 #========================================================================
 
-$(PKG_LIB_FILE): $(PKG_OBJECTS)
+$(PKG_LIB_FILE): deps $(PKG_OBJECTS)
 	-rm -f $(PKG_LIB_FILE)
 	${MAKE_LIB}
 	$(RANLIB) $(PKG_LIB_FILE)
@@ -373,6 +373,10 @@ clean:
 	-test -z "$(BINARIES)" || rm -f $(BINARIES)
 	-rm -f *.$(OBJEXT) core *.core
 	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+	make -C deps/libtommath clean
+	make -C deps/tomsfastmath clean
+	make -C deps/libtomcrypt clean
+	-rm -rf local
 
 distclean: clean
 	-rm -f *.tab.c
@@ -452,8 +456,19 @@ uninstall-binaries:
 	  rm -f $(DESTDIR)$(bindir)/$$p; \
 	done
 
+deps: local/lib/libtommath.a local/lib/libtomcrypt.a local/lib/libtfm.a
+
+local/lib/libtommath.a:
+	make -C deps/libtommath CFLAGS="-fPIC -g" DESTDIR="`pwd`" PREFIX=/local -j 8 install
+
+local/lib/libtfm.a:
+	make -C deps/tomsfastmath COMPILE_DEBUG="" DESTDIR="`pwd`" INSTALL_USER=`id -u -n` INSTALL_GROUP=`id -g -n` LIBPATH=/local/lib INCPATH=/local/lib CFLAGS="-g3 -Wall -W -Wshadow -Isrc/headers -O3 -funroll-loops -fomit-frame-pointer -fPIC" -j 8 install
+
+local/lib/libtomcrypt.a: local/lib/libtommath.a local/lib/libtfm.a
+	make -C deps/libtomcrypt CFLAGS="-I../../local/include -L../../local/lib -fPIC -DUSE_LTM -DLTM_DESC -DTFM_DESC -g" DESTDIR="`pwd`" PREFIX=/local -j 8 install
+
 .PHONY: all binaries clean depend distclean doc install libraries test
-.PHONY: gdb gdb-test valgrind valgrindshell
+.PHONY: gdb gdb-test valgrind valgrindshell deps
 
 include $(top_builddir)/teabase/Makefile
 
