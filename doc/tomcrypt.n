@@ -45,7 +45,7 @@ Fetch the code and submodules recursively:
 .IP
 .nf
 \f[C]
-git clone --recurse-submodules https://github.com/cyanogilvie/tomcrypt
+git clone --recurse-submodules https://github.com/cyanogilvie/tcl-tomcrypt
 \f[R]
 .fi
 .PP

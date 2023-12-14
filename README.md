@@ -42,7 +42,7 @@ building this.
 Fetch the code and submodules recursively:
 
 ``` sh
-git clone --recurse-submodules https://github.com/cyanogilvie/tomcrypt
+git clone --recurse-submodules https://github.com/cyanogilvie/tcl-tomcrypt
 ```
 
 Then just the normal autoconf / TEA dance:
