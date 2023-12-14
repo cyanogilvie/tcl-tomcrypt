@@ -11,8 +11,16 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    - name: Cache Tcl build
+      id: cache-tcl
+      uses: actions/cache@v3
+      with:
+        path: /opt/tcl8.7
+        key: ${{ runner.os }}-f7629abff2
+
     steps:
     - name: Build Tcl 8.7
+	  if: steps.cache-tcl.outputs.cache-hit != 'true'
       run: |
         mkdir -p /tmp/src/tcl
         cd /tmp/src/tcl
@@ -21,14 +29,6 @@ jobs:
         ./configure --prefix=/opt/tcl8.7
         make -j 8
         sudo make install
-
-    - name: Cache Tcl build
-      id: cache-tcl
-      uses: actions/cache@v3
-      with:
-        path: |
-          /opt/tcl8.7
-        key: ${{ runner.os }}-f7629abff2
         
     - uses: actions/checkout@v3
       with:

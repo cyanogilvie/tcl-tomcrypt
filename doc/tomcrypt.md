@@ -64,6 +64,8 @@ if {$verified} {
 This package has no external dependencies other than Tcl.  The libtom libraries it depends on
 are included as submodules and are built and staticly linked as part of the main build process.
 
+Currently Tcl 8.7 is required, but if needed polyfills could be built to support 8.6.
+
 Fetch the code and submodules recursively:
 
 ~~~sh
