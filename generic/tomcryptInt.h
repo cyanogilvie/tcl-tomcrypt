@@ -1,6 +1,7 @@
 #include "tclstuff.h"
 #include <tomcrypt.h>
 #include <stdint.h>
+#include "tip445.h"
 
 enum {
 	L_EMPTY,
@@ -23,6 +24,14 @@ extern "C" {
 #endif
 
 #define NS	"::tomcrypt"
+
+// tomcrypt.c internal interface <<<
+void register_intrep(Tcl_Obj* obj);
+void forget_intrep(Tcl_Obj* obj);
+// tomcrypt.c internal interface >>>
+// type_ecc_key interface <<<
+int GetECCKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, ecc_key** key);
+// type_ecc_key interface >>>
 
 EXTERN int Tomcrypt_Init _ANSI_ARGS_((Tcl_Interp * interp));
 

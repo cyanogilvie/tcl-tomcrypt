@@ -83,11 +83,25 @@ finally:
 //>>>
 OBJCMD(ecc_verify) //<<<
 {
-	int			code = TCL_OK;
+	struct interp_cx*	l = cdata;
+	int					code = TCL_OK;
 
 	enum {A_cmd, A_SIG, A_HASH, A_KEY, A_objc};
-	CHECK_ARGS_LABEL(finally, code, "ecc_verify sig hash key");
+	CHECK_ARGS_LABEL(finally, code, "sig message key");
 
+	ecc_key*	key = NULL;
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_KEY], &key));
+
+	int				siglen, msglen, stat;
+	const uint8_t*	sig = Tcl_GetBytesFromObj(interp, objv[A_SIG],  &siglen);
+	const uint8_t*	msg = Tcl_GetBytesFromObj(interp, objv[A_HASH], &msglen);
+	const int		verify_rc = ecc_verify_hash(sig, siglen, msg, msglen, &stat, key);
+	if (verify_rc != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "FORMAT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_verify_hash failed: %s", error_to_string(verify_rc));
+	}
+
+	Tcl_SetObjResult(interp, l->lit[stat ? L_TRUE : L_FALSE]);
 
 finally:
 	return code;

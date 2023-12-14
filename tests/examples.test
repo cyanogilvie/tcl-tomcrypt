@@ -1,0 +1,31 @@
+if {"::tcltest" ni [namespace children]} {
+	package require tcltest
+	namespace import ::tcltest::*
+}
+
+::tcltest::loadTestedCommands
+package require tomcrypt
+
+test example-1.1 {hash} -body { #<<<
+	puts [binary encode hex [tomcrypt::hash md5 "hello, tomcrypt"]]
+} -result {} -output "bc347744a21006a3262f7390e5f35787\n"
+#>>>
+test example-2.1 {ecc_verify} -body { #<<<
+	set verified    [tomcrypt::ecc_verify \
+		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
+		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
+		[binary decode hex 046ddc90ba0fd79c53bd70060192211631d11ec581302e91c3559df4b20cdf747dbd8785a28c30b766e6b43325749ef70a923d0077fbc53cbcbb210de147c540e0] \
+	]
+	if {$verified} {
+		puts "signature is valid"
+	} else {
+		puts "signature is not valid"
+	}
+} -result {} -output "signature is valid\n"
+#>>>
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4

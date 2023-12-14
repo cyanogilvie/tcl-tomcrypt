@@ -1,0 +1,68 @@
+if {"::tcltest" ni [namespace children]} {
+	package require tcltest
+	namespace import ::tcltest::*
+}
+
+::tcltest::loadTestedCommands
+package require tomcrypt
+
+test ecc-1.1 {ecc_verify, success} -body { #<<<
+	tomcrypt::ecc_verify \
+		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
+		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
+		[string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
+} -result 1
+#>>>
+test ecc-1.1 {ecc_verify, fail} -body { #<<<
+	tomcrypt::ecc_verify \
+		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
+		[binary decode hex 51091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
+		[string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
+} -result 0
+#>>>
+
+# Coverage golf:
+test ecc-10.1 {GetECCKeyFromObj, existing key intrep} -setup { #<<<
+	set key	[string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
+} -body {
+	tomcrypt::ecc_verify \
+		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
+		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
+		$key
+	tomcrypt::ecc_verify \
+		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
+		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
+		$key
+} -cleanup {
+	unset -nocomplain key
+} -result 1
+#>>>
+test ecc-10.2 {GetECCKeyFromObj, bad key} -body { #<<<
+	tomcrypt::ecc_verify \
+		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
+		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
+		[binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==]
+} -result {ecc_import failed: Invalid input packet.} -returnCodes error -errorCode {TOMCRYPT FORMAT}
+#>>>
+test ecc-10.3 {ecc_verify: too few args} -body { #<<<
+	tomcrypt::ecc_verify a b
+} -result {wrong # args: should be "tomcrypt::ecc_verify sig message key"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test ecc-10.4 {ecc_verify: too many args} -body { #<<<
+	tomcrypt::ecc_verify a b c d
+} -result {wrong # args: should be "tomcrypt::ecc_verify sig message key"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test ecc-10.5 {ecc_verify, bad sig} -body { #<<<
+	tomcrypt::ecc_verify \
+		[string range [binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] 1 end] \
+		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
+		[string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
+} -result {ecc_verify_hash failed: Invalid input packet.} -returnCodes error -errorCode {TOMCRYPT FORMAT}
+#>>>
+
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4

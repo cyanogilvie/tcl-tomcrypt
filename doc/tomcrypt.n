@@ -10,6 +10,11 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 \f[B]package require tomcrypt\f[R] ?0.1?
 .PP
 \f[B]tomcrypt::hash\f[R] \f[I]algorithm\f[R] \f[I]bytes\f[R]
+.PD 0
+.P
+.PD
+\f[B]tomcrypt::ecc_verify\f[R] \f[I]sig\f[R] \f[I]message\f[R]
+\f[I]pbkey\f[R]
 .SS DESCRIPTION
 .PP
 This package provides a thin wrapper around a subset of
@@ -21,6 +26,15 @@ Return the hash of \f[I]bytes\f[R], using the \f[I]algorithm\f[R].
 The values available for \f[I]algorithm\f[R] are those that are known by
 libtomcrypt.
 The returned value is the raw bytearray.
+.TP
+\f[B]tomcrypt::ecc_verify\f[R] \f[I]sig\f[R] \f[I]message\f[R] \f[I]pbkey\f[R]
+Verify the signature \f[I]sig\f[R] over the message \f[I]message\f[R]
+with public key \f[I]pbkey\f[R].
+\f[I]sig\f[R] is in ANSI X9.62 format, \f[I]pbkey\f[R] is in ANSI X9.63
+section 4.3.6 format or the native libtomcrypt format, and message is
+the raw bytes (typically a hash result) that was signed.
+Returns true if the signature is valid, false if not, and throws an
+error if it couldn\[cq]t parse \f[I]sig\f[R] or \f[I]pbkey\f[R].
 .SS EXAMPLES
 .PP
 Print out the hex-encoded md5 of \[lq]hello, tomcrypt\[rq] (normally,
@@ -29,9 +43,24 @@ first, but this example leaves that out for simplicity\[cq]s sake):
 .IP
 .nf
 \f[C]
-package require tomcrypt
-
 puts [binary encode hex [tomcrypt::hash md5 \[dq]hello, tomcrypt\[dq]]]
+\f[R]
+.fi
+.PP
+Verify an ECC signature:
+.IP
+.nf
+\f[C]
+set verified    [tomcrypt::ecc_verify \[rs]
+    [binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \[rs]
+    [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \[rs]
+    [binary decode hex 046ddc90ba0fd79c53bd70060192211631d11ec581302e91c3559df4b20cdf747dbd8785a28c30b766e6b43325749ef70a923d0077fbc53cbcbb210de147c540e0] \[rs]
+]
+if {$verified} {
+    puts \[dq]signature is valid\[dq]
+} else {
+    puts \[dq]signature is not valid\[dq]
+}
 \f[R]
 .fi
 .SS BUILDING

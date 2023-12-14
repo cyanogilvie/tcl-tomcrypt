@@ -1,0 +1,96 @@
+if {"bench" ni [info commands bench]} {
+	package require bench
+	namespace import bench::*
+}
+
+package require tomcrypt
+
+proc main {} {
+	bench ecc_verify-1.1 {ecc_verify, success} -batch auto -setup { #<<<
+		set pbkey_b64	MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==
+		set pbkey	[binary decode base64 $pbkey_b64]
+		set sig		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=]
+		set msg		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+	} -deps {
+		openssl	{
+			package require cflib
+			package require chantricks
+			cflib::in_tmp_dir {
+				chantricks writefile pub.pem  "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==\n-----END PUBLIC KEY-----"
+				chantricks writebin  sig.der  [binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=]
+				chantricks writebin  hash.bin [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+				exec openssl pkeyutl -verify -pubin -inkey pub.pem -sigfile sig.der -in hash.bin
+			}
+		}
+	} -compare {
+		openssl {
+			cflib::in_tmp_dir {
+				chantricks writefile pub.pem  "-----BEGIN PUBLIC KEY-----\n$pbkey_b64\n-----END PUBLIC KEY-----"
+				chantricks writebin  sig.der  $sig
+				chantricks writebin  hash.bin $msg
+				try {
+					exec openssl pkeyutl -verify -pubin -inkey pub.pem -sigfile sig.der -in hash.bin
+				} on ok {} {
+					return -level 0 1
+				} on error {} {
+					return -level 0 0
+				}
+			}
+		}
+		tomcrypt {
+			tomcrypt::ecc_verify \
+				$sig \
+				$msg \
+				[string range $pbkey 26 end]
+		}
+	} -cleanup {
+		unset -nocomplain pbkey sig msg pbkey_b64
+	} -result 1
+	#>>>
+	bench ecc_verify-1.2 {ecc_verify, fail} -batch auto -setup { #<<<
+		set pbkey_b64	MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==
+		set pbkey	[binary decode base64 $pbkey_b64]
+		set sig		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=]
+		set msg		[binary decode hex 51091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+		set msgok	[binary decode hex 51091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+	} -deps {
+		openssl	{
+			package require cflib
+			package require chantricks
+			cflib::in_tmp_dir {
+				chantricks writefile pub.pem  "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==\n-----END PUBLIC KEY-----"
+				chantricks writebin  sig.der  [binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=]
+				chantricks writebin  hash.bin [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+				exec openssl pkeyutl -verify -pubin -inkey pub.pem -sigfile sig.der -in hash.bin
+			}
+		}
+	} -compare {
+		openssl {
+			cflib::in_tmp_dir {
+				chantricks writefile pub.pem  "-----BEGIN PUBLIC KEY-----\n$pbkey_b64\n-----END PUBLIC KEY-----"
+				chantricks writebin  sig.der  $sig
+				chantricks writebin  hash.bin $msg
+				try {
+					exec openssl pkeyutl -verify -pubin -inkey pub.pem -sigfile sig.der -in hash.bin
+				} on ok {} {
+					return -level 0 1
+				} on error {} {
+					return -level 0 0
+				}
+			}
+		}
+		tomcrypt {
+			tomcrypt::ecc_verify \
+				$sig \
+				$msg \
+				[string range $pbkey 26 end]
+		}
+	} -cleanup {
+		unset -nocomplain pbkey sig msg msgok
+	} -result 0
+	#>>>
+}
+
+main
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4
