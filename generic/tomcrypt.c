@@ -177,6 +177,8 @@ DLLEXPORT int Tomcrypt_Init(Tcl_Interp* interp) //<<<
 	}
 	Tcl_MutexUnlock(&g_intreps_mutex);
 
+	TEST_OK_LABEL(finally, code, prng_class_init(interp));
+
 	code = Tcl_PkgProvide(interp, PACKAGE_NAME, PACKAGE_VERSION);
 	if (code != TCL_OK) goto finally;
 

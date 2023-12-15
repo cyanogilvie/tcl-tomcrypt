@@ -19,7 +19,7 @@ dnl	to configure the system for the local environment.
 # so that we create the export library with the dll.
 #-----------------------------------------------------------------------
 
-AC_INIT([tomcrypt], [0.1])
+AC_INIT([tomcrypt], [0.2])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -71,7 +71,7 @@ TEA_SETUP_COMPILER
 # and PKG_TCL_SOURCES.
 #-----------------------------------------------------------------------
 
-TEA_ADD_SOURCES([tomcrypt.c type_ecc_key.c])
+TEA_ADD_SOURCES([tomcrypt.c type_ecc_key.c prng_class.c])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([-Ilocal/include])
 TEA_ADD_LIBS([-Llocal/lib -ltomcrypt -ltommath -lm])

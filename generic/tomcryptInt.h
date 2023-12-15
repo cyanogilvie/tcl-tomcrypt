@@ -1,3 +1,5 @@
+#ifndef _TOMCRYPTINT_H
+#define _TOMCRYPTINT_H
 #include "tclstuff.h"
 #include <tomcrypt.h>
 #include <stdint.h>
@@ -29,9 +31,12 @@ extern "C" {
 void register_intrep(Tcl_Obj* obj);
 void forget_intrep(Tcl_Obj* obj);
 // tomcrypt.c internal interface >>>
-// type_ecc_key interface <<<
+// type_ecc_key.c interface <<<
 int GetECCKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, ecc_key** key);
-// type_ecc_key interface >>>
+// type_ecc_key.c interface >>>
+// prng_class.c internal interface <<<
+int prng_class_init(Tcl_Interp* interp);
+// prng_class.c internal interface >>>
 
 EXTERN int Tomcrypt_Init _ANSI_ARGS_((Tcl_Interp * interp));
 
@@ -39,4 +44,5 @@ EXTERN int Tomcrypt_Init _ANSI_ARGS_((Tcl_Interp * interp));
 }
 #endif
 
+#endif // _TOMCRYPTINT_H
 // vim: foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4
