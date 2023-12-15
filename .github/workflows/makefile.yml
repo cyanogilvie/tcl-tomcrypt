@@ -12,6 +12,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+    - name: Install dependencies
+      run: sudo apt install pandoc
+
     - name: Cache Tcl build
       id: cache-tcl
       uses: actions/cache@v3
