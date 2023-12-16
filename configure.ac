@@ -19,7 +19,7 @@ dnl	to configure the system for the local environment.
 # so that we create the export library with the dll.
 #-----------------------------------------------------------------------
 
-AC_INIT([tomcrypt], [0.2])
+AC_INIT([tomcrypt], [0.3])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -63,7 +63,7 @@ TEA_SETUP_COMPILER
 
 # Check for feature toggles
 ENABLE_DEBUG
-ENABLE_UNLOAD
+ENABLE_DEFAULT_UNLOAD
 ENABLE_TESTMODE
 
 #-----------------------------------------------------------------------
