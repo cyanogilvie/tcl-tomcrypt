@@ -30,9 +30,11 @@ jobs:
         cd /tmp/src/tcl
         wget https://core.tcl-lang.org/tcl/tarball/f7629abff2/tcl.tar.gz -O - | tar xz --strip-components=1
         cd unix
-        ./configure --prefix=/opt/tcl8.7
+        ./configure CFLAGS="-DPURIFY" --enable-symbols --enable-testmode --prefix=/opt/tcl8.7
         make -j 8
         sudo make install
+      if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
         
     - uses: actions/checkout@v3
       with:
