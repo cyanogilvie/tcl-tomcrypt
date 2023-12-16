@@ -33,8 +33,6 @@ jobs:
         ./configure CFLAGS="-DPURIFY" --enable-symbols --enable-testmode --prefix=/opt/tcl8.7
         make -j 8
         sudo make install
-      if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
         
     - uses: actions/checkout@v3
       with:
@@ -48,4 +46,8 @@ jobs:
 
     - name: Run tests
       run: make test
+
+    - name: debug
+      if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
 
