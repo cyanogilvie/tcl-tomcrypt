@@ -1,10 +1,10 @@
 #ifndef _TOMCRYPTINT_H
 #define _TOMCRYPTINT_H
+#include <tommath.h>
 #include <tcl.h>
 #include <tclOO.h>
 #include "tclstuff.h"
 #include <tomcrypt.h>
-#include <tommath.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <math.h>

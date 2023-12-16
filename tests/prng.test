@@ -480,7 +480,7 @@ test prng-5.16 {prng integer, lower greater than upper (bignum)} -body { #<<<
 	unset -nocomplain testname
 } -result {lower must be less than or equal to upper} -returnCodes error -errorCode {TOMCRYPT VALUE}
 #>>>
-test prng-5-17 {prng integer, bignum use after} -body { #<<<
+test prng-5.17 {prng integer, bignum use after} -body { #<<<
 	set testname	prng-5.18
 	tomcrypt::prng create $testname fortuna $fake_entropy
 	set lower		[expr {2**256-1}]

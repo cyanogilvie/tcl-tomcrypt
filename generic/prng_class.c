@@ -240,6 +240,8 @@ static int method_integer(ClientData cdata, Tcl_Interp* interp, Tcl_ObjectContex
 	int						code = TCL_OK;
 	Tcl_Object				object = Tcl_ObjectContextObject(context);
 	struct prng_md*			md = Tcl_ObjectGetMetadata(object, &prng_metadata);
+	Tcl_Obj*				res = NULL;
+	Tcl_Obj*				tmp = NULL;
 
 	const int	A_cmd		= Tcl_ObjectContextSkippedArgs(context)-1;
 	const int	A_LOWER		= A_cmd+1;
@@ -321,8 +323,13 @@ static int method_integer(ClientData cdata, Tcl_Interp* interp, Tcl_ObjectContex
 		uint32_t	range_bitlen_bigval;
 		uint32_t	range_bytelen_bigval;
 		uint32_t	range_remain_bigval;
-		TEST_OK_LABEL(finally, code, Tcl_GetBignumFromObj(interp, objv[A_LOWER], &lower_bigval));
-		TEST_OK_LABEL(finally, code, Tcl_GetBignumFromObj(interp, objv[A_UPPER], &upper_bigval));
+		if (MP_OKAY != (rc = mp_init_multi(/*&range_bigval,*/ &value_bigval, NULL)))		goto mp_err;
+#if DEBUG
+		fprintf(stderr, "mp_init_multi(&range_bigval.dp: %p, &value_bigval.dp: %p, NULL)\n", range_bigval.dp, value_bigval.dp);
+#endif
+
+		TEST_OK_LABEL(mp_finally, code, Tcl_GetBignumFromObj(interp, objv[A_LOWER], &lower_bigval));
+		TEST_OK_LABEL(mp_finally, code, Tcl_GetBignumFromObj(interp, objv[A_UPPER], &upper_bigval));
 
 		if (MP_OKAY != (rc = mp_init(&range_bigval)))									goto mp_err;
 		switch (mp_cmp_mag(&lower_bigval, &upper_bigval)) {
@@ -336,16 +343,16 @@ static int method_integer(ClientData cdata, Tcl_Interp* interp, Tcl_ObjectContex
 				goto mp_finally;
 		}
 		if (MP_OKAY != (rc = mp_sub(&upper_bigval, &lower_bigval, &range_bigval)))		goto mp_err;
-		if (MP_OKAY != (rc = mp_log_u32(&range_bigval, 2, &range_bitlen_bigval)))		goto mp_err;
-		range_bitlen_bigval++;
+		//if (MP_OKAY != (rc = mp_log_u32(&range_bigval, 2, &range_bitlen_bigval)))		goto mp_err;
+		range_bitlen_bigval  = mp_count_bits(&range_bigval);
 		range_bytelen_bigval = (range_bitlen_bigval+7)/8;
-		range_remain_bigval = range_bitlen_bigval % 8;
-		uint8_t		topbyte_mask = (1<<range_remain_bigval)-1;
-#if 0
+		range_remain_bigval  = range_bitlen_bigval % 8;
+		uint8_t	topbyte_mask = range_remain_bigval ? (1<<range_remain_bigval)-1 : 0xff;
+#if DEBUG
 		fprintf(stderr, "range_bigval: 0x");
 		if (MP_OKAY != (rc = mp_fwrite(&range_bigval, 16, stderr)))						goto mp_err;
 		fprintf(stderr, "\n");
-		fprintf(stderr, "range_bitlen_bigval: %d, range_bytelen_bigval: %d, range_remain_bigval: %d, topbyte_mask: 0b%1x\n", range_bitlen_bigval, range_bytelen_bigval, range_remain_bigval, topbyte_mask);
+		fprintf(stderr, "range_bitlen_bigval: %d, range_bytelen_bigval: %d, range_remain_bigval: %d, topbyte_mask: 0x%1x\n", range_bitlen_bigval, range_bytelen_bigval, range_remain_bigval, topbyte_mask);
 #endif
 
 		// To enforce uniform (unbiased) distribution, we need to keep rolling
@@ -359,9 +366,12 @@ static int method_integer(ClientData cdata, Tcl_Interp* interp, Tcl_ObjectContex
 						md->desc->name, range_bytelen_bigval);
 			}
 			buf_bigval[0] &= topbyte_mask;
+#if DEBUG
+			fprintf(stderr, "got: %ld, buf_bigval[0]: 0x%02X\n", got, buf_bigval[0]);
+#endif
 			if (MP_OKAY != (rc = mp_from_ubin(&value_bigval, buf_bigval, range_bytelen_bigval)))	goto mp_err;
 			if (MP_GT == mp_cmp_mag(&value_bigval, &range_bigval)) {
-#if 0
+#if DEBUG
 				fprintf(stderr, "%3d: rolled bytes: %ld, range: 0x", i, got);
 				if (MP_OKAY != (rc = mp_fwrite(&range_bigval, 16, stderr)))							goto mp_err;
 				fprintf(stderr, ", value: 0x");
@@ -371,7 +381,53 @@ static int method_integer(ClientData cdata, Tcl_Interp* interp, Tcl_ObjectContex
 				continue;
 			}
 			if (MP_OKAY != (rc = mp_add(&lower_bigval, &value_bigval, &value_bigval)))				goto mp_err;
-			Tcl_SetObjResult(interp, Tcl_NewBignumObj(&value_bigval));
+#if 0
+			// Tcl_NewBignumObj takes ownership of the memory in the mp_int passed, which eventually
+			// means it tries to free it with ckalloc, but value_bigval was allocated by the external
+			// libtommath mp_init, and hence malloc.  This does not end well so we have to hack around
+			// it by making a manual copy, with storage allocated by ckalloc
+			mp_int		value_bigval_copy = value_bigval;
+			value_bigval_copy.dp = ckalloc(value_bigval_copy.alloc * sizeof(mp_digit));
+			memcpy(value_bigval_copy.dp, value_bigval.dp, value_bigval_copy.alloc * sizeof(mp_digit));
+#if DEBUG
+			fprintf(stderr, "before, value_bigval.dp: %p, value_bigval_copy.dp: %p\n", value_bigval.dp, value_bigval_copy.dp);
+#endif
+			Tcl_SetObjResult(interp, Tcl_NewBignumObj(&value_bigval_copy));
+#if DEBUG
+			fprintf(stderr, "after,  value_bigval.dp: %p, value_bigval_copy.dp: %p\n", value_bigval.dp, value_bigval_copy.dp);
+#endif
+#else
+			// Tcl_NewBignumObj takes ownership of the memory in the mp_int passed, which eventually
+			// means it tries to free it with ckalloc, but value_bigval was allocated by the external
+			// libtommath mp_init, and hence malloc.  This does not end well so we have to hack around
+			// it by constructing a hex string rep and using Tcl_ExprObj to convert it to a bignum
+#if DEBUG
+			fprintf(stderr, "mp_fwrite: 0x");
+			if (MP_OKAY != (rc = mp_fwrite(&value_bigval, 16, stderr)))						goto mp_err;
+#endif
+			const size_t	need = ((mp_count_bits(&value_bigval)+3)/4)+1;	// +1: \0
+#if DEBUG
+			fprintf(stderr, "\nComputed need: %zd\n", need);
+#endif
+			char			hexrep[2+need];									// +2: 0x
+			hexrep[0] = '0';
+			hexrep[1] = 'x';
+			size_t			wrote = 0;
+			if (MP_OKAY != (rc = mp_to_radix(&value_bigval, hexrep+2, need+1, &wrote, 16)))			goto mp_err;
+			if (wrote != need) {
+#if DEBUG
+				fprintf(stderr, "   manual: %s\n", hexrep);
+#endif
+				THROW_PRINTF_LABEL(mp_finally, code, "Expecting to write %zd bytes, but wrote %zd", need, wrote);
+			}
+			replace_tclobj(&tmp, Tcl_NewStringObj(hexrep, 2+need-1));	// -1: \0
+			replace_tclobj(&res, NULL);	// Make sure res doesn't point to an obj, Tcl_ExprObj may set it
+#if DEBUG
+			fprintf(stderr, "Using expr hack on (%s)\n", Tcl_GetString(tmp));
+#endif
+			TEST_OK_LABEL(mp_finally, code, Tcl_ExprObj(interp, tmp, &res));	// we own the ref in res if ExprObj sets it
+			Tcl_SetObjResult(interp, res);
+#endif
 			goto mp_finally;
 		}
 
@@ -381,18 +437,30 @@ static int method_integer(ClientData cdata, Tcl_Interp* interp, Tcl_ObjectContex
 		// TODO: implement mp_read_unsigned_bin
 
 mp_finally:
-		mp_clear(&range_bigval);
-		mp_clear(&value_bigval);
-		mp_clear(&upper_bigval);
-		mp_clear(&lower_bigval);
+#if DEBUG
+		fprintf(stderr, "mp_clear_multi(&range_bigval (dp: %p), &value_bigval (dp: %p), NULL)\n", range_bigval.dp, value_bigval.dp);
+#endif
+		mp_clear_multi(&range_bigval, &value_bigval, NULL);
+#if 1
+		if (lower_bigval.dp) {
+			ckfree(lower_bigval.dp);
+			lower_bigval = (mp_int){0};
+		}
+		if (upper_bigval.dp) {
+			ckfree(upper_bigval.dp);
+			upper_bigval = (mp_int){0};
+		}
+#endif
 		goto finally;
 
 mp_err:
 		THROW_PRINTF_LABEL(mp_finally, code, "failed to initialize bignum: %s", mp_error_to_string(rc));
-		goto finally;
+		goto mp_finally;
 	}
 
 finally:
+	replace_tclobj(&tmp, NULL);
+	replace_tclobj(&res, NULL);
 	return code;
 }
 
