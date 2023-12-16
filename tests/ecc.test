@@ -1,10 +1,4 @@
-if {"::tcltest" ni [namespace children]} {
-	package require tcltest
-	namespace import ::tcltest::*
-}
-
-::tcltest::loadTestedCommands
-package require tomcrypt
+source [file join [file dirname [info script]] common.tcl]
 
 test ecc-1.1 {ecc_verify, success} -body { #<<<
 	tomcrypt::ecc_verify \
@@ -58,6 +52,55 @@ test ecc-10.5 {ecc_verify, bad sig} -body { #<<<
 		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
 		[string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
 } -result {ecc_verify_hash failed: Invalid input packet.} -returnCodes error -errorCode {TOMCRYPT FORMAT}
+#>>>
+test ecc-10.6 {ecc_verify, sig not bytes} -body { #<<<
+	tomcrypt::ecc_verify \
+		\u306f \
+		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
+		[string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
+} -result "expected byte sequence but character 0 was '\u306f' (U+00306F)" -returnCodes error -errorCode {TCL VALUE BYTES}
+#>>>
+test ecc-10.7 {ecc_verify, message not bytes} -body { #<<<
+	tomcrypt::ecc_verify \
+		[string range [binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] 1 end] \
+		\u306f \
+		[string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
+} -result "expected byte sequence but character 0 was '\u306f' (U+00306F)" -returnCodes error -errorCode {TCL VALUE BYTES}
+#>>>
+test ecc-10.8 {orphan an ecc_key intrep} -constraints testMode -body { #<<<
+	tomcrypt::ecc_verify \
+		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
+		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
+		[tomcrypt::_testmode_leakObj [string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]]
+} -result 1
+#>>>
+test ecc-10.9 {duplicate ecc_key intrep} -constraints testMode -body { #<<<
+	set pbkey	[string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
+	set res	[tomcrypt::ecc_verify \
+		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
+		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
+		$pbkey]
+	tomcrypt::_testmode_dupObj $pbkey
+	set res
+} -cleanup {
+	unset -nocomplain pbkey res
+} -result 1
+#>>>
+test ecc-10.10 {child intero} -body { #<<<
+	set child	[interp create]
+	$child eval {
+		load {} tomcrypt
+		tomcrypt::ecc_verify \
+			[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
+			[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
+			[string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
+	}
+} -cleanup {
+	if {[info exists child]} {
+		interp delete $child
+	}
+	unset -nocomplain child
+} -result 1
 #>>>
 
 

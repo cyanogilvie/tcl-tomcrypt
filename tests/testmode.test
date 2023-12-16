@@ -1,0 +1,70 @@
+source [file join [file dirname [info script]] common.tcl]
+
+# test the test mode
+test testMode-1.1 {test mode} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_hasGetBytesFromObj foo
+} -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::_testmode_hasGetBytesFromObj"}
+#>>>
+test testMode-2.1 {test isByteArray, true} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_isByteArray [binary format H* 1234]
+} -result 1
+#>>>
+test testMode-2.2 {test isByteArray, false} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_isByteArray \u306f
+} -result 0
+#>>>
+test testMode-2.3 {test isByteArray, too few args} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_isByteArray
+} -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::_testmode_isByteArray value"}
+#>>>
+test testMode-2.4 {test isByteArray, too many args} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_isByteArray a b
+} -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::_testmode_isByteArray value"}
+#>>>
+test testMode-3.1 {test leakObj, too few args} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_leakObj
+} -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::_testmode_leakObj value"}
+#>>>
+test testMode-3.2 {test leakObj, too many args} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_leakObj a b
+} -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::_testmode_leakObj value"}
+#>>>
+test testMode-3.3 {test leakObj, wrong type} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_leakObj \u306f
+} -returnCodes error -errorCode {TCL VALUE BYTES} -result "expected byte sequence but character 0 was '\u306f' (U+00306F)"
+#>>>
+test testMode-4.1 {test dupObj, too few args} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_dupObj
+} -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::_testmode_dupObj value"}
+#>>>
+test testMode-4.2 {test dupObj, too many args} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_dupObj a b
+} -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::_testmode_dupObj value"}
+#>>>
+test testMode-4.3 {test dupObj, recount} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_refCount [tomcrypt::_testmode_dupObj [string trim " foo"]]
+} -result 1
+#>>>
+test testMode-5.1 {test refCount, too few args} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_refCount
+} -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::_testmode_refCount value"}
+#>>>
+test testMode-5.2 {test refCount, too many args} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_refCount a b
+} -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::_testmode_refCount value"}
+#>>>
+test testMode-5.3 {test refCount, literal} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_refCount literal:testMode-5.3
+} -result 3
+#>>>
+test testMode-5.4 {test refCount, anon} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_refCount [string trim " a"]
+} -result 1
+#>>>
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4
+

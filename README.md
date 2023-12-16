@@ -41,13 +41,13 @@ functionality.
     error if it couldn’t parse *sig* or *pbkey*.
   - **tomcrypt::prng** **create** *prngInstance* *type* ?*entropy*?  
     Create a PRNG instance accessed by the command name *prngInstance*,
-    using the *type*, such as **fortuna** or **chacha20** (as known to
-    libtomcrypt), or "" (an empty string) to select the recommended
-    default which may change between releases, and bootstrapped with
-    *entropy*, which must be a bytearray of high entropy bytes. If
-    *entropy* is omitted the PRNG will be bootstrapped with at least 256
-    bits of entropy from the platform’s default cryptographic RNG.
-    Returns the *prngInstance* command name.
+    using the implementation *type*, such as **fortuna** or **chacha20**
+    (as known to libtomcrypt), or "" (an empty string) to select the
+    recommended default which may change between releases, and
+    bootstrapped with *entropy* which must be a bytearray of high
+    entropy bytes. If *entropy* is omitted the PRNG will be bootstrapped
+    with at least 256 bits of entropy from the platform’s default
+    cryptographic RNG. Returns the *prngInstance* command name.
   - **tomcrypt::prng** **new** *type* ?*entropy*?  
     As above, but the *prngInstance* command name is picked
     automatically.
@@ -55,7 +55,7 @@ functionality.
 ## PRNG INSTANCE METHODS
 
   - *prngInstance* **bytes** *count*  
-    Retrieve *count* random bytes from the PRNG
+    Retrieve *count* random bytes from the PRNG.
   - *prngInstance* **add\_entropy** *entropy*  
     Add entropy to the PRNG, given as a bytearray *entropy*. *entropy*
     should come from a high quality source of random bytes such as the
@@ -214,8 +214,9 @@ RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.2/tcl-
     cd .. && rm -rf tcl-tomcrypt
 ```
 
-For any of the build methods you may need to pass `--with-tcl` to
-`configure` if your Tcl install is somewhere nonstandard.
+For any of the build methods you may need to pass `--with-tcl
+/path/to/tcl/lib` to `configure` if your Tcl install is somewhere
+nonstandard.
 
 ### Testing
 
@@ -227,7 +228,9 @@ or CI/CD pipeline):
 make test
 ```
 
-And maybe also the memory checker `valgrind`:
+And maybe also the memory checker `valgrind` (requires that Tcl and this
+package are built with suitable memory debugging flags, like
+`CFLAGS="-DPURIFY -Og" --enable-symbols`):
 
 ``` sh
 make valgrind
@@ -274,6 +277,12 @@ handling and test coverage. There are no known memory leaks or errors,
 and the package is routinely tested by running its test suite (which
 aims at full coverage) through valgrind. The `make valgrind`, `make
 test` and `make coverage` build targets support these goals.
+
+## SOURCE CODE
+
+This package’s source code is available at
+https://github.com/cyanogilvie/tcl-tomcrypt. Please create issues there
+for any bugs discovered.
 
 ## LICENSE
 

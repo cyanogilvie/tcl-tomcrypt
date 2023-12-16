@@ -57,6 +57,19 @@ foreach file [lsort [::tcltest::getMatchingFiles]] {
     }
 }
 
+## Trigger the unload handling
+#try {
+#	puts $chan "Attempting to unload tomcrypt"
+#	set unloadfn	[file join [pwd] libtomcrypt0.2.so]
+#	#unload -nocomplain $unloadfn
+#	#unload $unloadfn
+#	unload $unloadfn tomcrypt
+#} on error {errmsg options} {
+#	puts $chan "Could not unload tomcrypt: $errmsg"
+#} on ok {} {
+#	puts $chan "Unloaded tomcrypt"
+#}
+
 # cleanup
 puts $chan "\nTests ended at [eval $timeCmd]"
 ::tcltest::cleanupTests 1

@@ -490,6 +490,11 @@ local/lib/libtomcrypt.a: local/lib/libtommath.a local/lib/libtfm.a
 
 include $(top_builddir)/Makefile.teabase
 
+alltags:
+	ctags-exuberant -R generic/* deps/libtomcrypt/src deps/tomsfastmath/src deps/libtomcrypt/src $(TCL_SRC_DIR)
+
+.PHONY: alltags
+
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be tomcrypteeded.
 .NOEXPORT:

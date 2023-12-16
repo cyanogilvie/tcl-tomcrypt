@@ -1,0 +1,18 @@
+{
+	Testmode deliberate leak
+	Memcheck:Leak
+	...
+	fun:leakObj
+	...
+}
+{
+	Testmode deliberate leak
+	Memcheck:Leak
+	...
+	fun:Tcl_InitStringRep
+	fun:update_string_rep
+	...
+	fun:Tomcrypt_Unload
+	fun:UnloadLibrary
+	...
+}

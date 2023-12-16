@@ -1,10 +1,4 @@
-if {"::tcltest" ni [namespace children]} {
-	package require tcltest
-	namespace import ::tcltest::*
-}
-
-::tcltest::loadTestedCommands
-package require tomcrypt
+source [file join [file dirname [info script]] common.tcl]
 
 test hash-1.1 {md5} -body { #<<<
 	binary encode hex [tomcrypt::hash md5 {hello, world}]
@@ -17,6 +11,7 @@ test hash-1.2 {sha256} -body { #<<<
 test hash-2.1 {incorrect args: too few}  -body {tomcrypt::hash}              -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::hash algorithm bytes"}
 test hash-2.2 {incorrect args: too many} -body {tomcrypt::hash md5 foo bar}  -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::hash algorithm bytes"}
 test hash-2.3 {bad hash}                 -body {tomcrypt::hash nonesuch foo} -returnCodes error -errorCode {TOMCRYPT LOOKUP HASH nonesuch} -result {Unknown hash nonesuch}
+test hash-2.4 {not bytes}                -body {tomcrypt::hash md5 \u306f}   -returnCodes error -errorCode {TCL VALUE BYTES} -result "expected byte sequence but character 0 was '\u306f' (U+00306F)"
 
 # cleanup
 ::tcltest::cleanupTests

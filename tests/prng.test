@@ -1,12 +1,4 @@
-if {"::tcltest" ni [namespace children]} {
-	package require tcltest
-	namespace import ::tcltest::*
-}
-
-::tcltest::loadTestedCommands
-package require tomcrypt
-
-tcltest::testConstraint hasGetBytesFromObj	[tomcrypt::_hasGetBytesFromObj]
+source [file join [file dirname [info script]] common.tcl]
 
 test rng-1.1 {rng_bytes} -body { #<<<
 	string length [tomcrypt::rng_bytes 2]
@@ -36,14 +28,14 @@ test rng-1.6 {rng_bytes, zero count} -body { # Should this be an error? <<<
 	tomcrypt::rng_bytes 0
 } -result {}
 #>>>
-test rng-1.7 {rng_bytes, is bytearray} -body { #<<<
-	tcl::unsupported::representation [tomcrypt::rng_bytes 1]
-} -match glob -result *bytearray*
+test rng-1.7 {rng_bytes, is bytearray} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_isByteArray [tomcrypt::rng_bytes 1]
+} -result 1
 #>>>
 
 # fake entropy to prevent the tests (which create and destroy a lot of PRNGs in
 # quick succession) from depleting the system entropy pool too much
-set fake_entropy		[binary decode hex [string repeat a 40]]
+set fake_entropy		[string repeat a 40]
 test prng-1.1 {prng create} -body { #<<<
 	tomcrypt::prng create prng-1.1 fortuna
 	info commands prng-1.1
@@ -64,13 +56,13 @@ test prng-1.2 {prng new} -body { #<<<
 } -result 1
 #>>>
 test prng-1.3 {prng create, entropy provided} -body { #<<<
-	tomcrypt::prng create prng-1.1 fortuna $fake_entropy
-	info commands prng-1.1
+	tomcrypt::prng create prng-1.3 fortuna $fake_entropy
+	info commands prng-1.3
 } -cleanup {
-	if {[llength [info commands prng-1.1]]} {
-		rename prng-1.1 {}
+	if {[llength [info commands prng-1.3]]} {
+		rename prng-1.3 {}
 	}
-} -result prng-1.1
+} -result prng-1.3
 #>>>
 test prng-1.4 {prng create, entropy provided} -body { #<<<
 	tomcrypt::prng create prng-1.4 fortuna $fake_entropy
@@ -80,6 +72,15 @@ test prng-1.4 {prng create, entropy provided} -body { #<<<
 		rename prng-1.4 {}
 	}
 } -result prng-1.4
+#>>>
+test prng-1.4.1 {prng create, bad entropy provided} -constraints hasGetBytesFromObj -body { #<<<
+	set testname	prng-1.4.1
+	tomcrypt::prng create $testname fortuna $fake_entropy\u306f
+} -cleanup {
+	if {[llength [info commands $testname]]} {
+		rename $testname {}
+	}
+} -result "expected byte sequence but character 40 was '\u306f' (U+00306F)" -returnCodes error -errorCode {TCL VALUE BYTES}
 #>>>
 test prng-1.5 {prng explicit destroy} -body { #<<<
 	set testname prng-1.5
@@ -101,7 +102,7 @@ test prng-1.6 {prng create, too few args} -body { # Should this form be allowed,
 		rename $testname {}
 	}
 	unset -nocomplain testname
-} -result {wrong # args: should be "tomcrypt::prng create name type ?entropy?"} -returnCodes error -errorCode {TCL WRONGARGS}
+} -result {wrong # args: should be "tomcrypt::prng create prng-1.6 type ?entropy?"} -returnCodes error -errorCode {TCL WRONGARGS}
 #>>>
 test prng-1.7 {prng create, too many args} -body { #<<<
 	set testname prng-1.7
@@ -111,7 +112,7 @@ test prng-1.7 {prng create, too many args} -body { #<<<
 		rename $testname {}
 	}
 	unset -nocomplain testname
-} -result {wrong # args: should be "tomcrypt::prng create name type ?entropy?"} -returnCodes error -errorCode {TCL WRONGARGS}
+} -result {wrong # args: should be "tomcrypt::prng create prng-1.7 type ?entropy?"} -returnCodes error -errorCode {TCL WRONGARGS}
 #>>>
 test prng-1.8 {prng create, auto-pick implementation} -body { #<<<
 	set testname prng-1.8
@@ -134,7 +135,7 @@ test prng-2.1 {prng bad implementation} -body { #<<<
 } -result {PRNG implementation "nonesuch" not registered} -returnCodes error -errorCode {TOMCRYPT UNREGISTERED PRNG nonesuch}
 #>>>
 test prng-2.2 {too little entropy supplied} -body { #<<<
-	set prng	[tomcrypt::prng new fortuna [binary encode hex [string repeat a 7]]]
+	set prng	[tomcrypt::prng new fortuna [string repeat a 7]]
 } -cleanup {
 	if {[info exists prng] && [llength [info commands $prng]]} {
 		rename $prng {}
@@ -152,35 +153,37 @@ test prng-3.1 {prng bytes} -body { #<<<
 	unset -nocomplain prng
 } -result 3
 #>>>
-test prng-3.2 {prng bytes, is bytearray} -body { #<<<
+test prng-3.2 {prng bytes, is bytearray} -constraints testMode -body { #<<<
 	set prng	[tomcrypt::prng new fortuna $fake_entropy]
-	tcl::unsupported::representation [$prng bytes 3]
+	tomcrypt::_testmode_isByteArray [$prng bytes 3]
 } -cleanup {
 	if {[info exists prng] && [llength [info commands $prng]]} {
 		rename $prng {}
 	}
 	unset -nocomplain prng
-} -match glob -result *bytearray*
+} -result 1
 #>>>
 test prng-3.3 {prng bytes, too few args} -body { #<<<
-	set prng	[tomcrypt::prng new fortuna $fake_entropy]
-	$prng bytes
+	set testname	prng-3.3
+	tomcrypt::prng create $testname fortuna $fake_entropy]
+	$testname bytes
 } -cleanup {
-	if {[info exists prng] && [llength [info commands $prng]]} {
-		rename $prng {}
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
 	}
-	unset -nocomplain prng
-} -result {wrong # args: should be "bytes count"} -returnCodes error -errorCode {TCL WRONGARGS}
+	unset -nocomplain testname
+} -result {wrong # args: should be "prng-3.3 bytes count"} -returnCodes error -errorCode {TCL WRONGARGS}
 #>>>
 test prng-3.4 {prng bytes, too many args} -body { #<<<
-	set prng	[tomcrypt::prng new fortuna $fake_entropy]
-	$prng bytes 3 4
+	set testname	prng-3.4
+	tomcrypt::prng create $testname fortuna $fake_entropy
+	$testname bytes 3 4
 } -cleanup {
-	if {[info exists prng] && [llength [info commands $prng]]} {
-		rename $prng {}
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
 	}
-	unset -nocomplain prng
-} -result {wrong # args: should be "bytes count"} -returnCodes error -errorCode {TCL WRONGARGS}
+	unset -nocomplain testname
+} -result {wrong # args: should be "prng-3.4 bytes count"} -returnCodes error -errorCode {TCL WRONGARGS}
 #>>>
 test prng-3.5 {prng bytes, not an integer} -body { #<<<
 	set prng	[tomcrypt::prng new fortuna $fake_entropy]
@@ -224,7 +227,7 @@ test prng-3.8 {prng bytes, zero count} -body { # Should this be an error? <<<
 #>>>
 test prng-4.1 {prng add_entropy} -body { #<<<
 	set prng	[tomcrypt::prng new fortuna $fake_entropy]
-	$prng add_entropy [binary decode hex [string repeat b 8]]
+	$prng add_entropy [string repeat b 8]
 } -cleanup {
 	if {[info exists prng] && [llength [info commands $prng]]} {
 		rename $prng {}
@@ -233,7 +236,7 @@ test prng-4.1 {prng add_entropy} -body { #<<<
 } -result {}
 #>>>
 test prng-4.2 {prng add_entropy, too few args} -body { #<<<
-	set testname	prng-5.2
+	set testname	prng-4.2
 	tomcrypt::prng create $testname fortuna $fake_entropy
 	$testname add_entropy
 } -cleanup {
@@ -263,7 +266,17 @@ test prng-4.4 {prng add_entropy, not a bytearray} -constraints hasGetBytesFromOb
 		rename $testname {}
 	}
 	unset -nocomplain testname
-} -result {expected bytearray but got "a"} -returnCodes error -errorCode {TCL VALUE BYTEARRAY}
+} -result "expected byte sequence but character 0 was '\u306f' (U+00306F)" -returnCodes error -errorCode {TCL VALUE BYTES}
+#>>>
+test prng-4.5 {prng add_entropy, zero bytes} -body { # Should this be an error? <<<
+	set prng	[tomcrypt::prng new fortuna $fake_entropy]
+	$prng add_entropy {}
+} -cleanup {
+	if {[info exists prng] && [llength [info commands $prng]]} {
+		rename $prng {}
+	}
+	unset -nocomplain prng
+} -result {}
 #>>>
 test prng-5.1 {prng integer} -body { #<<<
 	set testname	prng-5.2
@@ -307,7 +320,7 @@ test prng-5.4 {prng integer, lower not an integer} -body { #<<<
 		rename $testname {}
 	}
 	unset -nocomplain testname
-} -result {expected integer but got "a"} -returnCodes error -errorCode {TCL VALUE NUMBER}
+} -result {expected number but got "a"} -returnCodes error -errorCode {TCL VALUE NUMBER}
 #>>>
 test prng-5.5 {prng integer, lower not an integer} -body { #<<<
 	set testname	prng-5.5
@@ -329,7 +342,7 @@ test prng-5.6 {prng integer, upper not an integer} -body { #<<<
 		rename $testname {}
 	}
 	unset -nocomplain testname
-} -result {expected integer but got "a"} -returnCodes error -errorCode {TCL VALUE NUMBER}
+} -result {expected number but got "a"} -returnCodes error -errorCode {TCL VALUE NUMBER}
 #>>>
 test prng-5.7 {prng integer, upper not an integer} -body { #<<<
 	set testname	prng-5.7
@@ -353,8 +366,8 @@ test prng-5.8 {prng integer, lower greater than upper} -body { #<<<
 	unset -nocomplain testname
 } -result {lower must be less than or equal to upper} -returnCodes error -errorCode {TOMCRYPT VALUE}
 #>>>
-test prng-5.8 {prng integer, negative} -body { #<<<
-	set testname	prng-5.8
+test prng-5.9 {prng integer, negative} -body { #<<<
+	set testname	prng-5.9
 	tomcrypt::prng create $testname fortuna $fake_entropy
 	tcl::mathop::<= -10 [$testname integer -10 -4] -4
 } -cleanup {
@@ -364,8 +377,8 @@ test prng-5.8 {prng integer, negative} -body { #<<<
 	unset -nocomplain testname
 } -result 1
 #>>>
-test prng-5.9 {prng integer, large (bignum)} -body { #<<<
-	set testname	prng-5.9
+test prng-5.10 {prng integer, large (bignum)} -body { #<<<
+	set testname	prng-5.10
 	tomcrypt::prng create $testname fortuna $fake_entropy
 	tcl::mathop::<= 0 [$testname integer 0 [expr {2**256-1}]] [expr {2**256-1}]
 } -cleanup {
@@ -374,6 +387,111 @@ test prng-5.9 {prng integer, large (bignum)} -body { #<<<
 	}
 	unset -nocomplain testname
 } -result 1
+#>>>
+test prng-5.11 {prng integer, large (bignum)} -body { #<<<
+	set testname	prng-5.11
+	tomcrypt::prng create $testname fortuna $fake_entropy
+	tcl::mathop::<= [expr {2**256-1}] [$testname integer [expr {2**256-1}] [expr {2**512-1}]] [expr {2**512-1}]
+} -cleanup {
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
+	}
+	unset -nocomplain testname
+} -result 1
+#>>>
+test prng-5.12 {prng integer, zero range} -body { #<<<
+	set testname	prng-5.12
+	tomcrypt::prng create $testname fortuna $fake_entropy
+	$testname integer 42 42
+} -cleanup {
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
+	}
+} -result 42
+#>>>
+test prng-5.13 {prng integer, zero range (bignum)} -body { #<<<
+	set testname	prng-5.13
+	tomcrypt::prng create $testname fortuna $fake_entropy
+	$testname integer [expr {2**256}] [expr {2**256}]
+} -cleanup {
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
+	}
+	unset -nocomplain testname
+} -result [expr {2**256}]
+#>>>
+test prng-5.14 {prng integer, probable exercise of failed roll case} -body { #<<<
+	set testname	prng-5.14
+	tomcrypt::prng create $testname fortuna $fake_entropy
+	for {set i 0} {$i < 100} {incr i} {
+		if {![tcl::mathop::<= 0 [$testname integer 0 32] 32]} {
+			error "value out of range"
+		}
+	}
+	set i
+} -cleanup {
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
+	}
+	unset -nocomplain i testname
+} -result 100
+#>>>
+test prng-5.15.0 {prng integer, large (bignum), mask 0} -body { #<<<
+	set testname	prng-5.15.0
+	tomcrypt::prng create $testname fortuna $fake_entropy
+	tcl::mathop::<= 0 [$testname integer 0 [expr {2**256-1}]] [expr {2**256-1}]
+} -cleanup {
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
+	}
+	unset -nocomplain testname
+} -result 1
+#>>>
+test prng-5.15.1 {prng integer, large (bignum), mask 1} -body { #<<<
+	set testname	prng-5.15.1
+	tomcrypt::prng create $testname fortuna xx$fake_entropy		;# Tuned to trigger the reroll case
+	tcl::mathop::<= 0 [$testname integer 0 [expr {2**256}]] [expr {2**256}]
+} -cleanup {
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
+	}
+	unset -nocomplain testname
+} -result 1
+#>>>
+test prng-5.15.7 {prng integer, large (bignum), mask 7} -body { #<<<
+	set testname	prng-5.15.7
+	tomcrypt::prng create $testname fortuna $fake_entropy
+	tcl::mathop::<= 0 [$testname integer 0 [expr {2**263-1}]] [expr {2**263-1}]
+} -cleanup {
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
+	}
+	unset -nocomplain testname
+} -result 1
+#>>>
+test prng-5.16 {prng integer, lower greater than upper (bignum)} -body { #<<<
+	set testname	prng-5.16
+	tomcrypt::prng create $testname fortuna $fake_entropy
+	$testname integer [expr {2**256}] [expr {2**256-1}]
+} -cleanup {
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
+	}
+	unset -nocomplain testname
+} -result {lower must be less than or equal to upper} -returnCodes error -errorCode {TOMCRYPT VALUE}
+#>>>
+test prng-5-17 {prng integer, bignum use after} -body { #<<<
+	set testname	prng-5.18
+	tomcrypt::prng create $testname fortuna $fake_entropy
+	set lower		[expr {2**256-1}]
+	$testname integer $lower [expr {2**259-42}]
+	expr {$lower+1}
+} -cleanup {
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
+	}
+	unset -nocomplain testname lower
+} -result [expr {2**256}]
 #>>>
 test prng-6.1 {prng double} -body { #<<<
 	set testname	prng-6.1
@@ -420,16 +538,16 @@ test prng-7.2 {prng export, too many args} -body { #<<<
 	unset -nocomplain testname
 } -result {wrong # args: should be "prng-7.2 export"} -returnCodes error -errorCode {TCL WRONGARGS}
 #>>>
-test prng-7.3 {prng export is bytearray} -body { #<<<
+test prng-7.3 {prng export is bytearray} -constraints testMode -body { #<<<
 	set testname	prng-7.3
 	tomcrypt::prng create $testname fortuna $fake_entropy
-	tcl::unsupported::representation [$testname export]
+	tomcrypt::_testmode_isByteArray [$testname export]
 } -cleanup {
 	if {[info exists testname] && [llength [info commands $testname]]} {
 		rename $testname {}
 	}
 	unset -nocomplain testname
-} -match glob -result *bytearray*
+} -result 1
 #>>>
 test prng-7.4 {prng export accepted by new prng} -body { #<<<
 	set testname	prng-7.4
@@ -440,7 +558,7 @@ test prng-7.4 {prng export accepted by new prng} -body { #<<<
 } -cleanup {
 	foreach v {testname prng} {
 		if {[info exists $v] && [llength [info commands [set $v]]]} {
-			rename $v {}
+			rename [set $v] {}
 		}
 		unset -nocomplain $v
 	}

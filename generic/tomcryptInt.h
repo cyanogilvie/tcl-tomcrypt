@@ -1,14 +1,23 @@
 #ifndef _TOMCRYPTINT_H
 #define _TOMCRYPTINT_H
+#include <tcl.h>
+#include <tclOO.h>
 #include "tclstuff.h"
 #include <tomcrypt.h>
+#include <tommath.h>
 #include <stdint.h>
+#include <inttypes.h>
+#include <math.h>
 #include "tip445.h"
 
+// Must match with lit_str[] in tomcrypt.c
 enum {
 	L_EMPTY,
+	L_NOBYTES,
 	L_TRUE,
 	L_FALSE,
+	L_PRNG_CLASS,
+	L_PRNG_CLASS_DEF,
 	L_size
 };
 
@@ -35,7 +44,7 @@ void forget_intrep(Tcl_Obj* obj);
 int GetECCKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, ecc_key** key);
 // type_ecc_key.c interface >>>
 // prng_class.c internal interface <<<
-int prng_class_init(Tcl_Interp* interp);
+int prng_class_init(Tcl_Interp* interp, struct interp_cx* l);
 // prng_class.c internal interface >>>
 
 EXTERN int Tomcrypt_Init _ANSI_ARGS_((Tcl_Interp * interp));

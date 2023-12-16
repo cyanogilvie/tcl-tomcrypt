@@ -1,10 +1,4 @@
-if {"::tcltest" ni [namespace children]} {
-	package require tcltest
-	namespace import ::tcltest::*
-}
-
-::tcltest::loadTestedCommands
-package require tomcrypt
+source [file join [file dirname [info script]] common.tcl]
 
 test example-1.1 {hash} -body { #<<<
 	puts [binary encode hex [tomcrypt::hash md5 "hello, tomcrypt"]]

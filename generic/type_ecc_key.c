@@ -32,7 +32,7 @@ static void dup_ecc_key_internal_rep(Tcl_Obj* src, Tcl_Obj* dst) //<<<
 	Tcl_ObjInternalRep*	srcir = Tcl_FetchInternalRep(src, &ecc_key_objtype);
 	ecc_key*			key = (ecc_key*)srcir->ptrAndLongRep.ptr;
 
-	const int export_rc = ecc_export(buf, &buflen, key->k ? PK_PRIVATE : PK_PUBLIC, key);
+	const int export_rc = ecc_export(buf, &buflen, key->type, key);
 	if (export_rc != CRYPT_OK) Tcl_Panic("dup_ecc_key_internal_rep: ecc_export failed: %s", error_to_string(export_rc));
 
 	ecc_key*		dupkey = ckalloc(sizeof(ecc_key));
@@ -53,7 +53,7 @@ static void update_string_rep(Tcl_Obj* obj) //<<<
 	unsigned long		buflen = 2048;
 	uint8_t				buf[buflen];
 
-	const int export_rc = ecc_export(buf, &buflen, key->k ? PK_PRIVATE : PK_PUBLIC, key);
+	const int export_rc = ecc_export(buf, &buflen, key->type, key);
 	if (export_rc != CRYPT_OK)
 		Tcl_Panic("update_string_rep: ecc_export failed: %s", error_to_string(export_rc));
 

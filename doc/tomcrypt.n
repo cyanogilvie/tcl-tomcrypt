@@ -76,10 +76,10 @@ error if it couldn\[cq]t parse \f[I]sig\f[R] or \f[I]pbkey\f[R].
 .TP
 \f[B]tomcrypt::prng\f[R] \f[B]create\f[R] \f[I]prngInstance\f[R] \f[I]type\f[R] ?\f[I]entropy\f[R]?
 Create a PRNG instance accessed by the command name
-\f[I]prngInstance\f[R], using the \f[I]type\f[R], such as
+\f[I]prngInstance\f[R], using the implementation \f[I]type\f[R], such as
 \f[B]fortuna\f[R] or \f[B]chacha20\f[R] (as known to libtomcrypt), or
 \[dq]\[dq] (an empty string) to select the recommended default which may
-change between releases, and bootstrapped with \f[I]entropy\f[R], which
+change between releases, and bootstrapped with \f[I]entropy\f[R] which
 must be a bytearray of high entropy bytes.
 If \f[I]entropy\f[R] is omitted the PRNG will be bootstrapped with at
 least 256 bits of entropy from the platform\[cq]s default cryptographic
@@ -92,7 +92,7 @@ automatically.
 .SS PRNG INSTANCE METHODS
 .TP
 \f[I]prngInstance\f[R] \f[B]bytes\f[R] \f[I]count\f[R]
-Retrieve \f[I]count\f[R] random bytes from the PRNG
+Retrieve \f[I]count\f[R] random bytes from the PRNG.
 .TP
 \f[I]prngInstance\f[R] \f[B]add_entropy\f[R] \f[I]entropy\f[R]
 Add entropy to the PRNG, given as a bytearray \f[I]entropy\f[R].
@@ -269,8 +269,9 @@ RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.2/tcl-
 \f[R]
 .fi
 .PP
-For any of the build methods you may need to pass \f[C]--with-tcl\f[R]
-to \f[C]configure\f[R] if your Tcl install is somewhere nonstandard.
+For any of the build methods you may need to pass
+\f[C]--with-tcl /path/to/tcl/lib\f[R] to \f[C]configure\f[R] if your Tcl
+install is somewhere nonstandard.
 .SS Testing
 .PP
 Since this package deals with security sensitive code, it\[cq]s a good
@@ -283,7 +284,9 @@ make test
 \f[R]
 .fi
 .PP
-And maybe also the memory checker \f[C]valgrind\f[R]:
+And maybe also the memory checker \f[C]valgrind\f[R] (requires that Tcl
+and this package are built with suitable memory debugging flags, like
+\f[C]CFLAGS=\[dq]-DPURIFY -Og\[dq] --enable-symbols\f[R]):
 .IP
 .nf
 \f[C]
@@ -332,6 +335,11 @@ tested by running its test suite (which aims at full coverage) through
 valgrind.
 The \f[C]make valgrind\f[R], \f[C]make test\f[R] and
 \f[C]make coverage\f[R] build targets support these goals.
+.SS SOURCE CODE
+.PP
+This package\[cq]s source code is available at
+https://github.com/cyanogilvie/tcl-tomcrypt.
+Please create issues there for any bugs discovered.
 .SS LICENSE
 .PP
 This package is placed in the public domain: the author disclaims

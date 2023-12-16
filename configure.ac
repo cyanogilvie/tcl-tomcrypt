@@ -61,6 +61,11 @@ TEA_PREFIX
 
 TEA_SETUP_COMPILER
 
+# Check for feature toggles
+ENABLE_DEBUG
+ENABLE_UNLOAD
+ENABLE_TESTMODE
+
 #-----------------------------------------------------------------------
 # __CHANGE__
 # Specify the C source files to compile in TEA_ADD_SOURCES,

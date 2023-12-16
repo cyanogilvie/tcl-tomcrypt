@@ -1,9 +1,13 @@
 #include "tomcryptInt.h"
 
+// Must be kept in sync with the enum in tomcryptInt.tcl
 static const char* lit_str[L_size] = {
-	"",
-	"1",
-	"0"
+	"",				// L_EMPTY
+	"",				// L_NOBYTES
+	"1",			// L_TRUE
+	"0",			// L_FALSE
+	NS "::prng",	// L_PRNG_CLASS
+	"::oo::class create " NS "::prng {}",	// L_PRNG_CLASS_DEF
 };
 
 TCL_DECLARE_MUTEX(g_register_mutex);
@@ -69,6 +73,7 @@ OBJCMD(hash_cmd) //<<<
 	uint8_t			hash[MAXBLOCKSIZE];
 	size_t			bytes_len;
 	const uint8_t*	bytes = Tcl_GetBytesFromObj(interp, objv[A_BYTES], &bytes_len);
+	if (bytes == NULL) { code = TCL_ERROR; goto finally; }
 
 	hash_descriptor[idx].init(&md);
 	hash_descriptor[idx].process(&md, bytes, bytes_len);
@@ -94,7 +99,9 @@ OBJCMD(ecc_verify) //<<<
 
 	int				siglen, msglen, stat;
 	const uint8_t*	sig = Tcl_GetBytesFromObj(interp, objv[A_SIG],  &siglen);
+	if (sig == NULL) { code = TCL_ERROR; goto finally; }
 	const uint8_t*	msg = Tcl_GetBytesFromObj(interp, objv[A_HASH], &msglen);
+	if (msg == NULL) { code = TCL_ERROR; goto finally; }
 	const int		verify_rc = ecc_verify_hash(sig, siglen, msg, msglen, &stat, key);
 	if (verify_rc != CRYPT_OK) {
 		Tcl_SetErrorCode(interp, "TOMCRYPT", "FORMAT", NULL);
@@ -108,14 +115,153 @@ finally:
 }
 
 //>>>
+OBJCMD(rng_bytes) //<<<
+{
+	int				code = TCL_OK;
+	Tcl_Obj*		res = NULL;
+
+	enum {A_cmd, A_BYTES, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "count");
+
+	int	count;
+	TEST_OK_LABEL(finally, code, Tcl_GetIntFromObj(interp, objv[A_BYTES], &count));
+	if (count < 0) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+		THROW_ERROR_LABEL(finally, code, "count cannot be negative");
+	}
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, count));
+	uint8_t*	bytes = Tcl_GetByteArrayFromObj(res, NULL);
+	int			remain = count;
+	while (remain) {
+		const unsigned long got = rng_get_bytes(bytes+(count-remain), remain, NULL);
+		if (got <= 0) THROW_ERROR_LABEL(finally, code, "Failed to read rng bytes");
+		remain -= got;
+	}
+
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
+	return code;
+}
+
+//>>>
+#if TESTMODE
+OBJCMD(hasGetBytesFromObj) //<<<
+{
+	int					code = TCL_OK;
+	struct interp_cx*	l = cdata;
+
+	enum {A_cmd, A_objc};
+	CHECK_ARGS_LABEL(finally, code);
+
+	// For now - we don't implement a polyfill yet
+	Tcl_SetObjResult(interp, l->lit[L_TRUE]);
+
+finally:
+	return code;
+}
+
+//>>>
+OBJCMD(isByteArray) // Snoop on the objtype, use this rather than parse tcl::unsupported::representation because that upsets valgrind <<<
+{
+	int					code = TCL_OK;
+	struct interp_cx*	l = cdata;
+
+	enum {A_cmd, A_OBJ, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "value");
+
+#if TCL_MAJOR_VERSION < 9
+	// Have to assume old typePtr handling because 8.7 registers the legacy bytearray type for "bytearray",
+	// and leaves out the properByteArrayType, so we can't test for it.
+	Tcl_SetObjResult(interp, l->lit[
+			objv[A_OBJ]->typePtr &&
+			strcmp(objv[A_OBJ]->typePtr->name, "bytearray") == 0
+				? L_TRUE
+				: L_FALSE
+	]);
+#else
+	const Tcl_ObjType*		tclByteArrayType = Tcl_GetObjType("bytearray");
+	if (tclByteArrayType == NULL) THROW_ERROR_LABEL(finally, code, "Failed to lookup bytearray type");
+
+	Tcl_ObjInternalRep*	ir = Tcl_FetchInternalRep(objv[A_OBJ], tclByteArrayType);
+	Tcl_SetObjResult(interp, l->lit[ir ? L_TRUE : L_FALSE]);
+#endif
+
+finally:
+	return code;
+}
+
+//>>>
+OBJCMD(leakObj) // Deliberately leak a Tcl_Obj <<<
+{
+	int					code = TCL_OK;
+	Tcl_Obj*			leaked = NULL;
+
+	enum {A_cmd, A_OBJ, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "value");
+
+	// Duplicate this obj so that this function is in the call stack for the
+	// allocation, so we can write a valgrind suppression for it
+	int				len;
+	const uint8_t*	bytes = Tcl_GetBytesFromObj(interp, objv[A_OBJ], &len);
+	if (bytes == NULL) { code = TCL_ERROR; goto finally; }
+	replace_tclobj(&leaked, Tcl_NewByteArrayObj(bytes, len));
+	fprintf(stderr, "Deliberately leaking %p\n", leaked);
+
+	Tcl_SetObjResult(interp, leaked);
+
+finally:
+	return code;
+}
+
+//>>>
+OBJCMD(dupObj) // Force duplicate a Tcl_Obj <<<
+{
+	int					code = TCL_OK;
+
+	enum {A_cmd, A_OBJ, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "value");
+
+	Tcl_SetObjResult(interp, Tcl_DuplicateObj(objv[A_OBJ]));
+
+finally:
+	return code;
+}
+
+//>>>
+OBJCMD(refCount) // Inspect a Tcl_Obj's refCount <<<
+{
+	int					code = TCL_OK;
+
+	enum {A_cmd, A_OBJ, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "value");
+
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(objv[A_OBJ]->refCount));
+
+finally:
+	return code;
+}
+
+//>>>
+#endif
+
 static struct cmd {
 	char*			name;
 	Tcl_ObjCmdProc*	proc;
 	Tcl_ObjCmdProc*	nrproc;
 } cmds[] = {
-	{NS "::hash",			hash_cmd,			NULL},
-	{NS "::ecc_verify",		ecc_verify,			NULL},
-	{NULL,					NULL,				NULL}
+	{NS "::hash",							hash_cmd,			NULL},
+	{NS "::ecc_verify",						ecc_verify,			NULL},
+	{NS "::rng_bytes",						rng_bytes,			NULL},
+#if TESTMODE
+	{NS "::_testmode_hasGetBytesFromObj",	hasGetBytesFromObj,	NULL},
+	{NS "::_testmode_isByteArray",			isByteArray,		NULL},
+	{NS "::_testmode_leakObj",				leakObj,			NULL},
+	{NS "::_testmode_dupObj",				dupObj,				NULL},
+	{NS "::_testmode_refCount",				refCount,			NULL},
+#endif
+	{0}
 };
 // Script API >>>
 
@@ -128,9 +274,11 @@ DLLEXPORT int Tomcrypt_Init(Tcl_Interp* interp) //<<<
 	struct interp_cx*	l = NULL;
 
 #if USE_TCL_STUBS
-	if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL)
-		return TCL_ERROR;
+	if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) return TCL_ERROR;
 #endif
+//#if USE_TCLOO_STUBS
+	if (Tcl_OOInitStubs(interp) == NULL) return TCL_ERROR;
+//#endif
 
 	Tcl_MutexLock(&g_register_mutex);
 	if (!g_register_init) {
@@ -155,6 +303,15 @@ DLLEXPORT int Tomcrypt_Init(Tcl_Interp* interp) //<<<
 	for (int i=0; i<L_size; i++)
 		replace_tclobj(&l->lit[i], Tcl_NewStringObj(lit_str[i], -1));
 
+	// Start L_NOBYTES off as a bytearray (mainly for the test suite)
+	if (NULL == Tcl_GetBytesFromObj(interp, l->lit[L_NOBYTES], NULL)) {
+		code = TCL_ERROR;
+		goto finally;
+	}
+
+	Tcl_Namespace*		ns = Tcl_CreateNamespace(interp, NS, NULL, NULL);
+	TEST_OK_LABEL(finally, code, Tcl_Export(interp, ns, "*", 0));
+
 	struct cmd*	c = cmds;
 	while (c->name) {
 		Tcl_Command		r = NULL;
@@ -177,7 +334,7 @@ DLLEXPORT int Tomcrypt_Init(Tcl_Interp* interp) //<<<
 	}
 	Tcl_MutexUnlock(&g_intreps_mutex);
 
-	TEST_OK_LABEL(finally, code, prng_class_init(interp));
+	TEST_OK_LABEL(finally, code, prng_class_init(interp, l));
 
 	code = Tcl_PkgProvide(interp, PACKAGE_NAME, PACKAGE_VERSION);
 	if (code != TCL_OK) goto finally;
@@ -204,6 +361,7 @@ DLLEXPORT int Tomcrypt_SafeInit(Tcl_Interp* interp) //<<<
 
 //>>>
 #endif
+#if UNLOAD
 DLLEXPORT int Tomcrypt_Unload(Tcl_Interp* interp, int flags) //<<<
 {
 	int			code = TCL_OK;
@@ -218,8 +376,7 @@ DLLEXPORT int Tomcrypt_Unload(Tcl_Interp* interp, int flags) //<<<
 			while ((he = Tcl_FirstHashEntry(&g_intreps, &search))) {
 				Tcl_Obj*	obj = (Tcl_Obj*)Tcl_GetHashValue(he);
 				Tcl_GetString(obj);
-				Tcl_FreeInternalRep(obj);
-				Tcl_DeleteHashEntry(he);
+				Tcl_FreeInternalRep(obj);	// Calls Tcl_DeleteHashEntry on this entry
 			}
 			Tcl_DeleteHashTable(&g_intreps);
 			g_intreps_init = 0;
@@ -244,6 +401,7 @@ DLLEXPORT int Tomcrypt_SafeUnload(Tcl_Interp* interp, int flags) //<<<
 
 //>>>
 #endif
+#endif //UNLOAD
 #ifdef __cplusplus
 }
 #endif
