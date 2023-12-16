@@ -47,7 +47,7 @@ jobs:
     - name: Run tests
       run: make test
 
-    - name: debug
-      if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
+#    - name: debug
+#      if: ${{ failure() }}
+#      uses: mxschmitt/action-tmate@v3
 
