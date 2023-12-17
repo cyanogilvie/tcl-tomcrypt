@@ -1,0 +1,45 @@
+if {"bench" ni [info commands bench]} {
+	package require bench
+	namespace import bench::*
+}
+
+package require tomcrypt
+
+proc main {} {
+	bench prng-1.1 {md5} -batch auto -setup { #<<<
+		set count	72
+		tomcrypt::prng create fortuna	fortuna		[string repeat a 40]
+		tomcrypt::prng create chacha20	chacha20	[string repeat a 40]
+		tomcrypt::prng create rc4		rc4			[string repeat a 40]
+		tomcrypt::prng create sober128	sober128	[string repeat a 40]
+		tomcrypt::prng create yarrow	yarrow		[string repeat a 40]
+	} -deps {
+		crypto		{
+			package require crypto
+			crypto::blowfish::csprng 72	;# warmup
+		}
+	} -compare {
+		crypto				{string length [crypto::blowfish::csprng $count]}
+		tomcrypt_fortuna	{string length [fortuna bytes $count]}
+		tomcrypt_chacha20	{string length [chacha20 bytes $count]}
+		tomcrypt_rc4		{string length [rc4 bytes $count]}
+		tomcrypt_sober128	{string length [sober128 bytes $count]}
+		tomcrypt_yarrow		{string length [yarrow bytes $count]}
+	} -cleanup {
+		foreach v {
+			fortuna
+			chacha20
+			rc4
+			sober128
+			yarrow
+		} {
+			if {[llength [info commands $v]]} { $v destroy }
+		}
+		unset -nocomplain count v
+	} -result 72
+	#>>>
+}
+
+main
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4

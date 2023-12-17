@@ -1,0 +1,17 @@
+<style>
+BODY {
+    font-family: sans-serif;
+}
+
+HEADER {
+    display: none;
+}
+
+DD>P {
+    margin-top: 0;
+}
+
+DIV.sourceCode {
+    margin-left: 2em;
+}
+</style>

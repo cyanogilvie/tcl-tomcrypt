@@ -493,6 +493,18 @@ test prng-5.17 {prng integer, bignum use after} -body { #<<<
 	unset -nocomplain testname lower
 } -result [expr {2**256}]
 #>>>
+test prng-5.18 {prng integer [0,2**31]} -body { #<<<
+	set testname	prng-5.18
+	tomcrypt::prng create $testname fortuna $fake_entropy
+	set v	[$testname integer 0 [expr {2**31}]]
+	list [tcl::mathop::<= 0 $v [expr {2**31}]] [tcl::mathop::<= 0.001 [expr {$v / double(2**31)}] 0.999]
+} -cleanup {
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
+	}
+	unset -nocomplain testname v
+} -result {1 1}
+#>>>
 test prng-6.1 {prng double} -body { #<<<
 	set testname	prng-6.1
 	tomcrypt::prng create $testname fortuna $fake_entropy
@@ -515,6 +527,100 @@ test prng-6.2 {prng double, too many args} -body { #<<<
 	}
 	unset -nocomplain testname
 } -result {wrong # args: should be "prng-6.2 double"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test prng-6.3 {prng double, uniform distribution} -constraints testMode -setup { #<<<
+	set testname	prng-6.3
+
+	proc examine cmd {
+		set it		1000000
+		set bit		-5
+		set hist	[tomcrypt::_testmode_doubleMantissaHist $cmd $it]
+		set bits	[llength $hist]
+		set format	"%3d: %[expr {1+int(ceil(log($it)/log(10)))}]d %f"
+		join [lreverse [lmap bitcount $hist {
+			format $format [incr bit] $bitcount [expr {$bitcount/double($it)}]
+		}]] \n
+	}
+
+	tomcrypt::prng create $testname chacha20 $fake_entropy
+} -body {
+	examine [list $testname double]
+	#examine "expr {(\"0x\[binary encode hex \[[list $testname] bytes 8\]\]\" & (2**53-1))/double(2**53)}"	;# Should be equivalent to the above
+	#examine {expr {rand()*2}}
+	#examine "expr {\[[list $testname] integer 0 \[expr {2**53-1}]\]/double(2**53)}"
+	#examine "expr {\[[list $testname] integer 0 \[expr {2**32-1}]\]/double(2**32)}"
+} -cleanup {
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
+	}
+	rename examine {}
+	unset -nocomplain testname
+} -result [string trim {
+ 59:       0 0.000000
+ 58:       0 0.000000
+ 57:       0 0.000000
+ 56:       0 0.000000
+ 55:       0 0.000000
+ 54:       0 0.000000
+ 53:       0 0.000000
+ 52:  500174 0.500174
+ 51:  499421 0.499421
+ 50:  499732 0.499732
+ 49:  499758 0.499758
+ 48:  499841 0.499841
+ 47:  500234 0.500234
+ 46:  500397 0.500397
+ 45:  500670 0.500670
+ 44:  500126 0.500126
+ 43:  499610 0.499610
+ 42:  499796 0.499796
+ 41:  500652 0.500652
+ 40:  499746 0.499746
+ 39:  500173 0.500173
+ 38:  499560 0.499560
+ 37:  500802 0.500802
+ 36:  499644 0.499644
+ 35:  499826 0.499826
+ 34:  500709 0.500709
+ 33:  499598 0.499598
+ 32:  500034 0.500034
+ 31:  500062 0.500062
+ 30:  500530 0.500530
+ 29:  500184 0.500184
+ 28:  500377 0.500377
+ 27:  500290 0.500290
+ 26:  499219 0.499219
+ 25:  499433 0.499433
+ 24:  500232 0.500232
+ 23:  498672 0.498672
+ 22:  500157 0.500157
+ 21:  500018 0.500018
+ 20:  499348 0.499348
+ 19:  499872 0.499872
+ 18:  500088 0.500088
+ 17:  500800 0.500800
+ 16:  499663 0.499663
+ 15:  499294 0.499294
+ 14:  499662 0.499662
+ 13:  500599 0.500599
+ 12:  500730 0.500730
+ 11:  499599 0.499599
+ 10:  500351 0.500351
+  9:  500728 0.500728
+  8:  498759 0.498759
+  7:  499987 0.499987
+  6:  500254 0.500254
+  5:  499113 0.499113
+  4:  499330 0.499330
+  3:  499692 0.499692
+  2:  499821 0.499821
+  1:  500224 0.500224
+  0:  500554 0.500554
+ -1:       0 0.000000
+ -2:       0 0.000000
+ -3:       0 0.000000
+ -4:       0 0.000000
+} \n]
 #>>>
 test prng-7.1 {prng export} -body { #<<<
 	set testname	prng-7.1

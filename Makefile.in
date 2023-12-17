@@ -206,15 +206,25 @@ libraries:
 # end user machine when building from source.
 #========================================================================
 
-doc: doc/tomcrypt.n README.md
+doc: doc/tomcrypt.n README.md doc/tomcrypt.pdf doc/tomcrypt.html
 
-doc/tomcrypt.n: doc/tomcrypt.md
-	pandoc --standalone --from markdown --to man doc/tomcrypt.md --output doc/tomcrypt.n
+doc/.build/tomcrypt.md: $(srcdir)/doc/tomcrypt.md.in $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && mkdir -p doc/.build \
+	  && ln -sf ../tomcrypt.md.in doc/.build/tomcrypt.md.in \
+	  && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
 
-README.md: doc/tomcrypt.md
-	pandoc --standalone --from markdown --to gfm doc/tomcrypt.md --output README.md
+doc/tomcrypt.n: doc/.build/tomcrypt.md
+	pandoc --standalone --from markdown --to man doc/.build/tomcrypt.md --output doc/tomcrypt.n
 
-install: all install-binaries install-libraries install-doc
+README.md: doc/.build/tomcrypt.md
+	pandoc --standalone --from markdown --to gfm doc/.build/tomcrypt.md --output README.md
+
+doc/tomcrypt.pdf: doc/.build/tomcrypt.md
+	pandoc --standalone --from markdown --to pdf doc/.build/tomcrypt.md --output doc/tomcrypt.pdf
+
+doc/tomcrypt.html: doc/.build/tomcrypt.md doc/styles.css
+	pandoc --standalone --from markdown --to html5 doc/.build/tomcrypt.md -H doc/styles.css --output doc/tomcrypt.html
 
 install-binaries: binaries install-lib-binaries install-bin-binaries
 

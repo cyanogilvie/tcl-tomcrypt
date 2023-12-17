@@ -4,7 +4,7 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 
 ## SYNOPSIS
 
-**package require tomcrypt** ?0.2?
+**package require tomcrypt** ?0.5?
 
 **tomcrypt::hash** *algorithm* *bytes*  
 **tomcrypt::ecc\_verify** *sig* *message* *pbkey*  
@@ -32,6 +32,7 @@ functionality.
     Return the hash of *bytes*, using the *algorithm*. The values
     available for *algorithm* are those that are known by libtomcrypt.
     The returned value is the raw bytearray.
+
   - **tomcrypt::ecc\_verify** *sig* *message* *pbkey*  
     Verify the signature *sig* over the message *message* with public
     key *pbkey*. *sig* is in ANSI X9.62 format, *pbkey* is in ANSI X9.63
@@ -39,15 +40,18 @@ functionality.
     is the raw bytearray (typically a hash result) that was signed.
     Returns true if the signature is valid, false if not, and throws an
     error if it couldn’t parse *sig* or *pbkey*.
+
   - **tomcrypt::prng** **create** *prngInstance* *type* ?*entropy*?  
-    Create a PRNG instance accessed by the command name *prngInstance*,
-    using the implementation *type*, such as **fortuna** or **chacha20**
-    (as known to libtomcrypt), or "" (an empty string) to select the
-    recommended default which may change between releases, and
-    bootstrapped with *entropy* which must be a bytearray of high
-    entropy bytes. If *entropy* is omitted the PRNG will be bootstrapped
-    with at least 256 bits of entropy from the platform’s default
-    cryptographic RNG. Returns the *prngInstance* command name.
+    Create a PRNG (pseudorandom number generator) instance accessed by
+    the command name *prngInstance*, using the implementation *type*,
+    such as **fortuna** or **chacha20** (as known to libtomcrypt), or ""
+    (an empty string) to select the recommended default which may change
+    between releases, and bootstrapped with *entropy* which must be a
+    bytearray of high entropy bytes. If *entropy* is omitted the PRNG
+    will be bootstrapped with at least 256 bits of entropy from the
+    platform’s default cryptographic RNG. Returns the *prngInstance*
+    command name.
+
   - **tomcrypt::prng** **new** *type* ?*entropy*?  
     As above, but the *prngInstance* command name is picked
     automatically.
@@ -55,28 +59,40 @@ functionality.
 ## PRNG INSTANCE METHODS
 
   - *prngInstance* **bytes** *count*  
-    Retrieve *count* random bytes from the PRNG.
+    Retrieve *count* random bytes from the PRNG. Returned as a raw
+    bytearray.
+
   - *prngInstance* **add\_entropy** *entropy*  
-    Add entropy to the PRNG, given as a bytearray *entropy*. *entropy*
+    Add entropy to the PRNG, given as a bytearray *entropy*, which
     should come from a high quality source of random bytes such as the
     platform’s secure RNG or a previously exported state by
     *prngInstance* **export**.
+
   - *prngInstance* **integer** *lower* *upper*  
     Generate a random integer between *lower* and *upper*, inclusive,
-    with uniform distribution.
+    with uniform distribution. Either *lower* or *upper*, or both, may
+    be bignums, and negative, but *lower* must be \<= *upper*.
+
   - *prngInstance* **double**  
-    Generate a double precision floating point value in the range \[0.0,
-    1.0) (inclusive of the lower bound but not the upper). The result
-    has 53 bits of entropy, uniform distribution and equal resolution
-    across the range.
+    Generate a random double precision floating point value in the range
+    \[0, 1) (inclusive of the lower bound but not the upper). The result
+    is picked from a set of 2\*\*53 discrete values, with uniform
+    distribution and equal resolution (uniformly spaced) across the
+    range. The gap between each discrete value is 2\*\*-53. This subset
+    - 2/1023 of the possible doubles in \[0, 1) - is the largest subset
+    that satisfies the uniform resolution requirement. See \[1\] for a
+    discussion of the nuances of random floating point values.
+
   - *prngInstance* **export**  
     Export entropy, returning the random bytearray. Intended to preserve
     entropy across PRNG instances and reduce the demands on scarce
     platform entropy. To do that, supply the result of this command to
     the *entropy* argument when creating a new PRNG instance.
+
   - *prngInstance* **destroy**  
     Destroy the instance. After returning, the *prngInstance* command no
-    longer exists and all resources are released.
+    longer exists and all resources are released. Renaming the instance
+    command to {} is equivalent.
 
 ## EXAMPLES
 
@@ -109,7 +125,7 @@ generate 10 random bytearrays:
 ``` tcl
 tomcrypt::prng create csprng fortuna
 for {set i 0} {$i < 10} {incr i} {
-    puts "random bytes $i: [binary encode hex [csprng bytes 8]]
+    puts "random bytes $i: [binary encode hex [csprng bytes 8]]"
 }
 csprng destroy
 ```
@@ -175,9 +191,14 @@ support 8.6.
 
 ### From a Release Tarball
 
-Download and extract the release, then:
+Download and extract [the
+release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5/tcl-tomcrypt-v0.5.tar.gz),
+then build in the standard TEA way:
 
 ``` sh
+wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5/tcl-tomcrypt-v0.5.tar.gz
+tar xf tcl-tomcrypt-v0.5.tar.gz
+cd tcl-tomcrypt0.5
 ./configure
 make
 sudo make install
@@ -185,15 +206,12 @@ sudo make install
 
 ### From the Git Sources
 
-Fetch the code and submodules recursively:
+Fetch [the code](https://github.com/cyanogilvie/tcl-tomcrypt) and
+submodules recursively, then build in the standard autoconf / TEA way:
 
 ``` sh
 git clone --recurse-submodules https://github.com/cyanogilvie/tcl-tomcrypt
-```
-
-Then just the normal autoconf / TEA dance:
-
-``` sh
+cd tcl-tomcrypt
 autoconf
 ./configure
 make
@@ -208,7 +226,7 @@ and strip debug symbols, minimising image size:
 
 ``` dockerfile
 WORKDIR /tmp/tcl-tomcrypt
-RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.2/tcl-tomcrypt-v0.2.tar.gz -O - | tar xz --strip-components=1 && \
+RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5/tcl-tomcrypt-v0.5.tar.gz -O - | tar xz --strip-components=1 && \
     ./configure; make test install-binaries install-libraries && \
     strip /usr/local/lib/libtomcrypt*.so && \
     cd .. && rm -rf tcl-tomcrypt
@@ -257,14 +275,14 @@ TODO
 
 The most recent release of this package is available by default in the
 `alpine-tcl` container image: docker.io/cyanogilvie/alpine-tcl and the
-`cftcl` Tcl runtime snap: https://github.com/cyanogilvie/cftcl.
+`cftcl` Tcl runtime snap: <https://github.com/cyanogilvie/cftcl>.
 
 ## SEE ALSO
 
-This package is built on the libtomcrypt library:
-https://github.com/libtom/libtomcrypt, the libtommath library:
-https://github.com/libtom/libtommath, and tomsfastmath:
-https://github.com/libtom/tomsfastmath.
+This package is built on the [libtomcrypt
+library](https://github.com/libtom/libtomcrypt), the [libtommath
+library](https://github.com/libtom/libtommath), and
+[tomsfastmath](https://github.com/libtom/tomsfastmath).
 
 ## PROJECT STATUS
 
@@ -281,15 +299,20 @@ test` and `make coverage` build targets support these goals.
 ## SOURCE CODE
 
 This package’s source code is available at
-https://github.com/cyanogilvie/tcl-tomcrypt. Please create issues there
-for any bugs discovered.
+<https://github.com/cyanogilvie/tcl-tomcrypt>. Please create issues
+there for any bugs discovered.
 
 ## LICENSE
 
 This package is placed in the public domain: the author disclaims
 copyright and liability to the extent allowed by law. For those
-jurisdictions that limit an author’s ability to disclaim copyright, then
-this package can be used under the terms of the CC0, BSD, or MIT
-licenses. No attribution, permission or fees are required to use this
-for whatever you like, commercial or otherwise, though I would urge its
-users to do good and not evil to the world.
+jurisdictions that limit an author’s ability to disclaim copyright this
+package can be used under the terms of the CC0, BSD, or MIT licenses. No
+attribution, permission or fees are required to use this for whatever
+you like, commercial or otherwise, though I would urge its users to do
+good and not evil to the world.
+
+1.  Goualard F. Generating Random Floating-Point Numbers by Dividing
+    Integers: A Case Study. Computational Science – ICCS 2020. 2020 Jun
+    15;12138:15–28. doi: 10.1007/978-3-030-50417-5\_2. PMCID:
+    PMC7302591.

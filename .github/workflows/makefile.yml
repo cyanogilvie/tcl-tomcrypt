@@ -41,7 +41,7 @@ jobs:
     - name: Build tcl-tomcrypt
       run: |
         autoconf
-        ./configure --with-tcl=/opt/tcl8.7/lib
+        ./configure --with-tcl=/opt/tcl8.7/lib --enable-testmode
         make
 
     - name: Run tests

@@ -244,6 +244,67 @@ finally:
 }
 
 //>>>
+OBJCMD(doubleMatissaHist) // Somewhat inaccurately named, returns the bit==1 count histogram for d, for the double arg as if it were in the form d/(52<<5), in 5 bit fractional part fixed point int.  To meet the claimed uniform distribution and uniform spacing, this histogram should have .5 probability for bits 0 through 52 in the whole portion (<<5) and 0 everywhere else <<<
+{
+	int					code = TCL_OK;
+	Tcl_Obj*			get_double = NULL;
+	Tcl_Obj*			res = NULL;
+
+	enum {A_cmd, A_CMD, A_IT, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "cmd iterations");
+	Tcl_WideInt		it;
+	TEST_OK_LABEL(finally, code, Tcl_GetWideIntFromObj(interp, objv[A_IT], &it));
+	if (it < 0) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+		THROW_ERROR_LABEL(finally, code, "iterations cannot be negative");
+	}
+
+	if (sizeof (double) != sizeof (uint64_t))
+		THROW_ERROR_LABEL(finally, code, "double and uint64_t are not the same size, platform not supported");
+
+	replace_tclobj(&get_double, Tcl_ObjPrintf("[%s]", Tcl_GetString(objv[A_CMD])));
+
+#define BITS	64
+	uint64_t	hist[BITS] = {0};
+
+	for (Tcl_WideInt i=0; i<it; i++) {
+		double		val;
+		uint64_t	ival;
+		TEST_OK_LABEL(finally, code, Tcl_ExprDoubleObj(interp, get_double, &val));
+		memcpy(&ival, &val, sizeof ival);
+		const int sign = ival >> 63;
+
+		ival &= ~(UINT64_C(1) << 63);	// Clear the sign bit
+		const int exp = ((ival >> 52) & 0x7ff);
+		const int shift = exp - 1023 + 5;
+
+		uint64_t       ival2 = ival & ((UINT64_C(1) << 52) -1);	// Clear the exponent and sign
+
+		if (exp != 0)  ival2 |= UINT64_C(1) << 52;	// Set the implicit 1 bit
+
+		if (shift < 0) ival2 >>= -shift;
+		else           ival2 <<= shift;
+
+		if (sign)      ival2 = -ival2;
+
+		for (int j=0; j<BITS; j++)
+			if (ival2 & (UINT64_C(1) << j)) hist[j]++;
+	}
+
+	replace_tclobj(&res, Tcl_NewListObj(BITS, NULL));
+	for (int i=0; i<BITS; i++)
+		Tcl_ListObjAppendElement(interp, res, Tcl_NewIntObj(hist[i]));
+
+	Tcl_SetObjResult(interp, res);
+
+finally:
+#undef BITS
+	replace_tclobj(&get_double, NULL);
+	replace_tclobj(&res, NULL);
+	return code;
+}
+
+//>>>
 #endif
 
 static struct cmd {
@@ -260,6 +321,7 @@ static struct cmd {
 	{NS "::_testmode_leakObj",				leakObj,			NULL},
 	{NS "::_testmode_dupObj",				dupObj,				NULL},
 	{NS "::_testmode_refCount",				refCount,			NULL},
+	{NS "::_testmode_doubleMantissaHist",	doubleMatissaHist,	NULL},
 #endif
 	{0}
 };

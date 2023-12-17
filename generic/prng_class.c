@@ -290,7 +290,7 @@ static int method_integer(ClientData cdata, Tcl_Interp* interp, Tcl_ObjectContex
 
 		const int		range_bitlen = (int)log2(range);
 		const int		range_bytelen = (range_bitlen+7)/8;
-		Tcl_WideUInt	range_mask = (1<<(range_bitlen+1))-1;
+		Tcl_WideUInt	range_mask = (UINT64_C(1)<<(range_bitlen+1))-1;
 		uint8_t			buf[range_bytelen];
 
 		// To enforce uniform (unbiased) distribution, we need to keep rolling
@@ -347,7 +347,7 @@ static int method_integer(ClientData cdata, Tcl_Interp* interp, Tcl_ObjectContex
 		range_bitlen_bigval  = mp_count_bits(&range_bigval);
 		range_bytelen_bigval = (range_bitlen_bigval+7)/8;
 		range_remain_bigval  = range_bitlen_bigval % 8;
-		uint8_t	topbyte_mask = range_remain_bigval ? (1<<range_remain_bigval)-1 : 0xff;
+		uint8_t	topbyte_mask = range_remain_bigval ? (UINT64_C(1)<<range_remain_bigval)-1 : 0xff;
 #if DEBUG
 		fprintf(stderr, "range_bigval: 0x");
 		if (MP_OKAY != (rc = mp_fwrite(&range_bigval, 16, stderr)))						goto mp_err;
