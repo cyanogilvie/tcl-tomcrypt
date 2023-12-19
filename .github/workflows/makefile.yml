@@ -60,7 +60,7 @@ jobs:
     - uses: actions/upload-artifact@v4
       with:
         name: release-tarball
-        path: /tmp/dist/tcl-tommath*.tar.gz
+        path: /tmp/dist/tomcrypt*.tar.gz
 
     - name: Release
       uses: softprops/action-gh-release@v1
@@ -68,7 +68,7 @@ jobs:
       with:
         draft: true
         files: |
-          /tmp/dist/tcl-tomcrypt*.tar.gz
+          /tmp/dist/tomcrypt*.tar.gz
 
 #    - name: debug
 #      if: ${{ failure() }}
