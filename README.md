@@ -4,7 +4,7 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 
 ## SYNOPSIS
 
-**package require tomcrypt** ?0.5?
+**package require tomcrypt** ?0.5.1?
 
 **tomcrypt::hash** *algorithm* *bytes*  
 **tomcrypt::ecc\_verify** *sig* *message* *pbkey*  
@@ -192,13 +192,13 @@ support 8.6.
 ### From a Release Tarball
 
 Download and extract [the
-release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5/tcl-tomcrypt-v0.5.tar.gz),
+release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.1/tcl-tomcrypt-v0.5.1.tar.gz),
 then build in the standard TEA way:
 
 ``` sh
-wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5/tcl-tomcrypt-v0.5.tar.gz
-tar xf tcl-tomcrypt-v0.5.tar.gz
-cd tcl-tomcrypt0.5
+wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.1/tcl-tomcrypt-v0.5.1.tar.gz
+tar xf tcl-tomcrypt-v0.5.1.tar.gz
+cd tcl-tomcrypt0.5.1
 ./configure
 make
 sudo make install
@@ -226,7 +226,7 @@ and strip debug symbols, minimising image size:
 
 ``` dockerfile
 WORKDIR /tmp/tcl-tomcrypt
-RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5/tcl-tomcrypt-v0.5.tar.gz -O - | tar xz --strip-components=1 && \
+RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.1/tcl-tomcrypt-v0.5.1.tar.gz -O - | tar xz --strip-components=1 && \
     ./configure; make test install-binaries install-libraries && \
     strip /usr/local/lib/libtomcrypt*.so && \
     cd .. && rm -rf tcl-tomcrypt
