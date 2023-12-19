@@ -2,7 +2,7 @@ name: Makefile CI
 
 on:
   push:
-    tags: [ "master" ]
+    branches: [ "master" ]
 
 jobs:
   build:
