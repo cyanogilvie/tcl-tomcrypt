@@ -12,7 +12,9 @@ jobs:
     steps:
 
     - name: Install dependencies
-      run: sudo apt install pandoc texlive-latex-base
+      run: |
+        sudo apt update
+        sudo apt install pandoc texlive-latex-base
 
     - name: Cache Tcl build
       id: cache-tcl
