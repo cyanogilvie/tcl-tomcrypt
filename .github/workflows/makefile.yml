@@ -12,7 +12,7 @@ jobs:
     steps:
 
     - name: Install dependencies
-      run: sudo apt install pandoc pdflatex
+      run: sudo apt install pandoc texlive-latex-base
 
     - name: Cache Tcl build
       id: cache-tcl
@@ -52,9 +52,14 @@ jobs:
         path: /tmp/test_results.log
 
     - name: Dist
-      if: startsWith(github.ref, 'refs/tags/v')
+      #if: startsWith(github.ref, 'refs/tags/v')
       run: |
         make dist
+    - uses: action/upload-artifact@v4
+      with:
+        name: release-tarball
+        path: /tmp/dist/tcl-tommath*.tar.gz
+
     - name: Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/v')
