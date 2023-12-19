@@ -226,6 +226,8 @@ doc/tomcrypt.pdf: doc/.build/tomcrypt.md
 doc/tomcrypt.html: doc/.build/tomcrypt.md doc/styles.css
 	pandoc --standalone --from markdown --to html5 doc/.build/tomcrypt.md -H doc/styles.css --output doc/tomcrypt.html
 
+install: all install-binaries install-libraries install-doc
+
 install-binaries: binaries install-lib-binaries install-bin-binaries
 
 #========================================================================

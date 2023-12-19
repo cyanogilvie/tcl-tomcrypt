@@ -2,9 +2,7 @@ name: Makefile CI
 
 on:
   push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+    tags: [ "master" ]
 
 jobs:
   build:
@@ -14,7 +12,7 @@ jobs:
     steps:
 
     - name: Install dependencies
-      run: sudo apt install pandoc
+      run: sudo apt install pandoc pdflatex
 
     - name: Cache Tcl build
       id: cache-tcl
@@ -33,7 +31,7 @@ jobs:
         ./configure CFLAGS="-DPURIFY" --enable-symbols --enable-testmode --prefix=/opt/tcl8.7
         make -j 8
         sudo make install
-        
+
     - uses: actions/checkout@v3
       with:
         submodules: 'true'
@@ -45,7 +43,25 @@ jobs:
         make
 
     - name: Run tests
-      run: make test
+      run: make test 2>&1 | tee /tmp/test_results.log
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: /tmp/test_results.log
+
+    - name: Dist
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        make dist
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/v')
+      with:
+        draft: true
+        files: |
+          /tmp/dist/tcl-tomcrypt*.tar.gz
 
 #    - name: debug
 #      if: ${{ failure() }}

@@ -19,7 +19,7 @@ static void delete_prng_state(ClientData cdata) //<<<
 }
 
 //>>>
-static int clone_prng_state(Tcl_Interp*, void* cdata, void** new_cdata) //<<<
+static int clone_prng_state(Tcl_Interp* interp, void* cdata, void** new_cdata) //<<<
 {
 	int						code = TCL_OK;
 	struct prng_md*			md = (struct prng_md*)cdata;
