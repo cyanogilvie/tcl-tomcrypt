@@ -196,13 +196,13 @@ and are built and statically linked as part of the package build process.
 Currently Tcl 8.7 is required, but if needed polyfills could be built to support 8.6.
 
 ### From a Release Tarball
-Download and extract [the release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v@PACKAGE_VERSION@/tcl-tomcrypt-v@PACKAGE_VERSION@.tar.gz),
+Download and extract [the release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v@PACKAGE_VERSION@/tomcrypt@PACKAGE_VERSION@.tar.gz),
 then build in the standard TEA way:
 
 ~~~sh
-wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v@PACKAGE_VERSION@/tcl-tomcrypt-v@PACKAGE_VERSION@.tar.gz
-tar xf tcl-tomcrypt-v@PACKAGE_VERSION@.tar.gz
-cd tcl-tomcrypt@PACKAGE_VERSION@
+wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v@PACKAGE_VERSION@/tomcrypt@PACKAGE_VERSION@.tar.gz
+tar xf tomcrypt@PACKAGE_VERSION@.tar.gz
+cd tomcrypt@PACKAGE_VERSION@
 ./configure
 make
 sudo make install
@@ -228,7 +228,7 @@ debug symbols, minimising image size:
 
 ~~~Dockerfile
 WORKDIR /tmp/tcl-tomcrypt
-RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v@PACKAGE_VERSION@/tcl-tomcrypt-v@PACKAGE_VERSION@.tar.gz -O - | tar xz --strip-components=1 && \
+RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v@PACKAGE_VERSION@/tomcrypt@PACKAGE_VERSION@.tar.gz -O - | tar xz --strip-components=1 && \
     ./configure; make test install-binaries install-libraries && \
     strip /usr/local/lib/libtomcrypt*.so && \
     cd .. && rm -rf tcl-tomcrypt

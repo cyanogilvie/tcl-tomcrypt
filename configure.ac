@@ -80,7 +80,7 @@ TEA_ADD_SOURCES([tomcrypt.c type_ecc_key.c prng_class.c])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([-Ilocal/include])
 TEA_ADD_LIBS([-Llocal/lib -ltomcrypt -ltommath -lm])
-TEA_ADD_CFLAGS([-std=c11 -DUSE_LTM -DLTM_DESC -DTFM_DESC])
+TEA_ADD_CFLAGS([-std=c11 -Wall -Werror -Wextra -DUSE_LTM -DLTM_DESC -DTFM_DESC])
 TEA_ADD_STUB_SOURCES([])
 TEA_ADD_TCL_SOURCES([])
 

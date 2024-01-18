@@ -337,10 +337,8 @@ DLLEXPORT int Tomcrypt_Init(Tcl_Interp* interp) //<<<
 
 #if USE_TCL_STUBS
 	if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) return TCL_ERROR;
-#endif
-//#if USE_TCLOO_STUBS
 	if (Tcl_OOInitStubs(interp) == NULL) return TCL_ERROR;
-//#endif
+#endif
 
 	Tcl_MutexLock(&g_register_mutex);
 	if (!g_register_init) {
@@ -398,8 +396,7 @@ DLLEXPORT int Tomcrypt_Init(Tcl_Interp* interp) //<<<
 
 	TEST_OK_LABEL(finally, code, prng_class_init(interp, l));
 
-	code = Tcl_PkgProvide(interp, PACKAGE_NAME, PACKAGE_VERSION);
-	if (code != TCL_OK) goto finally;
+	TEST_OK_LABEL(finally, code, Tcl_PkgProvide(interp, PACKAGE_NAME, PACKAGE_VERSION));
 
 	Tcl_SetAssocData(interp, PACKAGE_NAME, free_interp_cx, l);
 

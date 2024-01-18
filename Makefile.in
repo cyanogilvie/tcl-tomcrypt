@@ -457,7 +457,7 @@ install-lib-binaries: binaries
 # This is for files that must go in the bin directory (located next to
 # wish and tclsh), like dependent .dll files on Windows.
 #
-# You should not have to modify this target, tomcryptept to define bin_BINARIES
+# You should not have to modify this target, except to define bin_BINARIES
 # above if necessary.
 #========================================================================
 
@@ -508,5 +508,5 @@ alltags:
 .PHONY: alltags
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
-# Otherwise a system limit (for SysV at least) may be tomcrypteeded.
+# Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

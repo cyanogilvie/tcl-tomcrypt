@@ -64,7 +64,8 @@ jobs:
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/v')
       with:
-        draft: true
+        draft: false
+        prerelease: true
         files: |
           /tmp/dist/tomcrypt*.tar.gz
 
