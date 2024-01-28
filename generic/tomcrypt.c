@@ -71,7 +71,7 @@ OBJCMD(hash_cmd) //<<<
 	hash_state		md;
 	const int		hashlen = hash_descriptor[idx].hashsize;
 	uint8_t			hash[MAXBLOCKSIZE];
-	size_t			bytes_len;
+	int				bytes_len;
 	const uint8_t*	bytes = Tcl_GetBytesFromObj(interp, objv[A_BYTES], &bytes_len);
 	if (bytes == NULL) { code = TCL_ERROR; goto finally; }
 
