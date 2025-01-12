@@ -78,6 +78,10 @@ test base64url_decode-7.1 {}        -body {tomcrypt::base64url        decode {Zm
 test base64url_strict_decode-7.2 {} -body {tomcrypt::base64url strict_decode {Zm=9v}} -returnCodes error -errorCode {TOMCRYPT BASE64URL DECODE} -result {base64url decode failed: Invalid input packet.}
 test base64url_decode-7.2 {}        -body {tomcrypt::base64url        decode {Zm=9v}} -result foo
 
+# Reject non-bytearray encode
+test base64url_encode-8.1        {Reject non-binary} -body {tomcrypt::base64url encode        foo\u306fbar} -returnCodes error -errorCode {TCL VALUE BYTES} -result "expected byte sequence but character 3 was '\u306Fbar' (U+00306F)"
+test base64url_strict_encode-8.1 {Reject non-binary} -body {tomcrypt::base64url strict_encode foo\u306fbar} -returnCodes error -errorCode {TCL VALUE BYTES} -result "expected byte sequence but character 3 was '\u306Fbar' (U+00306F)"
+
 # cleanup
 ::tcltest::cleanupTests
 return

@@ -4,9 +4,11 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 
 ## SYNOPSIS
 
-**package require tomcrypt** ?0.5.5?
+**package require tomcrypt** ?0.5.6?
 
 **tomcrypt::hash** *algorithm* *bytes*  
+**tomcrypt::base64url** **encode**|**strict\_encode** *bytes*  
+**tomcrypt::base64url** **decode**|**strict\_decode** *string*  
 **tomcrypt::ecc\_verify** *sig* *message* *pbkey*  
 **tomcrypt::rng\_bytes** *count*  
 **tomcrypt::prng** **create** *prngInstance* *type* ?*entropy*?  
@@ -32,6 +34,22 @@ functionality.
     Return the hash of *bytes*, using the *algorithm*. The values
     available for *algorithm* are those that are known by libtomcrypt.
     The returned value is the raw bytearray.
+
+  - **tomcrypt::base64url** **encode**|**strict\_encode** *bytes*  
+    Return the base64url encoding of *bytes*, which is the same as the
+    regular base64 encoding except for two substitutions: ‘+’ -\> ‘-’
+    and ‘/’ -\> ‘\_’, so that the result can be represented in a URL
+    part without needing to be escaped. Also useful when using the
+    result as a filename. If **strict\_encode** is used, then the result
+    will have ‘=’ padding characters appended to ensure that its length
+    is a multiple of 4. **encode** does not pad its output.
+
+  - **tomcrypt::base64url** **decode**|**strict\_decode** *string*  
+    Inverts the encoding applied by **encode** or **strict\_encode**.
+    Both **decode** and **strict\_decode** accept both padded and
+    unpadded input, but strict does not allow pad characters or
+    characters outsite of the valid base64url alphabet within the
+    encoded value.
 
   - **tomcrypt::ecc\_verify** *sig* *message* *pbkey*  
     Verify the signature *sig* over the message *message* with public
@@ -192,13 +210,13 @@ support 8.6.
 ### From a Release Tarball
 
 Download and extract [the
-release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.5/tomcrypt0.5.5.tar.gz),
+release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.6/tomcrypt0.5.6.tar.gz),
 then build in the standard TEA way:
 
 ``` sh
-wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.5/tomcrypt0.5.5.tar.gz
-tar xf tomcrypt0.5.5.tar.gz
-cd tomcrypt0.5.5
+wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.6/tomcrypt0.5.6.tar.gz
+tar xf tomcrypt0.5.6.tar.gz
+cd tomcrypt0.5.6
 ./configure
 make
 sudo make install
@@ -226,7 +244,7 @@ and strip debug symbols, minimising image size:
 
 ``` dockerfile
 WORKDIR /tmp/tcl-tomcrypt
-RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.5/tomcrypt0.5.5.tar.gz -O - | tar xz --strip-components=1 && \
+RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.6/tomcrypt0.5.6.tar.gz -O - | tar xz --strip-components=1 && \
     ./configure; make test install-binaries install-libraries && \
     strip /usr/local/lib/libtomcrypt*.so && \
     cd .. && rm -rf tcl-tomcrypt
