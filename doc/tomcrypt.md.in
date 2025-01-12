@@ -11,6 +11,8 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 **package require tomcrypt** ?@PACKAGE_VERSION@?
 
 **tomcrypt::hash** *algorithm* *bytes*\
+**tomcrypt::base64url** **encode**|**strict_encode** *bytes*\
+**tomcrypt::base64url** **decode**|**strict_decode** *string*\
 **tomcrypt::ecc_verify** *sig* *message* *pbkey*\
 **tomcrypt::rng_bytes** *count*\
 **tomcrypt::prng** **create** *prngInstance* *type* ?*entropy*?\
@@ -37,6 +39,22 @@ This package provides a thin wrapper around a subset of libtomcrypt's functional
 
 :   Return the hash of *bytes*, using the *algorithm*.  The values available for *algorithm* are
     those that are known by libtomcrypt.  The returned value is the raw bytearray.
+
+**tomcrypt::base64url** **encode**|**strict_encode** *bytes*
+
+:   Return the base64url encoding of *bytes*, which is the same as the regular base64 encoding
+    except for two substitutions: '+' -> '-' and '/' -> '\_', so that the result can be represented
+    in a URL part without needing to be escaped.  Also useful when using the result as a filename.
+    If **strict_encode** is used, then the result will have '=' padding characters appended to ensure
+    that its length is a multiple of 4.  **encode** does not pad its output.
+
+
+**tomcrypt::base64url** **decode**|**strict_decode** *string*
+
+:   Inverts the encoding applied by **encode** or **strict_encode**.  Both **decode** and
+    **strict_decode** accept both padded and unpadded input, but strict does not allow pad
+    characters or characters outsite of the valid base64url alphabet within the encoded
+    value.
 
 **tomcrypt::ecc_verify** *sig* *message* *pbkey*
 

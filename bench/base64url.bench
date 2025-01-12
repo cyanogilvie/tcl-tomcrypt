@@ -1,0 +1,36 @@
+if {"bench" ni [info commands bench]} {
+	package require bench
+	namespace import bench::*
+}
+
+package require tomcrypt
+
+proc b64url_encode_pad bytes {string map {+ - / _} [binary encode base64 $bytes]}
+proc b64url_encode bytes     {string map {+ - / _} [string trimright [binary encode base64 $bytes] =]}
+proc b64url_decode str       {string map {- + _ /} [binary decode base64 $str]}
+
+proc main {} {
+	bench base64url_encode-1.1 {Base64url encode a 32 byte value} -batch auto -setup { #<<<
+		set data [string repeat a 32]
+	} -compare {
+		tcl			{b64url_encode $data}
+		tomcrypt	{tomcrypt::base64url encode $data}
+	} -cleanup {
+		unset -nocomplain data
+	} -result YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE
+	#>>>
+	bench base64url_decode-1.1 {Base64url decode a 32 byte value} -batch auto -setup { #<<<
+		set data YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE
+	} -compare {
+		tcl			{b64url_decode $data}
+		tomcrypt	{tomcrypt::base64url decode $data}
+	} -cleanup {
+		unset -nocomplain data
+	} -result [string repeat a 32]
+	#>>>
+}
+
+main
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4
+

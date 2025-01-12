@@ -571,7 +571,6 @@ static Tcl_MethodType methods[] = {
 };
 #undef OO_VER
 
-
 int prng_class_init(Tcl_Interp* interp, struct interp_cx* l) //<<<
 {
 	int				code = TCL_OK;

@@ -86,6 +86,92 @@ finally:
 }
 
 //>>>
+OBJCMD(base64url_cmd) // Base64 URL encode / decode <<<
+{
+	int					code = TCL_OK;
+	Tcl_Obj*			res = NULL;
+	static const char*	modes[] = {
+		"encode",
+		"strict_encode",
+		"decode",
+		"strict_decode",
+		NULL
+	};
+	enum {
+		M_ENCODE,
+		M_STRICT_ENCODE,
+		M_DECODE,
+		M_STRICT_DECODE,
+	} mode;
+
+	enum {A_cmd, A_MODE, A_args};
+	CHECK_MIN_ARGS_LABEL(finally, code, "mode ?arg ...?");
+	TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[A_MODE], modes, "mode", TCL_EXACT, &mode));
+	switch (mode) {
+		case M_ENCODE:
+		case M_STRICT_ENCODE:
+			{
+				enum {A_cmd=1, A_BYTES, A_objc};
+				CHECK_ARGS_LABEL(finally, code, "bytes");
+
+				int				inlen;
+				const uint8_t*	in = Tcl_GetBytesFromObj(interp, objv[A_BYTES], &inlen);
+				if (in == NULL) { code = TCL_ERROR; goto finally; }
+
+				const int		outlen_int = ((inlen + 2)/3) * 4;
+				replace_tclobj(&res, Tcl_NewObj());
+				Tcl_SetObjLength(res, outlen_int);
+				unsigned char*	out = (unsigned char*)Tcl_GetString(res);
+				unsigned long	outlen = outlen_int + 1;	// +1: base64url_*_encode appends NUL terminator
+
+				const int	rc = mode == M_STRICT_ENCODE
+					? base64url_strict_encode(in, inlen, out, &outlen)
+					:        base64url_encode(in, inlen, out, &outlen);
+
+				if (CRYPT_OK != rc) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "BASE64URL", "ENCODE", NULL);
+					THROW_PRINTF_LABEL(finally, code, "base64url encode failed: %s", error_to_string(rc));
+				}
+
+				Tcl_SetObjLength(res, outlen);
+			}
+			break;
+
+		case M_DECODE:
+		case M_STRICT_DECODE:
+			{
+				enum {A_cmd=1, A_STR, A_objc};
+				CHECK_ARGS_LABEL(finally, code, "string");
+
+				int						inlen;
+				const unsigned char*	in = (unsigned char*)Tcl_GetStringFromObj(objv[A_STR], &inlen);
+				unsigned long			outlen = ((inlen+3)/4) * 3;
+				replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, outlen));
+				unsigned char*			out = Tcl_GetBytesFromObj(interp, res, NULL);
+
+				const int	rc = mode == M_STRICT_DECODE
+					? base64url_strict_decode(in, inlen, out, &outlen)
+					:        base64url_decode(in, inlen, out, &outlen);
+
+				if (CRYPT_OK != rc) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "BASE64URL", "DECODE", NULL);
+					THROW_PRINTF_LABEL(finally, code, "base64url decode failed: %s", error_to_string(rc));
+				}
+
+				Tcl_SetByteArrayLength(res, outlen);
+			}
+			break;
+	}
+
+
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
+	return code;
+}
+
+//>>>
 OBJCMD(ecc_verify) //<<<
 {
 	struct interp_cx*	l = cdata;
@@ -315,6 +401,7 @@ static struct cmd {
 	{NS "::hash",							hash_cmd,			NULL},
 	{NS "::ecc_verify",						ecc_verify,			NULL},
 	{NS "::rng_bytes",						rng_bytes,			NULL},
+	{NS "::base64url",						base64url_cmd,		NULL},
 #if TESTMODE
 	{NS "::_testmode_hasGetBytesFromObj",	hasGetBytesFromObj,	NULL},
 	{NS "::_testmode_isByteArray",			isByteArray,		NULL},

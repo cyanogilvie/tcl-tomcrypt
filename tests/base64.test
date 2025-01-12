@@ -1,0 +1,77 @@
+source [file join [file dirname [info script]] common.tcl]
+
+proc b64url_encode_pad bytes {string map {+ - / _} [binary encode base64 $bytes]}
+proc b64url_encode bytes     {string map {+ - / _} [string trimright [binary encode base64 $bytes] =]}
+proc b64url_decode str       {string map {- + _ /} [binary decode base64 $str]}
+
+# Basic encoding tests (non-strict - no padding)
+test base64url_encode-1.1 {encode 0 length input} {tomcrypt::base64url encode {}}  {}
+test base64url_encode-1.2 {encode f}              {tomcrypt::base64url encode f}   Zg
+test base64url_encode-1.3 {encode fo}             {tomcrypt::base64url encode fo}  Zm8
+test base64url_encode-1.4 {encode foo}            {tomcrypt::base64url encode foo} Zm9v
+
+# Test url-safe character encoding (non-strict)
+test base64url_encode-2.1 {encode data with + mapping} {tomcrypt::base64url encode \xfb\xff} [b64url_encode \xfb\xff]
+test base64url_encode-2.2 {encode data with / mapping} {tomcrypt::base64url encode \xff\xf0} [b64url_encode \xff\xf0]
+test base64url_encode-3.1 {encode + to -} {tomcrypt::base64url encode \xfb} -w
+test base64url_encode-3.2 {encode / to _} {tomcrypt::base64url encode \xff} _w
+test base64url_encode-3.3 {encode + to - with suffix} {tomcrypt::base64url encode \xfb\xbf} -78
+test base64url_encode-3.4 {encode / to _ with suffix} {tomcrypt::base64url encode \xff\xbf} _78
+
+# Strict encoding (always produces padding)
+test base64url_strict_encode-1.1 {strict encode 0 length} {tomcrypt::base64url strict_encode {}}  {}
+test base64url_strict_encode-1.2 {strict encode f}        {tomcrypt::base64url strict_encode f}   Zg==
+test base64url_strict_encode-1.3 {strict encode fo}       {tomcrypt::base64url strict_encode fo}  Zm8=
+test base64url_strict_encode-1.4 {strict encode foo}      {tomcrypt::base64url strict_encode foo} Zm9v
+
+# Basic decoding tests (non-strict - accepts either form)
+test base64url_decode-1.1 {decode 0 length string}    {tomcrypt::base64url decode {}}   {}
+test base64url_decode-1.2 {decode unpadded}           {tomcrypt::base64url decode Zg}   f
+test base64url_decode-1.3 {decode padded}             {tomcrypt::base64url decode Zg==} f
+test base64url_decode-1.4 {decode unpadded two bytes} {tomcrypt::base64url decode Zm8}  fo
+test base64url_decode-1.5 {decode padded two bytes}   {tomcrypt::base64url decode Zm8=} fo
+test base64url_decode-1.6 {decode three bytes}        {tomcrypt::base64url decode Zm9v} foo
+
+# Test url-safe character decoding (non-strict)
+test base64url_decode-2.1 {decode with - character unpadded} {tomcrypt::base64url decode [b64url_encode     \xfb\xff]} \xfb\xff
+test base64url_decode-2.2 {decode with - character padded}   {tomcrypt::base64url decode [b64url_encode_pad \xfb\xff]} \xfb\xff
+test base64url_decode-2.3 {decode with _ character unpadded} {tomcrypt::base64url decode [b64url_encode     \xff\xf0]} \xff\xf0
+test base64url_decode-2.4 {decode with _ character padded}   {tomcrypt::base64url decode [b64url_encode_pad \xff\xf0]} \xff\xf0
+
+# Test url-safe character decoding (non-strict)
+test base64url_decode-3.1 {decode - to +} {tomcrypt::base64url decode -w} \xfb
+test base64url_decode-3.2 {decode _ to /} {tomcrypt::base64url decode _w} \xff
+test base64url_decode-3.3 {decode - to + with suffix} {tomcrypt::base64url decode -78} \xfb\xbf
+test base64url_decode-3.4 {decode _ to / with suffix} {tomcrypt::base64url decode _78} \xff\xbf
+
+# Strict decoding (requires padding)
+test base64url_strict_decode-1.1 {strict decode 0 length}    {tomcrypt::base64url strict_decode {}}   {}
+test base64url_strict_decode-1.2 {strict decode one byte}    {tomcrypt::base64url strict_decode Zg==} f
+test base64url_strict_decode-1.3 {strict decode two bytes}   {tomcrypt::base64url strict_decode Zm8=} fo
+test base64url_strict_decode-1.4 {strict decode three bytes} {tomcrypt::base64url strict_decode Zm9v} foo
+
+# base64url doesn't require padding even in strict mode
+test base64url_strict_decode-2.1 {strict decode missing padding 1} {tomcrypt::base64url strict_decode Zg}  f
+test base64url_strict_decode-2.2 {strict decode missing padding 2} {tomcrypt::base64url strict_decode Zm8} fo
+
+# Error cases - invalid characters
+test base64url_decode-4.1 {decode invalid character +} -body {tomcrypt::base64url decode Z+} -returnCodes error -result {base64url decode failed: Invalid input packet.}
+test base64url_decode-4.2 {decode invalid character /} -body {tomcrypt::base64url decode Z/} -returnCodes error -result {base64url decode failed: Invalid input packet.}
+
+# Binary data tests
+test base64url_encode-5.1        {encode binary data non-strict} {tomcrypt::base64url encode        [binary format H* 0123456789ABCDEF]} ASNFZ4mrze8
+test base64url_strict_encode-5.1 {encode binary data strict}     {tomcrypt::base64url strict_encode [binary format H* 0123456789ABCDEF]} ASNFZ4mrze8=
+test base64url_decode-6.1        {decode binary data unpadded} {binary encode hex [tomcrypt::base64url decode        ASNFZ4mrze8 ]} 0123456789abcdef
+test base64url_strict_decode-6.1 {decode binary data padded}   {binary encode hex [tomcrypt::base64url strict_decode ASNFZ4mrze8=]} 0123456789abcdef
+
+# Strict decode rejects invalid embedded chars
+test base64url_strict_decode-7.1 {} -body {tomcrypt::base64url strict_decode {Zm 9v}} -returnCodes error -errorCode {TOMCRYPT BASE64URL DECODE} -result {base64url decode failed: Invalid input packet.}
+test base64url_decode-7.1 {}        -body {tomcrypt::base64url        decode {Zm 9v}} -result foo
+test base64url_strict_decode-7.2 {} -body {tomcrypt::base64url strict_decode {Zm=9v}} -returnCodes error -errorCode {TOMCRYPT BASE64URL DECODE} -result {base64url decode failed: Invalid input packet.}
+test base64url_decode-7.2 {}        -body {tomcrypt::base64url        decode {Zm=9v}} -result foo
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4
