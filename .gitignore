@@ -10,6 +10,7 @@ tags
 *.swp
 *.gcda
 *.gcno
+*.gcov
 *~
 last
 local
