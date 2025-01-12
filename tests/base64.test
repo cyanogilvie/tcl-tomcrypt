@@ -4,6 +4,14 @@ proc b64url_encode_pad bytes {string map {+ - / _} [binary encode base64 $bytes]
 proc b64url_encode bytes     {string map {+ - / _} [string trimright [binary encode base64 $bytes] =]}
 proc b64url_decode str       {string map {- + _ /} [binary decode base64 $str]}
 
+# Arg handling
+test base64url_encode-0.1 {Too few args}  -body {tomcrypt::base64url               } -returnCodes error -result {wrong # args: should be "tomcrypt::base64url mode ?arg ...?"} -errorCode {TCL WRONGARGS}
+test base64url_encode-0.2 {Too few args}  -body {tomcrypt::base64url encode        } -returnCodes error -result {wrong # args: should be "tomcrypt::base64url encode bytes"}   -errorCode {TCL WRONGARGS}
+test base64url_encode-0.3 {Too many args} -body {tomcrypt::base64url encode foo bar} -returnCodes error -result {wrong # args: should be "tomcrypt::base64url encode bytes"}   -errorCode {TCL WRONGARGS}
+test base64url_decode-0.4 {Too few args}  -body {tomcrypt::base64url decode        } -returnCodes error -result {wrong # args: should be "tomcrypt::base64url decode string"}  -errorCode {TCL WRONGARGS}
+test base64url_decode-0.5 {Too many args} -body {tomcrypt::base64url decode foo bar} -returnCodes error -result {wrong # args: should be "tomcrypt::base64url decode string"}  -errorCode {TCL WRONGARGS}
+test base64url_decode-0.6 {Invalid mode}  -body {tomcrypt::base64url nonesuch      } -returnCodes error -result {bad mode "nonesuch": must be encode, strict_encode, decode, or strict_decode} -errorCode {TCL LOOKUP INDEX mode nonesuch}
+
 # Basic encoding tests (non-strict - no padding)
 test base64url_encode-1.1 {encode 0 length input} {tomcrypt::base64url encode {}}  {}
 test base64url_encode-1.2 {encode f}              {tomcrypt::base64url encode f}   Zg
