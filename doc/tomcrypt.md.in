@@ -53,7 +53,7 @@ This package provides a thin wrapper around a subset of libtomcrypt's functional
 
 :   Inverts the encoding applied by **encode** or **strict_encode**.  Both **decode** and
     **strict_decode** accept both padded and unpadded input, but strict does not allow pad
-    characters or characters outsite of the valid base64url alphabet within the encoded
+    characters or characters outside of the valid base64url alphabet within the encoded
     value.
 
 **tomcrypt::ecc_verify** *sig* *message* *pbkey*

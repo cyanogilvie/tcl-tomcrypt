@@ -48,7 +48,7 @@ functionality.
     Inverts the encoding applied by **encode** or **strict\_encode**.
     Both **decode** and **strict\_decode** accept both padded and
     unpadded input, but strict does not allow pad characters or
-    characters outsite of the valid base64url alphabet within the
+    characters outside of the valid base64url alphabet within the
     encoded value.
 
   - **tomcrypt::ecc\_verify** *sig* *message* *pbkey*  

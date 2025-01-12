@@ -91,7 +91,7 @@ Inverts the encoding applied by \f[B]encode\f[R] or
 \f[B]strict_encode\f[R].
 Both \f[B]decode\f[R] and \f[B]strict_decode\f[R] accept both padded and
 unpadded input, but strict does not allow pad characters or characters
-outsite of the valid base64url alphabet within the encoded value.
+outside of the valid base64url alphabet within the encoded value.
 .TP
 \f[B]tomcrypt::ecc_verify\f[R] \f[I]sig\f[R] \f[I]message\f[R] \f[I]pbkey\f[R]
 Verify the signature \f[I]sig\f[R] over the message \f[I]message\f[R]
