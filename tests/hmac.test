@@ -1,0 +1,65 @@
+source [file join [file dirname [info script]] common.tcl]
+
+test hmac-1.1 {hmac: basic usage} -setup { #<<<
+	# Test vectors from RFC 4231
+	set key	[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set msg	"Hi There"
+} -body {
+	binary encode hex [tomcrypt::hmac sha256 $key $msg]
+} -cleanup {
+	unset -nocomplain key msg
+} -result b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7
+#>>>
+test hmac-1.2 {hmac: empty message} -setup { #<<<
+	set key	[binary decode hex 4a656665]
+} -body {
+	tomcrypt::hmac sha256 $key ""
+} -cleanup {
+	unset -nocomplain key
+} -returnCodes ok
+#>>>
+test hmac-1.3 {hmac: unknown hash} -body { #<<<
+	tomcrypt::hmac invalid_hash "" ""
+} -result {Unknown hash invalid_hash} -returnCodes error -errorCode {TOMCRYPT LOOKUP HASH invalid_hash}
+#>>>
+test hmac-1.4 {hmac: key not bytes} -body { #<<<
+	tomcrypt::hmac sha256 \u306f ""
+} -result "expected byte sequence but character 0 was '\u306f' (U+00306F)" -returnCodes error -errorCode {TCL VALUE BYTES}
+#>>>
+test hmac-1.5 {hmac: message not bytes} -setup { #<<<
+	set key	[binary decode hex 4a656665]
+} -body {
+	tomcrypt::hmac sha256 $key \u306f
+} -cleanup {
+	unset -nocomplain key
+} -result "expected byte sequence but character 0 was '\u306f' (U+00306F)" -returnCodes error -errorCode {TCL VALUE BYTES}
+#>>>
+test hmac-1.6 {hmac: too few args} -body { #<<<
+	tomcrypt::hmac
+} -result {wrong # args: should be "tomcrypt::hmac algorithm key message"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test hmac-1.7 {hmac: too many args} -body { #<<<
+	tomcrypt::hmac sha256 key msg extra
+} -result {wrong # args: should be "tomcrypt::hmac algorithm key message"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test hmac-1.8 {hmac: child interp} -body { #<<<
+	set child	[interp create]
+	$child eval {
+		load {} tomcrypt
+		binary encode hex [tomcrypt::hmac sha256 \
+			[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b] \
+			"Hi There"]
+	}
+} -cleanup {
+	if {[info exists child]} {
+		interp delete $child
+	}
+	unset -nocomplain child
+} -result b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7
+#>>>
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4

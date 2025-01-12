@@ -86,6 +86,53 @@ finally:
 }
 
 //>>>
+OBJCMD(hmac_cmd) //<<<
+{
+	int				code = TCL_OK;
+	unsigned char*	out = NULL;
+	unsigned long	outlen;
+	Tcl_Obj*		res = NULL;
+
+	enum {A_cmd, A_HASH, A_KEY, A_MSG, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "algorithm key message");
+
+	// Find hash algorithm
+	const int hash_idx = find_hash(Tcl_GetString(objv[A_HASH]));
+	if (hash_idx == -1) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "LOOKUP", "HASH", Tcl_GetString(objv[A_HASH]), NULL);
+		THROW_PRINTF_LABEL(finally, code, "Unknown hash %s", Tcl_GetString(objv[A_HASH]));
+	}
+
+	// Get key
+	int keylen;
+	const unsigned char* key = Tcl_GetBytesFromObj(interp, objv[A_KEY], &keylen);
+	if (key == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Get message
+	int msglen;
+	const unsigned char* msg = Tcl_GetBytesFromObj(interp, objv[A_MSG], &msglen);
+	if (msg == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Calculate output size and allocate buffer
+	outlen = hash_descriptor[hash_idx].hashsize;
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, outlen));
+	out = Tcl_GetByteArrayFromObj(res, NULL);
+
+	// Compute HMAC
+	int err;
+	if ((err = hmac_memory(hash_idx, key, keylen, msg, msglen, out, &outlen)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "HMAC", "COMPUTE", NULL);
+		THROW_PRINTF_LABEL(finally, code, "hmac_memory failed: %s", error_to_string(err));
+	}
+
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
+	return code;
+}
+
+//>>>
 OBJCMD(base64url_cmd) // Base64 URL encode / decode <<<
 {
 	int					code = TCL_OK;
@@ -172,6 +219,74 @@ finally:
 }
 
 //>>>
+OBJCMD(ecc_make_key_cmd) //<<<
+{
+	int			code = TCL_OK;
+	ecc_key		key = {0};
+	int			key_initialized = 0;
+	prng_state	prng = {0};
+	int			desc_idx;
+	Tcl_Obj*	res = NULL;
+	Tcl_Obj*	privkey = NULL;
+	Tcl_Obj*	pubkey = NULL;
+
+	enum {A_cmd, A_PRNG, A_SIZE, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "prng keysize");
+
+	// Get key size
+	int keysize;
+	TEST_OK_LABEL(finally, code, Tcl_GetIntFromObj(interp, objv[A_SIZE], &keysize));
+	if (keysize <= 0) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+		THROW_ERROR_LABEL(finally, code, "keysize must be positive");
+	}
+
+	// Get PRNG state and descriptor index
+	TEST_OK_LABEL(finally, code, GetPrngFromObj(interp, objv[A_PRNG], &prng, &desc_idx));
+
+	// Generate the key
+	int err;
+	if ((err = ecc_make_key(&prng, desc_idx, keysize, &key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "GENERATE", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_make_key failed: %s", error_to_string(err));
+	}
+	key_initialized = 1;
+
+	// Export private key in internal format
+	unsigned char privbuf[512];
+	unsigned long privbuflen = sizeof(privbuf);
+	if ((err = ecc_export(privbuf, &privbuflen, PK_PRIVATE, &key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "EXPORT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_export failed: %s", error_to_string(err));
+	}
+	replace_tclobj(&privkey, Tcl_NewByteArrayObj(privbuf, privbuflen));
+
+	// Export public key in X9.63 format
+	unsigned char pubbuf[512];
+	unsigned long pubbuflen = sizeof(pubbuf);
+	if ((err = ecc_ansi_x963_export(&key, pubbuf, &pubbuflen)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "EXPORT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_ansi_x963_export failed: %s", error_to_string(err));
+	}
+	replace_tclobj(&pubkey, Tcl_NewByteArrayObj(pubbuf, pubbuflen));
+
+	// Create result list
+	replace_tclobj(&res, Tcl_NewListObj(2, NULL));
+	TEST_OK_LABEL(finally, code, Tcl_ListObjAppendElement(interp, res, privkey));
+	TEST_OK_LABEL(finally, code, Tcl_ListObjAppendElement(interp, res, pubkey));
+
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	if (key_initialized) 
+		ecc_free(&key);
+	replace_tclobj(&res, NULL);
+	replace_tclobj(&privkey, NULL);
+	replace_tclobj(&pubkey, NULL);
+	return code;
+}
+
+//>>>
 OBJCMD(ecc_verify) //<<<
 {
 	struct interp_cx*	l = cdata;
@@ -197,6 +312,65 @@ OBJCMD(ecc_verify) //<<<
 	Tcl_SetObjResult(interp, l->lit[stat ? L_TRUE : L_FALSE]);
 
 finally:
+	return code;
+}
+
+//>>>
+OBJCMD(ecc_sign_cmd) //<<<
+{
+	int			code = TCL_OK;
+	ecc_key*	key = NULL;
+	prng_state	prng = {0};
+	int			desc_idx;
+	Tcl_Obj*	res = NULL;
+
+	enum {A_cmd, A_PRIVKEY, A_MSG, A_args, A_objc};
+	const int A_PRNG = A_args;
+	CHECK_RANGE_ARGS_LABEL(finally, code, "privkey message ?prng?");
+
+	// Get the private key
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_PRIVKEY], &key));
+	if (key->type != PK_PRIVATE) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "KEY", "TYPE", NULL);
+		THROW_ERROR_LABEL(finally, code, "key is not a private key");
+	}
+
+	// Get message to sign
+	int msglen;
+	const unsigned char* msg = Tcl_GetBytesFromObj(interp, objv[A_MSG], &msglen);
+	if (msg == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Get PRNG details - either from supplied prng or use system prng
+	if (objc > A_PRNG) {
+		// Use supplied PRNG
+		TEST_OK_LABEL(finally, code, GetPrngFromObj(interp, objv[A_PRNG], &prng, &desc_idx));
+	} else {
+		// Use system PRNG
+		if (register_prng(&sprng_desc) == -1) {
+			Tcl_SetErrorCode(interp, "TOMCRYPT", "PRNG", "REGISTER", NULL);
+			THROW_ERROR_LABEL(finally, code, "failed to register system PRNG");
+		}
+		desc_idx = find_prng("sprng");
+	}
+
+	// Allocate signature buffer - start with a reasonable size
+	unsigned long siglen = 256;  // Should be plenty for ECC signatures
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, siglen));
+	unsigned char* sig = Tcl_GetByteArrayFromObj(res, NULL);
+
+	// Sign the message
+	int err;
+	if ((err = ecc_sign_hash(msg, msglen, sig, &siglen, objc > A_PRNG ? &prng : NULL, desc_idx, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "SIGN", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_sign_hash failed: %s", error_to_string(err));
+	}
+
+	// Adjust the byte array length to match the actual signature size
+	Tcl_SetByteArrayLength(res, siglen);
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
 	return code;
 }
 
@@ -399,8 +573,13 @@ static struct cmd {
 	Tcl_ObjCmdProc*	nrproc;
 } cmds[] = {
 	{NS "::hash",							hash_cmd,			NULL},
+	{NS "::hmac",							hmac_cmd,			NULL},
+	{NS "::ecc_make_key",					ecc_make_key_cmd,	NULL},
 	{NS "::ecc_verify",						ecc_verify,			NULL},
+	{NS "::ecc_sign",						ecc_sign_cmd,		NULL},
 	{NS "::rng_bytes",						rng_bytes,			NULL},
+//	{NS "::encrypt",						cipher_encrypt_cmd,	NULL},
+//	{NS "::decrypt",						cipher_decrypt_cmd,	NULL},
 	{NS "::base64url",						base64url_cmd,		NULL},
 #if TESTMODE
 	{NS "::_testmode_hasGetBytesFromObj",	hasGetBytesFromObj,	NULL},

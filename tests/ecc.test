@@ -86,7 +86,7 @@ test ecc-10.9 {duplicate ecc_key intrep} -constraints testMode -body { #<<<
 	unset -nocomplain pbkey res
 } -result 1
 #>>>
-test ecc-10.10 {child intero} -body { #<<<
+test ecc-10.10 {child interp} -body { #<<<
 	set child	[interp create]
 	$child eval {
 		load {} tomcrypt
@@ -103,6 +103,205 @@ test ecc-10.10 {child intero} -body { #<<<
 } -result 1
 #>>>
 
+# Basic functionality
+test ecc-20.1 {ecc_make_key: basic usage} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+} -body {
+	# Verify we got a two element list
+	llength [tomcrypt::ecc_make_key prng 32]
+} -cleanup {
+	rename prng {}
+} -result 2
+#>>>
+test ecc-20.2 {ecc_make_key: key verification} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	set msg		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+} -body {
+	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+
+	# Sign with private key
+	set sig			[tomcrypt::ecc_sign $private_key $msg]
+	# Verify with public key
+	tomcrypt::ecc_verify $sig $msg $public_key
+} -cleanup {
+	unset -nocomplain private_key public_key msg sig
+	rename prng {}
+} -result 1
+#>>>
+test ecc-20.3 {ecc_make_key: generated key formats} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+} -body {
+	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+
+	# Public key should start with 0x04 (uncompressed point format)
+	string index $public_key 0
+} -cleanup {
+	unset -nocomplain private_key public_key
+	rename prng {}
+} -result \x04
+#>>>
+# Error cases
+test ecc-20.4 {ecc_make_key: too few args} -body { #<<<
+	tomcrypt::ecc_make_key
+} -result {wrong # args: should be "tomcrypt::ecc_make_key prng keysize"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test ecc-20.5 {ecc_make_key: too many args} -body { #<<<
+	tomcrypt::ecc_make_key a b c
+} -result {wrong # args: should be "tomcrypt::ecc_make_key prng keysize"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test ecc-20.6 {ecc_make_key: invalid prng object} -body { #<<<
+	tomcrypt::ecc_make_key not_a_prng 32
+} -result {invalid prng object} -returnCodes error -errorCode {TOMCRYPT VALUE PRNG}
+#>>>
+test ecc-20.7 {ecc_make_key: negative keysize} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+} -body {
+	tomcrypt::ecc_make_key prng -1
+} -cleanup {
+	rename prng {}
+} -result {keysize must be positive} -returnCodes error -errorCode {TOMCRYPT VALUE}
+#>>>
+test ecc-20.8 {ecc_make_key: zero keysize} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+} -body {
+	tomcrypt::ecc_make_key prng 0
+} -cleanup {
+	rename prng {}
+} -result {keysize must be positive} -returnCodes error -errorCode {TOMCRYPT VALUE}
+#>>>
+test ecc-20.9 {ecc_make_key: keysize not an integer} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+} -body {
+	tomcrypt::ecc_make_key prng badsize
+} -cleanup {
+	rename prng {}
+} -returnCodes error -errorCode {TCL VALUE NUMBER} -match glob -result *
+#>>>
+# Test with child interp for memory handling
+test ecc-20.10 {child interp} -body { #<<<
+	set child	[interp create]
+	$child eval {
+		load {} tomcrypt
+		tomcrypt::prng create prng fortuna
+		llength [tomcrypt::ecc_make_key prng 32]
+	}
+} -cleanup {
+	if {[info exists child]} {
+		interp delete $child
+	}
+	unset -nocomplain child
+} -result 2
+#>>>
+
+test ecc-30.1 {ecc_sign: basic usage with default PRNG} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+	set msg	[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+} -body {
+	set sig	[tomcrypt::ecc_sign $private_key $msg]
+	tomcrypt::ecc_verify $sig $msg $public_key
+} -cleanup {
+	rename prng {}
+	unset -nocomplain private_key public_key msg sig
+} -result 1
+#>>>
+test ecc-30.2 {ecc_sign: basic usage with supplied PRNG} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+	set msg	[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+} -body {
+	set sig	[tomcrypt::ecc_sign $private_key $msg prng]
+	tomcrypt::ecc_verify $sig $msg $public_key
+} -cleanup {
+	rename prng {}
+	unset -nocomplain private_key public_key msg sig
+} -result 1
+#>>>
+test ecc-30.3 {ecc_sign: refuse to sign with public key} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	lassign	[tomcrypt::ecc_make_key prng 32] private_key public_key
+	set msg	[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+} -body {
+	tomcrypt::ecc_sign $public_key $msg
+} -cleanup {
+	rename prng {}
+	unset -nocomplain private_key public_key msg
+} -result {key is not a private key} -returnCodes error -errorCode {TOMCRYPT KEY TYPE}
+#>>>
+test ecc-30.4 {ecc_sign: too few args} -body { #<<<
+	tomcrypt::ecc_sign
+} -result {wrong # args: should be "tomcrypt::ecc_sign privkey message ?prng?"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test ecc-30.5 {ecc_sign: too many args} -body { #<<<
+	tomcrypt::ecc_sign a b c d
+} -result {wrong # args: should be "tomcrypt::ecc_sign privkey message ?prng?"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test ecc-30.6 {ecc_sign: invalid key} -setup { #<<<
+	set msg	[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+} -body {
+	tomcrypt::ecc_sign notakey $msg
+} -cleanup {
+	unset -nocomplain msg
+} -result {ecc_import failed: Invalid input packet.} -returnCodes error -errorCode {TOMCRYPT FORMAT}
+#>>>
+test ecc-30.7 {ecc_sign: message not bytes} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+} -body {
+	tomcrypt::ecc_sign $private_key \u306f
+} -cleanup {
+	rename prng {}
+	unset -nocomplain private_key public_key
+} -result "expected byte sequence but character 0 was '\u306f' (U+00306F)" -returnCodes error -errorCode {TCL VALUE BYTES}
+#>>>
+test ecc-30.8 {ecc_sign: invalid PRNG object} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+	set msg	[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+} -body {
+	tomcrypt::ecc_sign $private_key $msg not_a_prng
+} -cleanup {
+	rename prng {}
+	unset -nocomplain keypair private_key public_key msg
+} -result {invalid prng object} -returnCodes error -errorCode {TOMCRYPT VALUE PRNG}
+#>>>
+# Child interp test for memory handling
+test ecc-30.9 {child interp} -body { #<<<
+	set child	[interp create]
+	$child eval {
+		load {} tomcrypt
+		tomcrypt::prng create prng fortuna
+		lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+		set msg	[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+		# Test both with and without explicit PRNG
+		set sig1 [tomcrypt::ecc_sign $private_key $msg]
+		set sig2 [tomcrypt::ecc_sign $private_key $msg prng]
+		list \
+			[tomcrypt::ecc_verify $sig1 $msg $public_key] \
+			[tomcrypt::ecc_verify $sig2 $msg $public_key]
+	}
+} -cleanup {
+	if {[info exists child]} {
+		interp delete $child
+	}
+	unset -nocomplain child
+} -result {1 1}
+#>>>
+test ecc-30.10 {ecc_sign: verify signature different for different messages} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+	set msg1	[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+	set msg2	[binary decode hex 51091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+} -body {
+	# Test both with and without explicit PRNG
+	set sig1	[tomcrypt::ecc_sign $private_key $msg1]
+	set sig2	[tomcrypt::ecc_sign $private_key $msg2 prng]
+	expr {$sig1 ne $sig2}
+} -cleanup {
+	rename prng {}
+	unset -nocomplain private_key public_key msg1 msg2 sig1 sig2
+} -result 1
+#>>>
 
 # cleanup
 ::tcltest::cleanupTests

@@ -571,6 +571,30 @@ static Tcl_MethodType methods[] = {
 };
 #undef OO_VER
 
+int GetPrngFromObj(Tcl_Interp* interp, Tcl_Obj* prng, prng_state* state, int* desc_idx) //<<<
+{
+	int code = TCL_OK;
+
+	Tcl_Object obj = Tcl_GetObjectFromObj(interp, prng);
+	if (obj == NULL) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", "PRNG", NULL);
+		THROW_ERROR_LABEL(finally, code, "Not a prng instance");
+	}
+
+	struct prng_md* md = Tcl_ObjectGetMetadata(obj, &prng_metadata);
+	if (md == NULL) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", "PRNG", NULL);
+		THROW_ERROR_LABEL(finally, code, "Not a prng instance");
+	}
+
+	*state = md->prng;
+	*desc_idx = md->desc_idx;
+
+finally:
+	return code;
+}
+
+//>>>
 int prng_class_init(Tcl_Interp* interp, struct interp_cx* l) //<<<
 {
 	int				code = TCL_OK;

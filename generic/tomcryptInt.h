@@ -43,9 +43,45 @@ void forget_intrep(Tcl_Obj* obj);
 // type_ecc_key.c interface <<<
 int GetECCKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, ecc_key** key);
 // type_ecc_key.c interface >>>
+// type_cipher_spec.c interface <<<
+#define CIPHER_MODES_MAP_REGULAR \
+		X(cbc,	CBC) \
+		X(cfb,	CFB) \
+		X(ofb,	OFB)
+#define CIPHER_MODES_MAP_SPECIAL \
+		X(ctr,	CTR) \
+		X(ecr,	ECR) \
+		X(lrw,	LRW) \
+		X(f8,	F8)
+#define CIPHER_MODES_MAP \
+		CIPHER_MODES_MAP_REGULAR \
+		CIPHER_MODES_MAP_SPECIAL
+enum cipher_mode {
+#define X(lower, upper) CM_##upper,
+	CIPHER_MODES_MAP
+#undef X
+	CM_size
+};
+typedef struct cipher_spec {
+	int					cipher_idx;		// Index into cipher_descriptor
+	int					key_size;		// Size in bytes
+	enum cipher_mode	mode;			// CTR, CBC, etc
+	union {
+		int					ctr_mode;		// mode flags if mode is CTR
+		Tcl_Obj*			tweak;			// if mode is LRW
+		Tcl_Obj*			salt;			// if mode is F8
+	};
+} cipher_spec;
+
+int GetCipherSpecFromObj(Tcl_Interp* interp, Tcl_Obj* obj, cipher_spec** spec);
+// type_cipher_spec.c interface >>>
 // prng_class.c internal interface <<<
+int GetPrngFromObj(Tcl_Interp* interp, Tcl_Obj* prng, prng_state* state, int* desc_idx);
 int prng_class_init(Tcl_Interp* interp, struct interp_cx* l);
 // prng_class.c internal interface >>>
+// cipher.c internal interface <<<
+OBJCMD(cipher_encrypt_cmd);
+// cipher.c internal interface >>>
 
 EXTERN int Tomcrypt_Init _ANSI_ARGS_((Tcl_Interp * interp));
 
@@ -54,4 +90,5 @@ EXTERN int Tomcrypt_Init _ANSI_ARGS_((Tcl_Interp * interp));
 #endif
 
 #endif // _TOMCRYPTINT_H
+
 // vim: foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4
