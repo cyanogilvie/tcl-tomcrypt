@@ -1,6 +1,6 @@
 #include "tomcryptInt.h"
 
-static const char* cipher_mode_strs[] = {
+const char* cipher_mode_strs[] = {
 #define X(lower, upper) #lower,
 	CIPHER_MODES_MAP
 #undef X
@@ -28,6 +28,7 @@ static void free_cipher_spec_internal_rep(Tcl_Obj* obj) //<<<
 	switch (spec->mode) {
 		case CM_LRW:	replace_tclobj(&spec->tweak, NULL); break;
 		case CM_F8:		replace_tclobj(&spec->salt,  NULL); break;
+		default: break;
 	}
 
 	ckfree(spec);
@@ -84,7 +85,7 @@ int GetCipherSpecFromObj(Tcl_Interp* interp, Tcl_Obj* obj, cipher_spec** spec) /
 		TEST_OK_LABEL(finally, code, Tcl_ListObjGetElements(interp, obj, &objc, &objv));
 		enum {A_CIPHER, A_KEYSIZE, A_MODE, A_MODE_OPTS};
 
-		if (objc < 3 || obc > 4) {
+		if (objc < 3 || objc > 4) {
 			Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", "CIPHER_SPEC", NULL);
 			THROW_ERROR_LABEL(finally, code, "cipher spec must be a 3 or 4 element list: {cipher keysize mode ?mode_opt?}");
 		}
@@ -124,7 +125,7 @@ int GetCipherSpecFromObj(Tcl_Interp* interp, Tcl_Obj* obj, cipher_spec** spec) /
 						int			fc;
 						Tcl_Obj**	fv;
 						TEST_OK_LABEL(finally, code, Tcl_ListObjGetElements(interp, objv[A_MODE_OPTS], &fc, &fv));
-						for (int i=0; i<fc, i++) {
+						for (int i=0; i<fc; i++) {
 							#define MODEFLAG(s) {#s, s}
 							static struct {
 								const char*	name;	// Must be first
@@ -133,11 +134,11 @@ int GetCipherSpecFromObj(Tcl_Interp* interp, Tcl_Obj* obj, cipher_spec** spec) /
 								MODEFLAG(CTR_COUNTER_LITTLE_ENDIAN),
 								MODEFLAG(CTR_COUNTER_BIG_ENDIAN),
 								MODEFLAG(LTC_CTR_RFC3686),
-								NULL
+								{0}
 							};
 							#undef MODEFLAG
 							int	idx;
-							TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObjStruct(interp, fv[i], mode_flags, sizeof(mode_flags[0]), "flag", &idx));
+							TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObjStruct(interp, fv[i], mode_flags, sizeof(mode_flags[0]), "flag", TCL_EXACT, &idx));
 							new_spec->ctr_mode |= mode_flags[idx].val;
 							switch (mode_flags[idx].val) {
 								case CTR_COUNTER_LITTLE_ENDIAN:
@@ -159,18 +160,18 @@ int GetCipherSpecFromObj(Tcl_Interp* interp, Tcl_Obj* obj, cipher_spec** spec) /
 				//>>>
 
 			case CM_LRW:
-				if (A_MODE_OPTS >= objc) THROW_ERROR_LABEL("LRW mode requires tweak");
+				if (A_MODE_OPTS >= objc) THROW_ERROR_LABEL(finally, code, "LRW mode requires tweak");
 				replace_tclobj(&new_spec->tweak, objv[A_MODE_OPTS]);
 				break;
 
 			case CM_F8:
-				if (A_MODE_OPTS >= objc) THROW_ERROR_LABEL("F8 mode requires salt");
+				if (A_MODE_OPTS >= objc) THROW_ERROR_LABEL(finally, code, "F8 mode requires salt");
 				replace_tclobj(&new_spec->salt, objv[A_MODE_OPTS]);
 				break;
 
 			default:
 				if (A_MODE_OPTS < objc)
-					THROW_PRINTF_LABEL(finally, code, "%s mode doesn't have opts", objv[A_MODE]);
+					THROW_PRINTF_LABEL(finally, code, "%s mode doesn't have opts", Tcl_GetString(objv[A_MODE]));
 		}
 
 		Tcl_StoreInternalRep(obj, &cipher_spec_objtype, &(Tcl_ObjInternalRep){ .ptrAndLongRep.ptr = new_spec });

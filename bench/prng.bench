@@ -6,7 +6,7 @@ if {"bench" ni [info commands bench]} {
 package require tomcrypt
 
 proc main {} {
-	bench prng-1.1 {md5} -batch auto -setup { #<<<
+	bench prng-1.1 {72 random bytes} -batch auto -setup { #<<<
 		set count	72
 		tomcrypt::prng create fortuna	fortuna		[string repeat a 40]
 		tomcrypt::prng create chacha20	chacha20	[string repeat a 40]

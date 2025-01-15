@@ -50,7 +50,7 @@ int GetECCKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, ecc_key** key);
 		X(ofb,	OFB)
 #define CIPHER_MODES_MAP_SPECIAL \
 		X(ctr,	CTR) \
-		X(ecr,	ECR) \
+	/*	X(ecr,	ECR) */ \
 		X(lrw,	LRW) \
 		X(f8,	F8)
 #define CIPHER_MODES_MAP \
@@ -75,6 +75,7 @@ typedef struct cipher_spec {
 
 int GetCipherSpecFromObj(Tcl_Interp* interp, Tcl_Obj* obj, cipher_spec** spec);
 // type_cipher_spec.c interface >>>
+extern const char* cipher_mode_strs[];
 // prng_class.c internal interface <<<
 int GetPrngFromObj(Tcl_Interp* interp, Tcl_Obj* prng, prng_state* state, int* desc_idx);
 int prng_class_init(Tcl_Interp* interp, struct interp_cx* l);

@@ -4,12 +4,15 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 
 ## SYNOPSIS
 
-**package require tomcrypt** ?0.5.6?
+**package require tomcrypt** ?0.6.0?
 
 **tomcrypt::hash** *algorithm* *bytes*  
+**tomcrypt::hmac** *algorithm* *key* *message*  
 **tomcrypt::base64url** **encode**|**strict\_encode** *bytes*  
 **tomcrypt::base64url** **decode**|**strict\_decode** *string*  
+**tomcrypt::ecc\_make\_key** *prng* *keysize*  
 **tomcrypt::ecc\_verify** *sig* *message* *pbkey*  
+**tomcrypt::ecc\_sign** *privkey* *message* ?*prng*?  
 **tomcrypt::rng\_bytes** *count*  
 **tomcrypt::prng** **create** *prngInstance* *type* ?*entropy*?  
 **tomcrypt::prng** **new** *type* ?*entropy*?
@@ -51,6 +54,20 @@ functionality.
     characters outsite of the valid base64url alphabet within the
     encoded value.
 
+  - **tomcrypt::hmac** *algorithm* *key* *message*  
+    Compute the HMAC (Hash-based Message Authentication Code) of
+    *message* using the hash *algorithm* and *key*. The *algorithm* must
+    be one of the hash algorithms known to libtomcrypt (like sha256).
+    Both *key* and *message* must be byte arrays. Returns the HMAC
+    result as a raw byte array.
+
+  - **tomcrypt::ecc\_make\_key** *prng* *keysize*  
+    Generate a new ECC keypair using the PRNG instance *prng* with the
+    given *keysize* in bytes. Returns a two-element list containing the
+    private key in libtomcrypt’s internal format and the public key in
+    ANSI X9.63 format. The private key is suitable for use with
+    **ecc\_sign** and the public key with **ecc\_verify**.
+
   - **tomcrypt::ecc\_verify** *sig* *message* *pbkey*  
     Verify the signature *sig* over the message *message* with public
     key *pbkey*. *sig* is in ANSI X9.62 format, *pbkey* is in ANSI X9.63
@@ -58,6 +75,14 @@ functionality.
     is the raw bytearray (typically a hash result) that was signed.
     Returns true if the signature is valid, false if not, and throws an
     error if it couldn’t parse *sig* or *pbkey*.
+
+  - **tomcrypt::ecc\_sign** *privkey* *message* ?*prng*?  
+    Sign *message* using the private key *privkey* (in libtomcrypt’s
+    internal format, as returned by **ecc\_make\_key**). If *prng* is
+    provided, use that PRNG instance for the signing operation,
+    otherwise use the system’s secure random number generator. Returns
+    the signature in ANSI X9.62 format, suitable for verification with
+    **ecc\_verify**.
 
   - **tomcrypt::prng** **create** *prngInstance* *type* ?*entropy*?  
     Create a PRNG (pseudorandom number generator) instance accessed by
@@ -197,6 +222,30 @@ if {![info exists exit]} {
 exit $exit
 ```
 
+Generate a new ECC keypair and use it to sign a message:
+
+``` tcl
+tomcrypt::prng create rand fortuna
+set msg      [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+lassign [tomcrypt::ecc_make_key rand 32] privkey pubkey
+set sig      [tomcrypt::ecc_sign $privkey $msg]
+set verified [tomcrypt::ecc_verify $sig $msg $pubkey]
+if {$verified} {
+    puts "signature verified successfully"
+} else {
+    puts "signature verification failed"
+}
+rand destroy
+```
+
+Compute HMAC-SHA256:
+
+``` tcl
+set key     [binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+set message "Hi There"
+puts [binary encode hex [tomcrypt::hmac sha256 $key $message]]
+```
+
 ## BUILDING
 
 This package has no external dependencies other than Tcl. The libtom
@@ -210,13 +259,13 @@ support 8.6.
 ### From a Release Tarball
 
 Download and extract [the
-release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.6/tomcrypt0.5.6.tar.gz),
+release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.6.0/tomcrypt0.6.0.tar.gz),
 then build in the standard TEA way:
 
 ``` sh
-wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.6/tomcrypt0.5.6.tar.gz
-tar xf tomcrypt0.5.6.tar.gz
-cd tomcrypt0.5.6
+wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.6.0/tomcrypt0.6.0.tar.gz
+tar xf tomcrypt0.6.0.tar.gz
+cd tomcrypt0.6.0
 ./configure
 make
 sudo make install
@@ -244,7 +293,7 @@ and strip debug symbols, minimising image size:
 
 ``` dockerfile
 WORKDIR /tmp/tcl-tomcrypt
-RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.6/tomcrypt0.5.6.tar.gz -O - | tar xz --strip-components=1 && \
+RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.6.0/tomcrypt0.6.0.tar.gz -O - | tar xz --strip-components=1 && \
     ./configure; make test install-binaries install-libraries && \
     strip /usr/local/lib/libtomcrypt*.so && \
     cd .. && rm -rf tcl-tomcrypt

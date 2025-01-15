@@ -35,17 +35,17 @@ static int setup_cipher_md(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj* sp
 	const unsigned char*	iv = Tcl_GetBytesFromObj(interp, iv_obj, &ivlen);
 	if (iv == NULL) { code = TCL_ERROR; goto finally; }
 
-	if (keylen < cipher_descriptor[md->cipher_idx].min_key_length)
-		THROW_PRINTF_LABEL(finally, code, Tcl_ObjPrintf("Key must be at least %d bytes long for %s",
-					cipher_descriptor[md->cipher_idx].min_key_length,
-					cipher_descriptor[md->cipher_idx].name));
+	if (keylen < cipher_descriptor[spec->cipher_idx].min_key_length)
+		THROW_PRINTF_LABEL(finally, code, "Key must be at least %d bytes long for %s",
+					cipher_descriptor[spec->cipher_idx].min_key_length,
+					cipher_descriptor[spec->cipher_idx].name);
 
-	if (keylen > cipher_descriptor[md->cipher_idx].max_key_length)
-		THROW_PRINTF_LABEL(finally, code, Tcl_ObjPrintf("Key must be at must %d bytes long for %s",
-					cipher_descriptor[md->cipher_idx].max_key_length,
-					cipher_descriptor[md->cipher_idx].name));
+	if (keylen > cipher_descriptor[spec->cipher_idx].max_key_length)
+		THROW_PRINTF_LABEL(finally, code, "Key must be at must %d bytes long for %s",
+					cipher_descriptor[spec->cipher_idx].max_key_length,
+					cipher_descriptor[spec->cipher_idx].name);
 
-	const int blocksize = cipher_descriptor[md->cipher_idx].block_length;
+	const int blocksize = cipher_descriptor[spec->cipher_idx].block_length;
 	if (ivlen != blocksize) {
 		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", "IV_SIZE", NULL);
 		THROW_ERROR_LABEL(finally, code, "IV must be same length as cipher block size");
@@ -57,10 +57,12 @@ static int setup_cipher_md(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj* sp
 			err = ctr_start(spec->cipher_idx, iv, key, keylen, 0/*num_rounds, default*/, spec->ctr_mode, &md->state_ctr);
 			break;
 
+#if 0
 		case CM_ECR:
 			// ECR mode doesn't take iv
 			err = ctr_start(spec->cipher_idx, key, keylen, 0/*num_rounds, default*/, &md->state_ecb);
 			break;
+#endif
 
 		case CM_LRW:
 			// LRW mode takes tweak
@@ -86,6 +88,12 @@ static int setup_cipher_md(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj* sp
 		default:
 			THROW_ERROR_LABEL(finally, code, "Unhandled cipher mode", cipher_descriptor[spec->cipher_idx].name);
 	}
+
+	if (err != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "CIPHER", "ENCRYPT", cipher_mode_strs[md->mode], NULL);
+		THROW_PRINTF_LABEL(finally, code, "encryption failed: %s", error_to_string(err));
+	}
+
 	md->initialized = 1;
 
 finally:
@@ -102,9 +110,10 @@ static void teardown_cipher_md(struct cipher_md* md) //<<<
 		if (md->initialized) {
 			switch (md->mode) {
 #define X(lower, upper) \
-				case CM_##upper: lower##_done(md->state_##lower);
+				case CM_##upper: lower##_done(&md->state_##lower); break;
 				CIPHER_MODES_MAP
 #undef X
+				default: break;
 			}
 
 			md->initialized = 0;
@@ -115,25 +124,28 @@ static void teardown_cipher_md(struct cipher_md* md) //<<<
 //>>>
 static int encrypt_chunk(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj* plaintext, Tcl_Obj** ciphertext) //<<<
 {
-	int				code = TCL_OK;
-	Tcl_Obj*		res = NULL;
-	unsigned char*	in = NULL;
-	int				inlen;
+	int						code = TCL_OK;
+	Tcl_Obj*				res = NULL;
+	const unsigned char*	in = NULL;
+	int						inlen;
+	cipher_spec*			spec = NULL;
 
 	// Get input data
 	int datalen;
 	const unsigned char* data = Tcl_GetBytesFromObj(interp, plaintext, &datalen);
 	if (data == NULL) { code = TCL_ERROR; goto finally; }
 
-	switch (md.mode) {
+	TEST_OK_LABEL(finally, code, GetCipherSpecFromObj(interp, md->spec_obj, &spec));
+
+	switch (md->mode) {
 		case CM_CBC: // Handle partial blocks
 			{
-				const int blocksize = cipher_descriptor[md.cipher_idx].block_length;
+				const int blocksize = cipher_descriptor[spec->cipher_idx].block_length;
 				if (md->residual_length) {
 					inlen = md->residual_length + datalen;
 					in = ckalloc(inlen);
-					memcpy(in, md->residual, md->residual_length);
-					memcpy(in+md->residual_length, data, datalen);
+					memcpy((char*)in, md->residual, md->residual_length);
+					memcpy((char*)in+md->residual_length, data, datalen);
 					md->residual_length = 0;
 				} else {
 					in = data;
@@ -160,6 +172,7 @@ static int encrypt_chunk(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj* plai
 #define X(lower, upper) case CM_##upper: err = lower##_encrypt(in, out, inlen, &md->state_##lower); break;
 		CIPHER_MODES_MAP
 #undef X
+		default: THROW_PRINTF_LABEL(finally, code, "Unhandled cipher mode %d", md->mode);
 	}
 
 	if (err != CRYPT_OK) {
@@ -179,16 +192,19 @@ finally:
 }
 
 //>>>
-static int encrypt_final(interp, struct cipher_md* md, Tcl_Obj** ciphertext) //<<<
+static int encrypt_final(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj** ciphertext) //<<<
 {
-	int			code = TCL_OK;
-	Tcl_Obj*	tail = NULL;
-	Tcl_Obj*	tmp = NULL;
+	int				code = TCL_OK;
+	Tcl_Obj*		tail = NULL;
+	Tcl_Obj*		tmp = NULL;
+	cipher_spec*	spec = NULL;
+
+	TEST_OK_LABEL(finally, code, GetCipherSpecFromObj(interp, md->spec_obj, &spec));
 
 	switch (md->mode) {
 		case CM_CBC:	// Pad and encrypt the residual
 			{
-				const int		blocksize = cipher_descriptor[md->cipher_idx].block_length;
+				const int		blocksize = cipher_descriptor[spec->cipher_idx].block_length;
 				unsigned long	pad_len = blocksize - md->residual_length;
 
 				// PKCS#7 padding
