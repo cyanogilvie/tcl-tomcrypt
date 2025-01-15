@@ -578,8 +578,8 @@ static struct cmd {
 	{NS "::ecc_verify",						ecc_verify,			NULL},
 	{NS "::ecc_sign",						ecc_sign_cmd,		NULL},
 	{NS "::rng_bytes",						rng_bytes,			NULL},
-//	{NS "::encrypt",						cipher_encrypt_cmd,	NULL},
-//	{NS "::decrypt",						cipher_decrypt_cmd,	NULL},
+	{NS "::encrypt",						cipher_encrypt_cmd,	NULL},
+	{NS "::decrypt",						cipher_decrypt_cmd,	NULL},
 	{NS "::base64url",						base64url_cmd,		NULL},
 #if TESTMODE
 	{NS "::_testmode_hasGetBytesFromObj",	hasGetBytesFromObj,	NULL},

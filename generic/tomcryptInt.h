@@ -82,6 +82,7 @@ int prng_class_init(Tcl_Interp* interp, struct interp_cx* l);
 // prng_class.c internal interface >>>
 // cipher.c internal interface <<<
 OBJCMD(cipher_encrypt_cmd);
+OBJCMD(cipher_decrypt_cmd);
 // cipher.c internal interface >>>
 
 EXTERN int Tomcrypt_Init _ANSI_ARGS_((Tcl_Interp * interp));
