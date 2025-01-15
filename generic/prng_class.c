@@ -578,7 +578,8 @@ int GetPrngFromObj(Tcl_Interp* interp, Tcl_Obj* prng, prng_state* state, int* de
 	Tcl_Object obj = Tcl_GetObjectFromObj(interp, prng);
 	if (obj == NULL) {
 		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", "PRNG", NULL);
-		THROW_ERROR_LABEL(finally, code, "Not a prng instance");
+		code = TCL_ERROR;
+		goto finally;
 	}
 
 	struct prng_md* md = Tcl_ObjectGetMetadata(obj, &prng_metadata);

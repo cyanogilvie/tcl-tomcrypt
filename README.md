@@ -10,6 +10,8 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 **tomcrypt::hmac** *algorithm* *key* *message*  
 **tomcrypt::base64url** **encode**|**strict\_encode** *bytes*  
 **tomcrypt::base64url** **decode**|**strict\_decode** *string*  
+**tomcrypt::encrypt** *spec* *key* *iv* *bytes*  
+**tomcrypt::decrypt** *spec* *key* *iv* *bytes*  
 **tomcrypt::ecc\_make\_key** *prng* *keysize*  
 **tomcrypt::ecc\_verify** *sig* *message* *pbkey*  
 **tomcrypt::ecc\_sign** *privkey* *message* ?*prng*?  
@@ -53,6 +55,16 @@ functionality.
     unpadded input, but strict does not allow pad characters or
     characters outsite of the valid base64url alphabet within the
     encoded value.
+
+  - **tomcrypt::encrypt** *spec* *key* *iv* *data*  
+    Encrypt the plaintext bytes in *data* using the key *key* using the
+    cipher and mode specified in *spec*. See **CIPHER SPEC** for
+    details.
+
+  - **tomcrypt::decrypt** *spec* *key* *iv* *data*  
+    Decrypt the ciphertext bytes in *data* using the key *key* using the
+    cipher and mode specified in *spec*. See **CIPHER SPEC** for
+    details.
 
   - **tomcrypt::hmac** *algorithm* *key* *message*  
     Compute the HMAC (Hash-based Message Authentication Code) of
@@ -136,6 +148,17 @@ functionality.
     Destroy the instance. After returning, the *prngInstance* command no
     longer exists and all resources are released. Renaming the instance
     command to {} is equivalent.
+
+## CIPHER SPEC
+
+The choice of cipher and mode for encrypting and decrypting is given by
+a list of 3 or 4 elements: *cipher*, *keysize*, *mode*, and *mode\_opt*
+(if the mode takes options).
+
+*cipher* is a name of a symmetric cipher supported by libtomcrypt, such
+as “blowfish”, “aes”, etc. *keysize* is the size of the key (in bits).
+*mode* is the streaming mode, such as “cbc”, “ctr”, etc. Choose “ctr” if
+you don’t have a good reason not to.
 
 ## EXAMPLES
 

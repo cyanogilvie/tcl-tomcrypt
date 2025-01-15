@@ -151,7 +151,7 @@ test ecc-20.5 {ecc_make_key: too many args} -body { #<<<
 #>>>
 test ecc-20.6 {ecc_make_key: invalid prng object} -body { #<<<
 	tomcrypt::ecc_make_key not_a_prng 32
-} -result {invalid prng object} -returnCodes error -errorCode {TOMCRYPT VALUE PRNG}
+} -result {not_a_prng does not refer to an object} -returnCodes error -errorCode {TOMCRYPT VALUE PRNG}
 #>>>
 test ecc-20.7 {ecc_make_key: negative keysize} -setup { #<<<
 	tomcrypt::prng create prng fortuna

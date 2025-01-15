@@ -107,6 +107,8 @@
 <strong>tomcrypt::hmac</strong> <em>algorithm</em> <em>key</em> <em>message</em><br />
 <strong>tomcrypt::base64url</strong> <strong>encode</strong>|<strong>strict_encode</strong> <em>bytes</em><br />
 <strong>tomcrypt::base64url</strong> <strong>decode</strong>|<strong>strict_decode</strong> <em>string</em><br />
+<strong>tomcrypt::encrypt</strong> <em>spec</em> <em>key</em> <em>iv</em> <em>bytes</em><br />
+<strong>tomcrypt::decrypt</strong> <em>spec</em> <em>key</em> <em>iv</em> <em>bytes</em><br />
 <strong>tomcrypt::ecc_make_key</strong> <em>prng</em> <em>keysize</em><br />
 <strong>tomcrypt::ecc_verify</strong> <em>sig</em> <em>message</em> <em>pbkey</em><br />
 <strong>tomcrypt::ecc_sign</strong> <em>privkey</em> <em>message</em> ?<em>prng</em>?<br />
@@ -132,6 +134,12 @@
 </dd>
 <dt><strong>tomcrypt::base64url</strong> <strong>decode</strong>|<strong>strict_decode</strong> <em>string</em></dt>
 <dd><p>Inverts the encoding applied by <strong>encode</strong> or <strong>strict_encode</strong>. Both <strong>decode</strong> and <strong>strict_decode</strong> accept both padded and unpadded input, but strict does not allow pad characters or characters outsite of the valid base64url alphabet within the encoded value.</p>
+</dd>
+<dt><strong>tomcrypt::encrypt</strong> <em>spec</em> <em>key</em> <em>iv</em> <em>data</em></dt>
+<dd><p>Encrypt the plaintext bytes in <em>data</em> using the key <em>key</em> using the cipher and mode specified in <em>spec</em>. See <strong>CIPHER SPEC</strong> for details.</p>
+</dd>
+<dt><strong>tomcrypt::decrypt</strong> <em>spec</em> <em>key</em> <em>iv</em> <em>data</em></dt>
+<dd><p>Decrypt the ciphertext bytes in <em>data</em> using the key <em>key</em> using the cipher and mode specified in <em>spec</em>. See <strong>CIPHER SPEC</strong> for details.</p>
 </dd>
 <dt><strong>tomcrypt::hmac</strong> <em>algorithm</em> <em>key</em> <em>message</em></dt>
 <dd><p>Compute the HMAC (Hash-based Message Authentication Code) of <em>message</em> using the hash <em>algorithm</em> and <em>key</em>. The <em>algorithm</em> must be one of the hash algorithms known to libtomcrypt (like sha256). Both <em>key</em> and <em>message</em> must be byte arrays. Returns the HMAC result as a raw byte array.</p>
@@ -173,6 +181,9 @@
 <dd><p>Destroy the instance. After returning, the <em>prngInstance</em> command no longer exists and all resources are released. Renaming the instance command to {} is equivalent.</p>
 </dd>
 </dl>
+<h2 id="cipher-spec">CIPHER SPEC</h2>
+<p>The choice of cipher and mode for encrypting and decrypting is given by a list of 3 or 4 elements: <em>cipher</em>, <em>keysize</em>, <em>mode</em>, and <em>mode_opt</em> (if the mode takes options).</p>
+<p><em>cipher</em> is a name of a symmetric cipher supported by libtomcrypt, such as “blowfish”, “aes”, etc. <em>keysize</em> is the size of the key (in bits). <em>mode</em> is the streaming mode, such as “cbc”, “ctr”, etc. Choose “ctr” if you don’t have a good reason not to.</p>
 <h2 id="examples">EXAMPLES</h2>
 <p>Print out the hex-encoded md5 of “hello, tomcrypt” (normally, when hashing strings, they should be converted to an encoding like utf-8 first, but this example leaves that out for simplicity’s sake):</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true"></a><span class="kw">puts</span> <span class="kw">[binary</span> encode hex <span class="kw">[</span>tomcrypt::hash md5 <span class="st">&quot;hello, tomcrypt&quot;</span><span class="kw">]]</span></span></code></pre></div>

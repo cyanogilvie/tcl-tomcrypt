@@ -28,6 +28,16 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 .PD 0
 .P
 .PD
+\f[B]tomcrypt::encrypt\f[R] \f[I]spec\f[R] \f[I]key\f[R] \f[I]iv\f[R]
+\f[I]bytes\f[R]
+.PD 0
+.P
+.PD
+\f[B]tomcrypt::decrypt\f[R] \f[I]spec\f[R] \f[I]key\f[R] \f[I]iv\f[R]
+\f[I]bytes\f[R]
+.PD 0
+.P
+.PD
 \f[B]tomcrypt::ecc_make_key\f[R] \f[I]prng\f[R] \f[I]keysize\f[R]
 .PD 0
 .P
@@ -106,6 +116,16 @@ Inverts the encoding applied by \f[B]encode\f[R] or
 Both \f[B]decode\f[R] and \f[B]strict_decode\f[R] accept both padded and
 unpadded input, but strict does not allow pad characters or characters
 outsite of the valid base64url alphabet within the encoded value.
+.TP
+\f[B]tomcrypt::encrypt\f[R] \f[I]spec\f[R] \f[I]key\f[R] \f[I]iv\f[R] \f[I]data\f[R]
+Encrypt the plaintext bytes in \f[I]data\f[R] using the key
+\f[I]key\f[R] using the cipher and mode specified in \f[I]spec\f[R].
+See \f[B]CIPHER SPEC\f[R] for details.
+.TP
+\f[B]tomcrypt::decrypt\f[R] \f[I]spec\f[R] \f[I]key\f[R] \f[I]iv\f[R] \f[I]data\f[R]
+Decrypt the ciphertext bytes in \f[I]data\f[R] using the key
+\f[I]key\f[R] using the cipher and mode specified in \f[I]spec\f[R].
+See \f[B]CIPHER SPEC\f[R] for details.
 .TP
 \f[B]tomcrypt::hmac\f[R] \f[I]algorithm\f[R] \f[I]key\f[R] \f[I]message\f[R]
 Compute the HMAC (Hash-based Message Authentication Code) of
@@ -198,6 +218,18 @@ Destroy the instance.
 After returning, the \f[I]prngInstance\f[R] command no longer exists and
 all resources are released.
 Renaming the instance command to {} is equivalent.
+.SS CIPHER SPEC
+.PP
+The choice of cipher and mode for encrypting and decrypting is given by
+a list of 3 or 4 elements: \f[I]cipher\f[R], \f[I]keysize\f[R],
+\f[I]mode\f[R], and \f[I]mode_opt\f[R] (if the mode takes options).
+.PP
+\f[I]cipher\f[R] is a name of a symmetric cipher supported by
+libtomcrypt, such as \[lq]blowfish\[rq], \[lq]aes\[rq], etc.
+\f[I]keysize\f[R] is the size of the key (in bits).
+\f[I]mode\f[R] is the streaming mode, such as \[lq]cbc\[rq],
+\[lq]ctr\[rq], etc.
+Choose \[lq]ctr\[rq] if you don\[cq]t have a good reason not to.
 .SS EXAMPLES
 .PP
 Print out the hex-encoded md5 of \[lq]hello, tomcrypt\[rq] (normally,
