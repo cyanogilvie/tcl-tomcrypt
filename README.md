@@ -4,7 +4,7 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 
 ## SYNOPSIS
 
-**package require tomcrypt** ?0.6.0?
+**package require tomcrypt** ?0.6.1?
 
 **tomcrypt::hash** *algorithm* *bytes*  
 **tomcrypt::hmac** *algorithm* *key* *message*  
@@ -282,13 +282,13 @@ support 8.6.
 ### From a Release Tarball
 
 Download and extract [the
-release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.6.0/tomcrypt0.6.0.tar.gz),
+release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.6.1/tomcrypt0.6.1.tar.gz),
 then build in the standard TEA way:
 
 ``` sh
-wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.6.0/tomcrypt0.6.0.tar.gz
-tar xf tomcrypt0.6.0.tar.gz
-cd tomcrypt0.6.0
+wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.6.1/tomcrypt0.6.1.tar.gz
+tar xf tomcrypt0.6.1.tar.gz
+cd tomcrypt0.6.1
 ./configure
 make
 sudo make install
@@ -316,7 +316,7 @@ and strip debug symbols, minimising image size:
 
 ``` dockerfile
 WORKDIR /tmp/tcl-tomcrypt
-RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.6.0/tomcrypt0.6.0.tar.gz -O - | tar xz --strip-components=1 && \
+RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.6.1/tomcrypt0.6.1.tar.gz -O - | tar xz --strip-components=1 && \
     ./configure; make test install-binaries install-libraries && \
     strip /usr/local/lib/libtomcrypt*.so && \
     cd .. && rm -rf tcl-tomcrypt
@@ -376,9 +376,8 @@ library](https://github.com/libtom/libtommath), and
 
 ## PROJECT STATUS
 
-This is a very early work in progress. Currently all that is implemented
-and tested are the **hash** and **ecc\_verify** commands. More to come
-soon.
+This is an early work in progress, but the commands documented here are
+implemented and tested and the package is in limited production use.
 
 With the nature of this package a lot of care is taken with memory
 handling and test coverage. There are no known memory leaks or errors,

@@ -7,12 +7,79 @@ test ecc-1.1 {ecc_verify, success} -body { #<<<
 		[string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
 } -result 1
 #>>>
-test ecc-1.1 {ecc_verify, fail} -body { #<<<
+test ecc-2.1 {ecc_verify, fail} -body { #<<<
 	tomcrypt::ecc_verify \
 		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
 		[binary decode hex 51091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
 		[string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
 } -result 0
+#>>>
+
+test ecc-format-1.0 "Valid X9.63 public key import" -setup { #<<<
+    set pubkey [binary decode base64 "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A=="]
+} -body {
+    tomcrypt::ecc_verify \
+        [binary decode base64 "MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo="] \
+        [binary decode hex "41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda"] \
+        [string range $pubkey 26 end]
+} -cleanup {
+	unset -nocomplain pubkey
+} -result 1
+#>>>
+test ecc-format-1.1 "Invalid X9.63 public key format" -setup { #<<<
+    # Corrupted first byte (should be 0x04)
+    set pubkey [binary decode base64 "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAFbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A=="]
+} -body {
+    tomcrypt::ecc_verify "" "" [string range $pubkey 26 end]
+} -cleanup {
+	unset -nocomplain pubkey
+} -returnCodes error -result "Invalid X9.63 format key"
+#>>>
+test ecc-format-2.0 "Valid private key import" -setup { #<<<
+    # Generate a test key pair first
+    tomcrypt::prng create rng fortuna
+    lassign [tomcrypt::ecc_make_key rng 32] privkey pubkey
+
+    # Now verify we can use it for signing
+    set msg [binary decode hex "0123456789abcdef"]
+} -body {
+    set sig [tomcrypt::ecc_sign $privkey $msg]
+    tomcrypt::ecc_verify $sig $msg $pubkey
+} -cleanup {
+	unset -nocomplain privkey pubkey msg sig
+	catch {rename rng {}}
+} -result 1
+#>>>
+test ecc-format-2.1 "Invalid private key format" -setup { #<<<
+    tomcrypt::prng create rng fortuna
+    lassign [tomcrypt::ecc_make_key rng 32] privkey pubkey
+    # Modify the private key flag in the DER structure
+    binary scan $privkey H* hex
+    set corrupted_hex [string replace $hex 8 11 "0700"]
+    set corrupted_key [binary format H* $corrupted_hex]
+} -body {
+    tomcrypt::ecc_sign $corrupted_key "test"
+} -cleanup {
+    unset -nocomplain privkey pubkey hex corrupted_hex corrupted_key
+    catch {rename rng {}}
+} -returnCodes error -result "Invalid private key format"
+#>>>
+test ecc-format-3.0 "Completely invalid key format" -body { #<<<
+    tomcrypt::ecc_sign "not a key at all" "test"
+} -returnCodes error -result {Invalid private key format}
+#>>>
+test ecc-format-4.0 "Key pair round trip" -setup { #<<<
+    # Test that a generated key pair works for sign/verify
+    tomcrypt::prng create rng fortuna
+    lassign [tomcrypt::ecc_make_key rng 32] privkey pubkey
+    set msg "test message"
+} -body {
+    set sig [tomcrypt::ecc_sign $privkey $msg]
+    tomcrypt::ecc_verify $sig $msg $pubkey
+} -cleanup {
+	unset -nocomplain privkey pubkey msg sig
+	catch {rename rng {}}
+} -result 1
 #>>>
 
 # Coverage golf:
@@ -36,7 +103,7 @@ test ecc-10.2 {GetECCKeyFromObj, bad key} -body { #<<<
 		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
 		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
 		[binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==]
-} -result {ecc_import failed: Invalid input packet.} -returnCodes error -errorCode {TOMCRYPT FORMAT}
+} -result {Invalid X9.63 format key} -returnCodes error -errorCode {TOMCRYPT FORMAT X963}
 #>>>
 test ecc-10.3 {ecc_verify: too few args} -body { #<<<
 	tomcrypt::ecc_verify a b
@@ -226,7 +293,7 @@ test ecc-30.3 {ecc_sign: refuse to sign with public key} -setup { #<<<
 } -cleanup {
 	rename prng {}
 	unset -nocomplain private_key public_key msg
-} -result {key is not a private key} -returnCodes error -errorCode {TOMCRYPT KEY TYPE}
+} -result {Invalid private key format} -returnCodes error -errorCode {TOMCRYPT FORMAT PRIVATE}
 #>>>
 test ecc-30.4 {ecc_sign: too few args} -body { #<<<
 	tomcrypt::ecc_sign
@@ -242,7 +309,7 @@ test ecc-30.6 {ecc_sign: invalid key} -setup { #<<<
 	tomcrypt::ecc_sign notakey $msg
 } -cleanup {
 	unset -nocomplain msg
-} -result {ecc_import failed: Invalid input packet.} -returnCodes error -errorCode {TOMCRYPT FORMAT}
+} -result {Invalid private key format} -returnCodes error -errorCode {TOMCRYPT FORMAT PRIVATE}
 #>>>
 test ecc-30.7 {ecc_sign: message not bytes} -setup { #<<<
 	tomcrypt::prng create prng fortuna
@@ -263,7 +330,7 @@ test ecc-30.8 {ecc_sign: invalid PRNG object} -setup { #<<<
 } -cleanup {
 	rename prng {}
 	unset -nocomplain keypair private_key public_key msg
-} -result {invalid prng object} -returnCodes error -errorCode {TOMCRYPT VALUE PRNG}
+} -result {not_a_prng does not refer to an object} -returnCodes error -errorCode {TOMCRYPT VALUE PRNG}
 #>>>
 # Child interp test for memory handling
 test ecc-30.9 {child interp} -body { #<<<

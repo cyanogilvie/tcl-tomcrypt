@@ -376,8 +376,8 @@ This package is built on the [libtomcrypt library](https://github.com/libtom/lib
 
 ## PROJECT STATUS
 
-This is a very early work in progress.  Currently all that is implemented and
-tested are the **hash** and **ecc_verify** commands.  More to come soon.
+This is an early work in progress, but the commands documented here are implemented
+and tested and the package is in limited production use.
 
 With the nature of this package a lot of care is taken with memory handling
 and test coverage.  There are no known memory leaks or errors, and the

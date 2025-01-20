@@ -296,7 +296,7 @@ OBJCMD(ecc_verify) //<<<
 	CHECK_ARGS_LABEL(finally, code, "sig message key");
 
 	ecc_key*	key = NULL;
-	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_KEY], &key));
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_KEY], ECC_EXPECT_PUBLIC, &key));
 
 	int				siglen, msglen, stat;
 	const uint8_t*	sig = Tcl_GetBytesFromObj(interp, objv[A_SIG],  &siglen);
@@ -329,7 +329,7 @@ OBJCMD(ecc_sign_cmd) //<<<
 	CHECK_RANGE_ARGS_LABEL(finally, code, "privkey message ?prng?");
 
 	// Get the private key
-	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_PRIVKEY], &key));
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_PRIVKEY], ECC_EXPECT_PRIVATE, &key));
 	if (key->type != PK_PRIVATE) {
 		Tcl_SetErrorCode(interp, "TOMCRYPT", "KEY", "TYPE", NULL);
 		THROW_ERROR_LABEL(finally, code, "key is not a private key");

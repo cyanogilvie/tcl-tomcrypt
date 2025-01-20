@@ -41,7 +41,13 @@ void register_intrep(Tcl_Obj* obj);
 void forget_intrep(Tcl_Obj* obj);
 // tomcrypt.c internal interface >>>
 // type_ecc_key.c interface <<<
-int GetECCKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, ecc_key** key);
+// Add an enum for key type expectation
+typedef enum {
+    ECC_EXPECT_PUBLIC,
+    ECC_EXPECT_PRIVATE
+} ecc_key_type_t;
+
+int GetECCKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, ecc_key_type_t expect_type, ecc_key** key);
 // type_ecc_key.c interface >>>
 // type_cipher_spec.c interface <<<
 #define CIPHER_MODES_MAP_REGULAR \
