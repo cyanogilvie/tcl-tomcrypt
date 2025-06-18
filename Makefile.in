@@ -535,6 +535,9 @@ build:
 	cp -a deps/libtomcrypt/src/headers/* $(top_builddir)/build/libtomcrypt/src/headers/
 	cd deps/tomsfastmath && find . -type d -exec mkdir -p $(top_builddir)/build/tomsfastmath/{} \;
 	cp -a deps/tomsfastmath/src/headers/* $(top_builddir)/build/tomsfastmath/src/headers/
+	sed -e 's/#include <tfm.h>/#include "tomsfastmath\/tfm.h"/' \
+		$(srcdir)/deps/libtomcrypt/src/math/tfm_desc.c > \
+		$(top_builddir)/build/libtomcrypt/src/math/tfm_desc.c
 
 local/lib/libtommath.a: build
 	make -C build/libtommath --include-dir=$(abspath $(srcdir)/deps/libtommath) CFLAGS="-fPIC -g" DESTDIR="$(top_builddir)" PREFIX=/local -j 12 custom_install
