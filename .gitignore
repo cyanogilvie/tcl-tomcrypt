@@ -16,3 +16,4 @@ last
 local
 Makefile.teabase
 doc/.build
+build/

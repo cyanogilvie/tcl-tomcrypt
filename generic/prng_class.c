@@ -333,6 +333,7 @@ static int method_integer(ClientData cdata, Tcl_Interp* interp, Tcl_ObjectContex
 
 		if (MP_OKAY != (rc = mp_init(&range_bigval)))									goto mp_err;
 		switch (mp_cmp_mag(&lower_bigval, &upper_bigval)) {
+			case MP_LT: break;
 			case MP_GT:
 				Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
 				THROW_ERROR_LABEL(mp_finally, code, "lower must be less than or equal to upper")

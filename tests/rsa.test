@@ -1,0 +1,1249 @@
+source [file join [file dirname [info script]] common.tcl]
+
+set default_key	{-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAwMxu3G35Mj3FBmJJnsYwlJmO+sx+sT6vIFrv2d2YZ0yJ5dtf
+Wm8NIbMjBC+hq2/QwAOzvi9LNA+7Jahm1qRg6FiGJALcGYE3rV1aadjlbVTjF/p8
+T3gBtPK6NZ3fOTL6YIcfkgyT4gAcNCvQ9ylCQt80+J4YvBWBa20CzMz2QUwtAwg0
+s5GTEtXvgzEqeJefD8rMFs9w6t+fdKWK6s8zMhtWj9e8MWzujMEsCN1/6YxCjUfw
+SSb8JSROJ0GulqcRhUCGaW/NsHDxHA+Pix9qNWy6PP2MxzzAiF54dHBzGfBhgENa
+kUGRkcBX0SjRkXKHORe2DwFy5e58s1Iwg3s5XwIDAQABAoIBAA2N8ddWdfgVxqXJ
+wDJE7cJsv1Qbj2anqQlFy2oOPbo5c9Jwp1YEy7AMV5BiRuP2Iv904yyiR4+78WTW
+35AEk3mSS6/5cX7rij4Ke6JIaOzUVHjpl9bAcaJGlFfTpw9u6ZJivZH3h2gSqOj0
+Eadmw61O4vr9pnCGtIgYbGN4n3F8qX4PHUDOKakJ/OchUVbWvqi+0b5dAguZQGe5
+4dbUEzGuZEVaeFTV5YxNFQTuX6DeA8U4qbWUhsIGLmqX9AadmxCGdSmAmxveZw1K
+22BlnkgIAZcG2X6kFSCeYEgOER3lC4U8gO4BvLBpyiQLPtF4Z8qEVccIjNTgdHyA
+9u1LIYUCgYEAwYC1E8TdqmrVHUVtCStM6bxoeDvePKJK9oJTH1SCfgxYpJvPicna
+a+ehhOOYTYdjiOP9YqMgc+6Lo+yXNR/36u/A2W6FXrj+WPfPoaWnO/DzLWpO/BMy
+HZ7V+roYTsJGpwSrDw7mUeb6jKnf9+74cq1TY7kztUdw0581lXlAkq0CgYEA/xGA
+QU0wnmMSIcVoUPcOOskCWHTqyr0FcyLsILTHqgVdBSSikIJI5c+7bgcM/jKeQhRj
+z1YroOE6tq/9z2nes5Bw/z3E7Fe8N8Ja81rmLsl5J4hJzZlsWrLjXh4An3gS/p0K
+qMTMgAbd/NWy3oo2OZwfbR+HkuyRFjtJDwnICbsCgYBphyS5pEpzLxIMhZlCP+AR
+NJQQxi2cCbIyH77vPipwTZFmLCcR8Qhygn8+ttSPq39n31aHnYkMUJLNEjEgYs/U
+y23z5mdL0j28DWGpuWqrsOsd4HU02c8iAkaWFzk8co0PdudHLgwDrKEFZ3tifmv2
+Nnpcz1rYyR5J+vDBFMBXfQKBgGzB4ZX2e8yNIaYUri4XqZGXM9DTyWk4v6IgOd6Y
+NqpgLxGKVWaYpsyWjqyThQ6+NoymdQhrDZ9Dae2LjQVrdvHJnOS4ScccgbykunMZ
+Rxyb+3THv/BSgskJjbkLweg9Ipw+CdV8VFYil3S/Cc2p0QUvdJbq4rva8uIv1S78
+VLcRAoGBALEWi6xrcDnDxEcm6wzRMzCvpsmVBF1KK0yQ3iwr7IsyeE/WUIAqs3h0
+TV2eJiQNeP2Uz2eRktzpLOfZHcLDqeGgqjYZtZCldaionhMjfvY2sb9fszxrFgLP
+02MM5ojZEFWBuG0gS7PqyARk/soYQeB07AU+qk2tQCUCxEluMkax
+-----END RSA PRIVATE KEY-----
+}
+set default_pubkey {
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwMxu3G35Mj3FBmJJnsYw
+lJmO+sx+sT6vIFrv2d2YZ0yJ5dtfWm8NIbMjBC+hq2/QwAOzvi9LNA+7Jahm1qRg
+6FiGJALcGYE3rV1aadjlbVTjF/p8T3gBtPK6NZ3fOTL6YIcfkgyT4gAcNCvQ9ylC
+Qt80+J4YvBWBa20CzMz2QUwtAwg0s5GTEtXvgzEqeJefD8rMFs9w6t+fdKWK6s8z
+MhtWj9e8MWzujMEsCN1/6YxCjUfwSSb8JSROJ0GulqcRhUCGaW/NsHDxHA+Pix9q
+NWy6PP2MxzzAiF54dHBzGfBhgENakUGRkcBX0SjRkXKHORe2DwFy5e58s1Iwg3s5
+XwIDAQAB
+-----END PUBLIC KEY-----
+}
+tomcrypt::prng create common_prng fortuna
+
+test rsa_make_key-1 {rsa_make_key basic functionality with options} -body { #<<<
+	set privkey	[tomcrypt::rsa_make_key -prng common_prng -keysize 2048]
+	set pubkey	[tomcrypt::rsa_extract_pubkey $privkey]
+	list [string match -----BEGIN* $privkey] \
+	     [string match -----BEGIN* $pubkey]
+} -cleanup {
+	unset -nocomplain privkey pubkey
+} -result {1 1}
+#>>>
+test rsa_make_key-2 {rsa_make_key with custom exponent} -body { #<<<
+	set privkey	[tomcrypt::rsa_make_key -prng common_prng -keysize 2048 -exponent 3]
+	set pubkey	[tomcrypt::rsa_extract_pubkey $privkey]
+	list [string match -----BEGIN* $privkey] \
+	     [string match -----BEGIN* $pubkey]
+} -cleanup {
+	unset -nocomplain privkey pubkey
+} -result {1 1}
+#>>>
+test rsa_make_key-3 {rsa_make_key with defaults (no arguments)} -body { #<<<
+	set privkey	[tomcrypt::rsa_make_key]
+	set pubkey	[tomcrypt::rsa_extract_pubkey $privkey]
+	list [string match -----BEGIN* $privkey] \
+	     [string match -----BEGIN* $pubkey]
+} -cleanup {
+	unset -nocomplain privkey pubkey
+} -result {1 1}
+#>>>
+test rsa_make_key-4 {Make key with specific PRNG} -body { #<<<
+	string match -----BEGIN* [tomcrypt::rsa_make_key -keysize 1024 -prng common_prng]
+} -result 1
+#>>>
+test rsa_make_key-5 {Make key with minimum size 1024} -body { #<<<
+	string match -----BEGIN* [tomcrypt::rsa_make_key -keysize 1024]
+} -result 1
+#>>>
+test rsa_make_key-6 {Make key with maximum size 4096} -body { #<<<
+	string match -----BEGIN* [tomcrypt::rsa_make_key -keysize 4096]
+} -result 1
+#>>>
+test rsa_make_key-error-1 {Invalid key size} -body { #<<<
+	tomcrypt::rsa_make_key -keysize 512
+} -returnCodes error -errorCode {TOMCRYPT VALUE} -result {keysize must be a multiple of 8 between 1024 and 4096 bits}
+#>>>
+test rsa_make_key-error-2 {Invalid exponent} -body { #<<<
+	tomcrypt::rsa_make_key -keysize 2048 -exponent 2
+} -returnCodes error -errorCode {TOMCRYPT VALUE} -result {exponent must be at least 3}
+#>>>
+test rsa_make_key-error-3 {Keysize not multiple of 8} -body { #<<<
+	tomcrypt::rsa_make_key -keysize 1025
+} -returnCodes error -errorCode {TOMCRYPT VALUE} -result {keysize must be a multiple of 8 between 1024 and 4096 bits}
+#>>>
+test rsa_make_key-error-4 {Keysize too small} -body { #<<<
+	tomcrypt::rsa_make_key -keysize 1016
+} -returnCodes error -errorCode {TOMCRYPT VALUE} -result {keysize must be a multiple of 8 between 1024 and 4096 bits}
+#>>>
+test rsa_make_key-error-5 {Keysize too large} -body { #<<<
+	tomcrypt::rsa_make_key -keysize 4104
+} -returnCodes error -errorCode {TOMCRYPT VALUE} -result {keysize must be a multiple of 8 between 1024 and 4096 bits}
+#>>>
+test rsa_make_key-error-6 {Missing option value for keysize} -body { #<<<
+	tomcrypt::rsa_make_key -keysize
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -keysize} -result {Missing argument for -keysize}
+#>>>
+test rsa_make_key-error-7 {Missing option value for exponent} -body { #<<<
+	tomcrypt::rsa_make_key -exponent
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -exponent} -result {Missing argument for -exponent}
+#>>>
+test rsa_make_key-error-8 {Missing option value for prng} -body { #<<<
+	tomcrypt::rsa_make_key -prng
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -prng} -result {Missing argument for -prng}
+#>>>
+test rsa_make_key-error-9 {Non-integer keysize} -body { #<<<
+	tomcrypt::rsa_make_key -keysize notanumber
+} -returnCodes error -errorCode {TCL VALUE NUMBER} -result {expected integer but got "notanumber"}
+#>>>
+test rsa_make_key-error-10 {Non-integer exponent} -body { #<<<
+	tomcrypt::rsa_make_key -exponent notanumber
+} -returnCodes error -errorCode {TCL VALUE NUMBER} -result {expected integer but got "notanumber"}
+#>>>
+test rsa_make_key-error-11 {rsa_make_key with unknown option} -body { #<<<
+	tomcrypt::rsa_make_key extra arg
+} -returnCodes error -errorCode {TCL LOOKUP INDEX option extra} -result {bad option "extra": must be -keysize, -exponent, or -prng}
+#>>>
+test rsa_make_key-error-12 {rsa_make_key with invalid option} -body { #<<<
+	tomcrypt::rsa_make_key -invalid option
+} -returnCodes error -errorCode {TCL LOOKUP INDEX option -invalid} -result {bad option "-invalid": must be -keysize, -exponent, or -prng}
+#>>>
+test rsa_make_key-error-13 {rsa_make_key_cmd with invalid -prng value} -body { #<<<
+	tomcrypt::rsa_make_key -keysize 1024 -prng invalid_prng
+} -returnCodes error -errorCode {TOMCRYPT VALUE PRNG} -result {invalid_prng does not refer to an object}
+#>>>
+test rsa_make_key-error-14 {rsa_make_key with invalid option switch} -body { #<<<
+	tomcrypt::rsa_make_key -invalidoption value
+} -returnCodes error -errorCode {TCL LOOKUP INDEX option -invalidoption} -result {bad option "-invalidoption": must be -keysize, -exponent, or -prng}
+#>>>
+
+test rsa_extract_pubkey-1 {rsa_extract_pubkey functionality} -body { #<<<
+	set pubkey		[tomcrypt::rsa_extract_pubkey $default_key]
+	# Test that we can use the extracted public key for verification
+	set hash		[tomcrypt::hash sha256 {test message}]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash]
+	tomcrypt::rsa_verify_hash -key [tomcrypt::rsa_extract_pubkey $default_key] -sig $signature -hash $hash
+} -cleanup {
+	unset -nocomplain pubkey hash signature
+} -result 1
+#>>>
+test rsa_extract_pubkey-error-1 {rsa_extract_pubkey with public key should fail} -body { #<<<
+	tomcrypt::rsa_extract_pubkey [tomcrypt::rsa_extract_pubkey $default_key]
+} -returnCodes error -errorCode {TOMCRYPT KEY TYPE} -result {Expected private key but got public key}
+#>>>
+test rsa_extract_pubkey-error-2 {Invalid RSA key format} -body { #<<<
+	tomcrypt::rsa_extract_pubkey "invalid key data"
+} -returnCodes error -errorCode {TOMCRYPT FORMAT RSA} -result {Invalid RSA key format}
+#>>>
+test rsa_extract_pubkey-error-3 {Invalid PEM format - no newline} -body { #<<<
+	tomcrypt::rsa_extract_pubkey "-----BEGIN RSA PRIVATE KEY-----invalid"
+} -returnCodes error -errorCode {TOMCRYPT FORMAT RSA} -result {Invalid RSA key format}
+#>>>
+test rsa_extract_pubkey-error-4 {Invalid PEM format - no end marker} -body { #<<<
+	tomcrypt::rsa_extract_pubkey "-----BEGIN RSA PRIVATE KEY-----\ninvalidbase64data"
+} -returnCodes error -errorCode {TOMCRYPT FORMAT RSA} -result {Invalid RSA key format}
+#>>>
+test rsa_extract_pubkey-error-5 {Invalid base64 in PEM} -body { #<<<
+	tomcrypt::rsa_extract_pubkey "-----BEGIN RSA PRIVATE KEY-----\ninvalid!!!base64\n-----END RSA PRIVATE KEY-----"
+} -returnCodes error -errorCode {TOMCRYPT FORMAT RSA} -result {Invalid RSA key format}
+#>>>
+test rsa_extract_pubkey-error-6 {rsa_extract_pubkey with no arguments} -body { #<<<
+	tomcrypt::rsa_extract_pubkey
+} -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::rsa_extract_pubkey privkey"}
+#>>>
+test rsa_extract_pubkey-error-7 {rsa_extract_pubkey with too many arguments} -body { #<<<
+	tomcrypt::rsa_extract_pubkey $default_key extra
+} -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::rsa_extract_pubkey privkey"}
+#>>>
+test rsa_extract_pubkey-error-8 {rsa_extract_pubkey error path testing} -body { #<<<
+	tomcrypt::rsa_extract_pubkey not_a_valid_rsa_key_at_all
+} -returnCodes error -errorCode {TOMCRYPT FORMAT RSA} -result {Invalid RSA key format}
+#>>>
+
+test rsa_sign_hash-1 {rsa_sign_hash and rsa_verify_hash with v1.5 padding} -body { #<<<
+	# Test with SHA-1 hash, PKCS#1 v1.5 padding (for CloudFront compatibility)
+	set hash		[tomcrypt::hash sha1 {Hello, World!}]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash -padding v1.5 -hashalg sha1]
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig $signature -hash $hash -padding v1.5 -hashalg sha1
+} -cleanup {
+	unset -nocomplain hash signature
+} -result 1
+#>>>
+test rsa_sign_hash-2 {rsa_sign_hash and rsa_verify_hash with PSS padding} -body { #<<<
+	set hash		[tomcrypt::hash sha256 {Hello, PSS World!}]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash -padding pss -hashalg sha256 -saltlen 32]
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig $signature -hash $hash -padding pss -hashalg sha256 -saltlen 32
+} -cleanup {
+	unset -nocomplain hash signature
+} -result 1
+#>>>
+test rsa_sign_hash-3 {CloudFront-style signature test} -body { #<<<
+	# Simulate CloudFront policy string
+	set policy	{{"Statement":[{"Resource":"http://example.com/*","Condition":{"DateLessThan":{"AWS:EpochTime":1234567890}}}]}}
+	set hash	[tomcrypt::hash sha1 [encoding convertto utf-8 $policy]]
+
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash -padding v1.5 -hashalg sha1]
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig $signature -hash $hash -padding v1.5 -hashalg sha1
+} -cleanup {
+	unset -nocomplain policy hash signature
+} -result 1
+#>>>
+test rsa_sign_hash-4 {Use private key for signing} -body { #<<<
+	expr {[string length [tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 {test message}]]] > 0}
+} -result 1
+#>>>
+test rsa_sign_hash-5 {v1.5_na1 padding for signing} -body { #<<<
+	set hash		[tomcrypt::hash sha256 {test message}]]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash -padding v1.5_na1]
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig $signature -hash $hash -padding v1.5_na1
+} -cleanup {
+	unset -nocomplain hash signature
+} -result 1
+#>>>
+test rsa_sign_hash-6 {PSS with different salt lengths} -body { #<<<
+	set hash		[tomcrypt::hash sha256 {test message}]]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash -padding pss -hashalg sha256 -saltlen 16]
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig $signature -hash $hash -padding pss -hashalg sha256 -saltlen 16
+} -cleanup {
+	unset -nocomplain hash signature
+} -result 1
+#>>>
+test rsa_sign_hash-7 {Zero salt length for PSS} -body { #<<<
+	set hash		[tomcrypt::hash sha256 {test message}]]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash -padding pss -hashalg sha256 -saltlen 0]
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig $signature -hash $hash -padding pss -hashalg sha256 -saltlen 0
+} -cleanup {
+	unset -nocomplain hash signature
+} -result 1
+#>>>
+test rsa_sign_hash-8 {Test PSS with maximum salt length} -body { #<<<
+	set hash		[tomcrypt::hash sha256 {test message}]]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash -padding pss -hashalg sha256 -saltlen 222]
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig $signature -hash $hash -padding pss -hashalg sha256 -saltlen 222
+} -cleanup {
+	unset -nocomplain hash signature
+} -result 1
+#>>>
+test rsa_sign_hash-9 {rsa_sign_hash with -prng and PSS} -body { #<<<
+	string length [tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding pss -prng common_prng]
+} -result 256
+#>>>
+test rsa_sign_hash-error-1 {Invalid hash algorithm} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding v1.5 -hashalg nonexistent
+} -returnCodes error -errorCode {TOMCRYPT LOOKUP HASH nonexistent} -result {Unknown hash nonexistent}
+#>>>
+test rsa_sign_hash-error-2 {Invalid padding type for signing} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding invalid -hashalg sha256
+} -returnCodes error -errorCode {TCL LOOKUP INDEX padding invalid} -result {bad padding "invalid": must be v1.5, pss, or v1.5_na1}
+#>>>
+test rsa_sign_hash-error-3 {rsa_sign_hash missing key argument} -body { #<<<
+	tomcrypt::rsa_sign_hash -hash [tomcrypt::hash sha256 test]
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -key} -result {Missing -key argument}
+#>>>
+test rsa_sign_hash-error-4 {rsa_sign_hash missing hash argument} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -hash} -result {Missing -hash argument}
+#>>>
+test rsa_sign_hash-error-5 {Invalid saltlen (negative)} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding pss -saltlen -1
+} -returnCodes error -errorCode {TOMCRYPT VALUE} -result {salt length cannot be negative}
+#>>>
+test rsa_sign_hash-error-6 {v1.5_na1 with hashalg should fail for signing} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding v1.5_na1 -hashalg sha256
+} -returnCodes error -result {-hash does not apply for v1.5_na1 padding}
+#>>>
+test rsa_sign_hash-error-7 {Try to sign with public key} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_pubkey -hash [tomcrypt::hash sha256 test]
+} -returnCodes error -errorCode {TOMCRYPT KEY TYPE} -result {Expected private key but got public key}
+#>>>
+test rsa_sign_hash-error-8 {Missing option value for key in sign_hash} -body { #<<<
+	tomcrypt::rsa_sign_hash -key
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -key} -result {Missing argument for -key}
+#>>>
+test rsa_sign_hash-error-9 {Missing option value for hash in sign_hash} -body { #<<<
+	tomcrypt::rsa_sign_hash -hash
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -hash} -result {Missing argument for -hash}
+#>>>
+test rsa_sign_hash-error-10 {Missing option value for padding in sign_hash} -body { #<<<
+	tomcrypt::rsa_sign_hash -padding
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -padding} -result {Missing argument for -padding}
+#>>>
+test rsa_sign_hash-error-11 {Missing option value for prng in sign_hash} -body { #<<<
+	tomcrypt::rsa_sign_hash -prng
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -prng} -result {Missing argument for -prng}
+#>>>
+test rsa_sign_hash-error-12 {Missing option value for hashalg in sign_hash} -body { #<<<
+	tomcrypt::rsa_sign_hash -hashalg
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -hashalg} -result {Missing argument for -hashalg}
+#>>>
+test rsa_sign_hash-error-13 {Missing option value for saltlen in sign_hash} -body { #<<<
+	tomcrypt::rsa_sign_hash -saltlen
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -saltlen} -result {Missing argument for -saltlen}
+#>>>
+test rsa_sign_hash-error-14 {Non-integer saltlen in sign_hash} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding pss -saltlen notanumber
+} -returnCodes error -errorCode {TCL VALUE NUMBER} -result {expected integer but got "notanumber"}
+#>>>
+test rsa_sign_hash-error-15 {Salt length too large} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding pss -saltlen 4294967296
+} -returnCodes error -errorCode {TOMCRYPT VALUE} -result {salt length too large}
+#>>>
+test rsa_sign_hash-error-16 {rsa_sign_hash with invalid option} -body { #<<<
+	tomcrypt::rsa_sign_hash -invalid option
+} -returnCodes error -errorCode {TCL LOOKUP INDEX option -invalid} -result {bad option "-invalid": must be -key, -hash, -padding, -prng, -hashalg, or -saltlen}
+#>>>
+test rsa_sign_hash-error-17 {rsa_sign_hash with invalid -prng value} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding pss -prng invalid_prng
+} -returnCodes error -errorCode {TOMCRYPT VALUE PRNG} -result {invalid_prng does not refer to an object}
+#>>>
+test rsa_sign_hash-error-18 {rsa_sign_hash with -prng but not PSS padding should fail} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding v1.5 -prng common_prng
+} -returnCodes error -result {-prng only applies to pss padding}
+#>>>
+test rsa_sign_hash-error-19 {rsa_sign_hash v1.5_na1 with hashalg should fail} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding v1.5_na1 -hashalg sha256
+} -returnCodes error -result {-hash does not apply for v1.5_na1 padding}
+#>>>
+test rsa_sign_hash-error-20 {rsa_sign_hash invalid padding bounds check} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding invalid_padding_type
+} -returnCodes error -errorCode {TCL LOOKUP INDEX padding invalid_padding_type} -result {bad padding "invalid_padding_type": must be v1.5, pss, or v1.5_na1}
+#>>>
+test rsa_sign_hash-error-21 {rsa_sign_hash with -prng option for non-PSS padding error path} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding v1.5 -prng common_prng
+} -returnCodes error -result {-prng only applies to pss padding}
+#>>>
+test rsa_sign_hash-error-22 {rsa_sign_hash with -prng option for v1.5_na1 padding error path} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding v1.5_na1 -prng common_prng
+} -returnCodes error -result {-prng only applies to pss padding}
+#>>>
+test rsa_sign_hash-error-23 {rsa_sign_hash with -hash not a bytearray} -body { #<<<
+	tomcrypt::rsa_sign_hash -key $default_key -hash not_a_bytearray\u306f -padding v1.5
+} -returnCodes error -errorCode {TCL VALUE BYTES} -result "expected byte sequence but character 15 was '\u306F' (U+00306F)"
+#>>>
+test rsa_sign_hash-error-24 {rsa_sign_hash and rsa_verify_hash with PSS padding, -saltlen too large} -body { #<<<
+	set hash		[tomcrypt::hash sha256 {Hello, PSS World!}]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash -padding pss -hashalg sha256 -saltlen 1024]
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig $signature -hash $hash -padding pss -hashalg sha256 -saltlen 1024
+} -cleanup {
+	unset -nocomplain hash signature
+} -returnCodes error -errorCode {TOMCRYPT VALUE -saltlen} -result {salt length 1024 exceeds maximum 222}
+#>>>
+
+test rsa_verify_hash-1 {rsa_verify_hash signature mismatch} -body { #<<<
+	set hash1		[tomcrypt::hash sha256 {Hello, World!}]
+	set hash2		[tomcrypt::hash sha256 {Hello, Universe!}]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash1 -padding v1.5 -hashalg sha256]
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig $signature -hash $hash2 -padding v1.5 -hashalg sha256
+} -cleanup {
+	unset -nocomplain hash1 hash2 signature
+} -result 0
+#>>>
+test rsa_verify_hash-2 {Use public key for verification} -body { #<<<
+	set hash		[tomcrypt::hash sha256 {test message}]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash]
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig $signature -hash $hash
+} -cleanup {
+	unset -nocomplain hash signature
+} -result 1
+#>>>
+test rsa_verify_hash-error-1 {rsa_verify_hash missing key argument} -body { #<<<
+	tomcrypt::rsa_verify_hash -sig test -hash [tomcrypt::hash sha256 test]
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -key} -result {Missing -key argument}
+#>>>
+test rsa_verify_hash-error-2 {rsa_verify_hash missing sig argument} -body { #<<<
+	tomcrypt::rsa_verify_hash -key $default_pubkey -hash [tomcrypt::hash sha256 test]
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -sig} -result {Missing -sig argument}
+#>>>
+test rsa_verify_hash-error-3 {rsa_verify_hash missing hash argument} -body { #<<<
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig test
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -hash} -result {Missing -hash argument}
+#>>>
+test rsa_verify_hash-error-4 {v1.5_na1 with hashalg should fail for verification} -body { #<<<
+	set hash		[tomcrypt::hash sha256 test]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash -padding v1.5_na1]
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig $signature -hash $hash -padding v1.5_na1 -hashalg sha256
+} -cleanup {
+	unset -nocomplain hash signature
+} -returnCodes error -result {-hashalg does not apply for v1.5_na1 padding}
+#>>>
+test rsa_verify_hash-error-5 {Try to verify with private key should fail} -body { #<<<
+	set hash		[tomcrypt::hash sha256 test]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash]
+	tomcrypt::rsa_verify_hash -key $default_key -sig $signature -hash $hash
+} -cleanup {
+	unset -nocomplain hash signature
+} -returnCodes error -errorCode {TOMCRYPT KEY TYPE} -result {Expected public key but got private key}
+#>>>
+test rsa_verify_hash-error-6 {Missing option value for key in verify_hash} -body { #<<<
+	tomcrypt::rsa_verify_hash -key
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -key} -result {Missing argument for -key}
+#>>>
+test rsa_verify_hash-error-7 {Missing option value for sig in verify_hash} -body { #<<<
+	tomcrypt::rsa_verify_hash -sig
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -sig} -result {Missing argument for -sig}
+#>>>
+test rsa_verify_hash-error-8 {Missing option value for hash in verify_hash} -body { #<<<
+	tomcrypt::rsa_verify_hash -hash
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -hash} -result {Missing argument for -hash}
+#>>>
+test rsa_verify_hash-error-9 {Missing option value for padding in verify_hash} -body { #<<<
+	tomcrypt::rsa_verify_hash -padding
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -padding} -result {Missing argument for -padding}
+#>>>
+test rsa_verify_hash-error-10 {Missing option value for hashalg in verify_hash} -body { #<<<
+	tomcrypt::rsa_verify_hash -hashalg
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -hashalg} -result {Missing argument for -hashalg}
+#>>>
+test rsa_verify_hash-error-11 {Missing option value for saltlen in verify_hash} -body { #<<<
+	tomcrypt::rsa_verify_hash -saltlen
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -saltlen} -result {Missing argument for -saltlen}
+#>>>
+test rsa_verify_hash-error-12 {Non-integer saltlen in verify_hash} -body { #<<<
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig test -hash [tomcrypt::hash sha256 test] -padding pss -saltlen notanumber
+} -returnCodes error -errorCode {TCL VALUE NUMBER} -result {expected integer but got "notanumber"}
+#>>>
+test rsa_verify_hash-error-13 {rsa_verify_hash with invalid option} -body { #<<<
+	tomcrypt::rsa_verify_hash -invalid option
+} -returnCodes error -errorCode {TCL LOOKUP INDEX option -invalid} -result {bad option "-invalid": must be -key, -sig, -hash, -padding, -hashalg, or -saltlen}
+#>>>
+test rsa_verify_hash-error-14 {rsa_verify_hash v1.5_na1 with hashalg should fail} -body { #<<<
+	set hash		[tomcrypt::hash sha256 test]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash -padding v1.5_na1]
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig $signature -hash $hash -padding v1.5_na1 -hashalg sha256
+} -cleanup {
+	unset -nocomplain hash signature
+} -returnCodes error -result {-hashalg does not apply for v1.5_na1 padding}
+#>>>
+test rsa_verify_hash-error-15 {rsa_verify_hash invalid padding bounds check} -body { #<<<
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig test -hash [tomcrypt::hash sha256 test] -padding invalid_padding_type
+} -returnCodes error -errorCode {TCL LOOKUP INDEX padding invalid_padding_type} -result {bad padding "invalid_padding_type": must be v1.5, pss, or v1.5_na1}
+#>>>
+test rsa_verify_hash-error-16 {rsa_verify_hash with invalid -prng option} -body { #<<<
+	# Test -prng option for verify (which doesn't support it) to hit error validation path
+	set hash		[tomcrypt::hash sha256 test]
+	set signature	[tomcrypt::rsa_sign_hash -key $default_key -hash $hash -padding pss -hashalg sha256 -saltlen 32]
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig $signature -hash $hash -padding pss -hashalg sha256 -saltlen 32 -prng common_prng
+} -cleanup {
+	unset -nocomplain hash signature
+} -returnCodes error -errorCode {TCL LOOKUP INDEX option -prng} -result {bad option "-prng": must be -key, -sig, -hash, -padding, -hashalg, or -saltlen}
+#>>>
+test rsa_verify_hash-error-17 {rsa_verify_hash with -sig not a bytearray} -body { #<<<
+	tomcrypt::rsa_verify_hash -key $default_pubkey -sig not_a_bytearray\u306f -padding v1.5
+} -returnCodes error -errorCode {TCL VALUE BYTES} -result "expected byte sequence but character 15 was '\u306F' (U+00306F)"
+#>>>
+test rsa_verify_hash-error-18 {rsa_verify_hash with -hash not a bytearray} -body { #<<<
+	tomcrypt::rsa_verify_hash -key $default_pubkey -hash not_a_bytearray\u306f -padding v1.5
+} -returnCodes error -errorCode {TCL VALUE BYTES} -result "expected byte sequence but character 15 was '\u306F' (U+00306F)"
+#>>>
+test rsa_verify_hash-error-19 {rsa_verify_hash with invalid -hashalg} -body { #<<<
+	tomcrypt::rsa_verify_hash -key $default_pubkey -hashalg nonesuch -padding v1.5
+} -returnCodes error -errorCode {TOMCRYPT LOOKUP HASH nonesuch} -result {Unknown hash nonesuch}
+#>>>
+test rsa_verify_hash-error-20 {rsa_verify_hash with invalid -saltlen} -body { #<<<
+	tomcrypt::rsa_verify_hash -key $default_pubkey -padding pss -saltlen -1
+} -returnCodes error -errorCode {TOMCRYPT VALUE} -result {salt length cannot be negative}
+#>>>
+test rsa_verify_hash-error-21 {rsa_verify_hash with invalid -saltlen} -body { #<<<
+	tomcrypt::rsa_verify_hash -key $default_pubkey -padding pss -saltlen 0x100000000
+} -returnCodes error -errorCode {TOMCRYPT VALUE} -result {salt length too large}
+#>>>
+
+test rsa_encrypt_key-1 {rsa_encrypt_key and rsa_decrypt_key with v1.5 padding} -body { #<<<
+	set ciphertext	[tomcrypt::rsa_encrypt_key -key $default_pubkey -msg [encoding convertto utf-8 "Secret message\u306f"] -padding v1.5]
+	encoding convertfrom utf-8 [tomcrypt::rsa_decrypt_key -key $default_key -ciphertext $ciphertext -padding v1.5]
+} -cleanup {
+	unset -nocomplain ciphertext
+} -result "Secret message\u306f"
+#>>>
+test rsa_encrypt_key-2 {rsa_encrypt_key and rsa_decrypt_key with OAEP padding} -body { #<<<
+	set lparambytes	MyApp
+	set ciphertext	[tomcrypt::rsa_encrypt_key -key $default_pubkey -msg [encoding convertto utf-8 "Secret OAEP message\u306f"] -padding oaep -hashalg sha256 -lparam $lparambytes]
+	encoding convertfrom utf-8 [tomcrypt::rsa_decrypt_key -key $default_key -ciphertext $ciphertext -padding oaep -hashalg sha256 -lparam $lparambytes]
+} -cleanup {
+	unset -nocomplain lparambytes ciphertext
+} -result "Secret OAEP message\u306f"
+#>>>
+test rsa_encrypt_key-3 {Use public key for encryption} -body { #<<<
+	expr {
+		[string length [tomcrypt::rsa_encrypt_key -key $default_pubkey -msg short -padding v1.5]] > 0
+	}
+} -result 1
+#>>>
+test rsa_encrypt_key-4 {OAEP with SHA-1 hash algorithm} -body { #<<<
+	encoding convertfrom utf-8  [tomcrypt::rsa_decrypt_key -key $default_key -padding oaep -hashalg sha1 \
+		-ciphertext [tomcrypt::rsa_encrypt_key -key $default_pubkey -msg [encoding convertto utf-8 "test message\u306f"] -padding oaep -hashalg sha1] \
+	]
+} -result "test message\u306f"
+#>>>
+test rsa_encrypt_key-5 {Empty lparam for OAEP} -body { #<<<
+	encoding convertfrom utf-8  [tomcrypt::rsa_decrypt_key -key $default_key -padding oaep -hashalg sha1 -lparam {} \
+		-ciphertext [tomcrypt::rsa_encrypt_key -key $default_pubkey -msg [encoding convertto utf-8 "test message\u306f"] -padding oaep -hashalg sha1 -lparam {}] \
+	]
+} -result "test message\u306f"
+#>>>
+test rsa_encrypt_key-6 {OAEP without lparam (default empty)} -body { #<<<
+	encoding convertfrom utf-8  [tomcrypt::rsa_decrypt_key -key $default_key -padding oaep \
+		-ciphertext [tomcrypt::rsa_encrypt_key -key $default_pubkey -msg [encoding convertto utf-8 "test message\u306f"] -padding oaep -prng common_prng] \
+	]
+} -result "test message\u306f"
+#>>>
+test rsa_encrypt_key-7 {Very small message for encryption} -body { #<<<
+	encoding convertfrom utf-8 [tomcrypt::rsa_decrypt_key -key $default_key \
+		-ciphertext [tomcrypt::rsa_encrypt_key -key $default_pubkey -msg x] \
+	]
+} -result x
+#>>>
+test rsa_encrypt_key-8 {Test with very long lparam} -body { #<<<
+	set longparam	[string repeat A 100]
+	set ciphertext	[tomcrypt::rsa_encrypt_key -key $default_pubkey -msg [encoding convertto utf-8 "test message\u306f"] -padding oaep -hashalg sha256 -lparam $longparam]
+	set decrypted	[tomcrypt::rsa_decrypt_key -key $default_key -ciphertext $ciphertext -padding oaep -hashalg sha256 -lparam $longparam]
+	encoding convertfrom utf-8 $decrypted
+} -cleanup {
+	unset -nocomplain longparam ciphertext decrypted
+} -result "test message\u306f"
+#>>>
+test rsa_encrypt_key-9 {OAEP with -prng} -body { #<<<
+	encoding convertfrom utf-8 [tomcrypt::rsa_decrypt_key -key $default_key -padding oaep -hashalg sha256 \
+		-ciphertext [tomcrypt::rsa_encrypt_key -prng common_prng -key $default_pubkey -msg [encoding convertto utf-8 "test message\u306f"] -padding oaep -hashalg sha256] \
+	]
+} -result "test message\u306f"
+#>>>
+test rsa_encrypt_key-10 {OAEP without -prng} -body { #<<<
+	encoding convertfrom utf-8 [tomcrypt::rsa_decrypt_key -key $default_key -padding oaep \
+		-ciphertext [tomcrypt::rsa_encrypt_key -padding oaep -prng common_prng -key $default_pubkey -msg [encoding convertto utf-8 "test message\u306f"]] \
+	]
+} -result "test message\u306f"
+#>>>
+test rsa_encrypt_key-error-1 {Invalid padding type for encryption} -body { #<<<
+	tomcrypt::rsa_encrypt_key -key $default_pubkey -msg test -padding invalid
+} -returnCodes error -errorCode {TCL LOOKUP INDEX padding invalid} -result {bad padding "invalid": must be v1.5 or oaep}
+#>>>
+test rsa_encrypt_key-error-2 {rsa_encrypt_key missing key argument} -body { #<<<
+	tomcrypt::rsa_encrypt_key -msg test
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -key} -result {Missing -key argument}
+#>>>
+test rsa_encrypt_key-error-3 {rsa_encrypt_key missing msg argument} -body { #<<<
+	tomcrypt::rsa_encrypt_key -key $default_pubkey
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -msg} -result {Missing -msg argument}
+#>>>
+test rsa_encrypt_key-error-4 {v1.5 with hashalg should fail for encryption} -body { #<<<
+	tomcrypt::rsa_encrypt_key -key $default_pubkey -msg test -padding v1.5 -hashalg sha256
+} -returnCodes error -result {-hashalg does not apply for v1.5 padding}
+#>>>
+test rsa_encrypt_key-error-5 {Try to encrypt with private key should fail} -body { #<<<
+	tomcrypt::rsa_encrypt_key -key $default_key -msg test -padding v1.5
+} -returnCodes error -errorCode {TOMCRYPT KEY TYPE} -result {Expected public key but got private key}
+#>>>
+test rsa_encrypt_key-error-6 {Missing option value for key in encrypt_key} -body { #<<<
+	tomcrypt::rsa_encrypt_key -key
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -key} -result {Missing argument for -key}
+#>>>
+test rsa_encrypt_key-error-7 {Missing option value for msg in encrypt_key} -body { #<<<
+	tomcrypt::rsa_encrypt_key -msg
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -msg} -result {Missing argument for -msg}
+#>>>
+test rsa_encrypt_key-error-8 {Missing option value for padding in encrypt_key} -body { #<<<
+	tomcrypt::rsa_encrypt_key -padding
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -padding} -result {Missing argument for -padding}
+#>>>
+test rsa_encrypt_key-error-9 {Missing option value for prng in encrypt_key} -body { #<<<
+	tomcrypt::rsa_encrypt_key -prng
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -prng} -result {Missing argument for -prng}
+#>>>
+test rsa_encrypt_key-error-10 {Missing option value for hashalg in encrypt_key} -body { #<<<
+	tomcrypt::rsa_encrypt_key -hashalg
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -hashalg} -result {Missing argument for -hashalg}
+#>>>
+test rsa_encrypt_key-error-11 {Missing option value for lparam in encrypt_key} -body { #<<<
+	tomcrypt::rsa_encrypt_key -lparam
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -lparam} -result {Missing argument for -lparam}
+#>>>
+test rsa_encrypt_key-error-12 {rsa_encrypt_key with invalid option} -body { #<<<
+	tomcrypt::rsa_encrypt_key -invalid option
+} -returnCodes error -errorCode {TCL LOOKUP INDEX option -invalid} -result {bad option "-invalid": must be -key, -msg, -padding, -prng, -hashalg, or -lparam}
+#>>>
+test rsa_encrypt_key-error-13 {rsa_encrypt_key v1.5 with hashalg should fail} -body { #<<<
+	tomcrypt::rsa_encrypt_key -key $default_pubkey -msg test -padding v1.5 -hashalg sha256
+} -returnCodes error -result {-hashalg does not apply for v1.5 padding}
+#>>>
+test rsa_encrypt_key-error-14 {rsa_encrypt_key invalid padding bounds check} -body { #<<<
+	tomcrypt::rsa_encrypt_key -key $default_pubkey -msg test -padding invalid_padding_type
+} -returnCodes error -errorCode {TCL LOOKUP INDEX padding invalid_padding_type} -result {bad padding "invalid_padding_type": must be v1.5 or oaep}
+#>>>
+test rsa_encrypt_key-error-15 {-msg not a bytearray} -body { #<<<
+	tomcrypt::rsa_encrypt_key -key $default_pubkey -msg not_a_bytearray\u306f -padding v1.5
+} -returnCodes error -errorCode {TCL VALUE BYTES} -result "expected byte sequence but character 15 was '\u306F' (U+00306F)"
+#>>>
+test rsa_encrypt_key-error-16 {OAEP with invalid -prng} -body { #<<<
+	tomcrypt::rsa_encrypt_key -prng nonesuch
+} -returnCodes error -errorCode {TOMCRYPT VALUE PRNG} -result {nonesuch does not refer to an object}
+#>>>
+test rsa_encrypt_key-error-16 {OAEP with invalid -hashalg} -body { #<<<
+	tomcrypt::rsa_encrypt_key -hashalg nonesuch
+} -returnCodes error -errorCode {TOMCRYPT LOOKUP HASH nonesuch} -result {Unknown hash nonesuch}
+#>>>
+test rsa_encrypt_key-error-17 {-lparam not a bytearray} -body { #<<<
+	tomcrypt::rsa_encrypt_key -key $default_pubkey -lparam not_a_bytearray\u306f
+} -returnCodes error -errorCode {TCL VALUE BYTES} -result "expected byte sequence but character 15 was '\u306F' (U+00306F)"
+#>>>
+
+test rsa_decrypt_key-1 {Use private key for decryption} -body { #<<<
+	tomcrypt::rsa_decrypt_key -key $default_key -padding v1.5 -ciphertext \
+		[tomcrypt::rsa_encrypt_key -key $default_pubkey -msg short -padding v1.5]
+} -result short
+#>>>
+test rsa_decrypt_key-error-1 {rsa_decrypt_key missing key argument} -body { #<<<
+	tomcrypt::rsa_decrypt_key -ciphertext test
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -key} -result {Missing -key argument}
+#>>>
+test rsa_decrypt_key-error-2 {rsa_decrypt_key missing ciphertext argument} -body { #<<<
+	tomcrypt::rsa_decrypt_key -key $default_key
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -ciphertext} -result {Missing -ciphertext argument}
+#>>>
+test rsa_decrypt_key-error-3 {v1.5 with hashalg should fail for decryption} -body { #<<<
+	set ciphertext [tomcrypt::rsa_encrypt_key -key $default_pubkey -msg test -padding v1.5]
+	tomcrypt::rsa_decrypt_key -key $default_key -ciphertext $ciphertext -padding v1.5 -hashalg sha256
+} -cleanup {
+	unset -nocomplain ciphertext
+} -returnCodes error -result {-hashalg does not apply for v1.5 padding}
+#>>>
+test rsa_decrypt_key-error-4 {Try to decrypt with public key} -body { #<<<
+	set ciphertext [tomcrypt::rsa_encrypt_key -key $default_pubkey -msg test -padding v1.5]
+	tomcrypt::rsa_decrypt_key -key $default_pubkey -ciphertext $ciphertext -padding v1.5
+} -cleanup {
+	unset -nocomplain ciphertext
+} -returnCodes error -errorCode {TOMCRYPT KEY TYPE} -result {Expected private key but got public key}
+#>>>
+test rsa_decrypt_key-error-5 {Missing option value for key in decrypt_key} -body { #<<<
+	tomcrypt::rsa_decrypt_key -key
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -key} -result {Missing argument for -key}
+#>>>
+test rsa_decrypt_key-error-6 {Missing option value for ciphertext in decrypt_key} -body { #<<<
+	tomcrypt::rsa_decrypt_key -ciphertext
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -ciphertext} -result {Missing argument for -ciphertext}
+#>>>
+test rsa_decrypt_key-error-7 {Missing option value for padding in decrypt_key} -body { #<<<
+	tomcrypt::rsa_decrypt_key -padding
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -padding} -result {Missing argument for -padding}
+#>>>
+test rsa_decrypt_key-error-8 {Missing option value for hashalg in decrypt_key} -body { #<<<
+	tomcrypt::rsa_decrypt_key -hashalg
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -hashalg} -result {Missing argument for -hashalg}
+#>>>
+test rsa_decrypt_key-error-9 {Missing option value for lparam in decrypt_key} -body { #<<<
+	tomcrypt::rsa_decrypt_key -lparam
+} -returnCodes error -errorCode {TOMCRYPT ARGUMENT MISSING -lparam} -result {Missing argument for -lparam}
+#>>>
+test rsa_decrypt_key-error-10 {rsa_decrypt_key with invalid option} -body { #<<<
+	tomcrypt::rsa_decrypt_key -invalid option
+} -returnCodes error -errorCode {TCL LOOKUP INDEX option -invalid} -result {bad option "-invalid": must be -key, -ciphertext, -padding, -hashalg, or -lparam}
+#>>>
+test rsa_decrypt_key-error-11 {rsa_decrypt_key v1.5 with hashalg should fail} -body { #<<<
+	set ciphertext [tomcrypt::rsa_encrypt_key -key $default_pubkey -msg test -padding v1.5]
+	tomcrypt::rsa_decrypt_key -key $default_key -ciphertext $ciphertext -padding v1.5 -hashalg sha256
+} -cleanup {
+	unset -nocomplain ciphertext
+} -returnCodes error -result {-hashalg does not apply for v1.5 padding}
+#>>>
+test rsa_decrypt_key-error-12 {rsa_decrypt_key invalid padding bounds check} -body { #<<<
+	tomcrypt::rsa_decrypt_key -key $default_key -ciphertext test -padding invalid_padding_type
+} -returnCodes error -errorCode {TCL LOOKUP INDEX padding invalid_padding_type} -result {bad padding "invalid_padding_type": must be v1.5 or oaep}
+#>>>
+test rsa_decrypt_key-error-13 {-ciphertext not a bytearray} -body { #<<<
+	tomcrypt::rsa_decrypt_key -ciphertext not_a_bytearray\u306f
+} -returnCodes error -errorCode {TCL VALUE BYTES} -result "expected byte sequence but character 15 was '\u306F' (U+00306F)"
+#>>>
+test rsa_decrypt_key-error-14 {-hashalg not a bytearray} -body { #<<<
+	tomcrypt::rsa_decrypt_key -hashalg nonesuch
+} -returnCodes error -errorCode {TOMCRYPT LOOKUP HASH nonesuch} -result {Unknown hash nonesuch}
+#>>>
+test rsa_decrypt_key-error-15 {-lparam not a bytearray} -body { #<<<
+	tomcrypt::rsa_decrypt_key -lparam not_a_bytearray\u306f
+} -returnCodes error -errorCode {TCL VALUE BYTES} -result "expected byte sequence but character 15 was '\u306F' (U+00306F)"
+#>>>
+test rsa_decrypt_key-error-16 {rsa_decrypt_key with wrong lparam should fail} -body { #<<<
+	set ciphertext	[tomcrypt::rsa_encrypt_key -key $default_pubkey -msg {Secret message} -padding oaep -hashalg sha256 -lparam App1]
+	tomcrypt::rsa_decrypt_key -key $default_key -ciphertext $ciphertext -padding oaep -hashalg sha256 -lparam App2
+} -cleanup {
+	unset -nocomplain ciphertext
+} -returnCodes error -errorCode {TOMCRYPT RSA DECRYPT} -result {rsa_decrypt_key_ex failed: Invalid input packet.}
+#>>>
+
+test rsa_objtype_dup-1 {rsa_objtype_dup with private key} -constraints testMode -body { #<<<
+	set privkey		[tomcrypt::rsa_make_key -keysize 2048]
+	set hash		[tomcrypt::hash sha256 {Test message}]
+	set signature	[tomcrypt::rsa_sign_hash -key $privkey -hash $hash]
+	set dupkey		[tomcrypt::_testmode_dupObj $privkey]
+	unset privkey
+	tomcrypt::rsa_verify_hash -key [tomcrypt::rsa_extract_pubkey $dupkey] -sig $signature -hash $hash
+} -cleanup {
+	unset -nocomplain hash signature dupkey privkey
+} -result 1
+#>>>
+test rsa_objtype_dup-2 {rsa_objtype_dup with public key} -constraints testMode -body { #<<<
+	set privkey		[tomcrypt::rsa_make_key -keysize 2048]
+	set hash		[tomcrypt::hash sha256 {Test message}]
+	set signature	[tomcrypt::rsa_sign_hash -key $privkey -hash $hash]
+	set dupkey		[tomcrypt::_testmode_dupObj [tomcrypt::rsa_extract_pubkey $privkey]]
+	unset privkey
+	tomcrypt::rsa_verify_hash -key $dupkey -sig $signature -hash $hash
+} -cleanup {
+	unset -nocomplain hash signature dupkey privkey
+} -result 1
+#>>>
+
+test rsa_import_private_key-1 {rsa_import_private_key with PEM format} -body { #<<<
+	set key [string trim {
+-----BEGIN RSA PRIVATE KEY-----
+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
+-----END RSA PRIVATE KEY-----
+	}]
+	# Sign and verify using the key
+	set hash		[tomcrypt::hash sha256 {Test message}]
+	tomcrypt::rsa_verify_hash -key [tomcrypt::rsa_extract_pubkey $key] -sig [tomcrypt::rsa_sign_hash -key $key -hash $hash] -hash $hash
+} -cleanup {
+	unset -nocomplain key hash
+} -result 1
+#>>>
+test rsa_import_private_key-2 {rsa_import_private_key with DER format} -body { #<<<
+	set key [binary decode base64 {
+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
+	}]
+	# Sign and verify using the key
+	set hash		[tomcrypt::hash sha256 {Test message}]
+	tomcrypt::rsa_verify_hash -key [tomcrypt::rsa_extract_pubkey $key] -sig [tomcrypt::rsa_sign_hash -key $key -hash $hash] -hash $hash
+} -cleanup {
+	unset -nocomplain key hash
+} -result 1
+#>>>
+test rsa_import_private_key-3 {rsa_import_private_key with public key data} -body { #<<<
+	tomcrypt::rsa_verify_hash -key [string trim {
+-----BEGIN RSA PRIVATE KEY-----
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAxOhYCN0lEwFBPnte4CoS 
+2o7mrJmIbQvSooAGOaE/anTpXE+bk/uYD8gWBplA6/yUtEBe3bPB7OGcK/OWr/xi
+bL2IYrqDVz97wzGDtEVAJNmgir5QcYY5JmJbND9cw5JCYaZOANbU7d8z1Lrq0Ko3	 
+f6WnHhPuC+6HpHZ4hMciE/VovLMS8FFmzhjwvtEgJ+ydyXxDnzQNkgmTZf4ah1dV
+g+2BGsw0SDyGFU5z8us1xYXJpCGaGqfTblIJIChVdc8m0Mk5CoB7HCu25v27x/dG
+3RBHUg0/3j8o7Ct2fbv0p60QafcqJa2UFbP/WwwLuJXr0X/ddj7l83F5pbNhzu5i
+i4EpGPZhKDuxrW1tEFk/RlSaEmjGVfca9WL2LCui+U54pzlYHLFpEzPnhJSRqdbt
+lPpFDvCqH04W29z3dioVLNsd7bXfGQATmN5p0ahJmMSotn3fpjmTkHUMX97rQWLZ
+zVVQdcwEkJN/73kLkgGm30GSuKW6RbjJqyn7JQPTH87YkotQ4Gz5FbTxwGdYgDnq
+1KEzEP6FqxRCK+/+R0qgC5SwgYW7WANQIdWptwRvhd0GgZe4CYg4U0LLSYs7YsYe
+my3pEYach9oVgoQ5hqQDs8zACOh68VmLQfXlN3pdNYDwLe2kS81AYuKmnEt7R/x+
+OxlG5QPtI0IqP6Esy6V/U/kCAwEAAQ==
+-----END RSA PRIVATE KEY-----
+	}]
+} -returnCodes error -errorCode {NONE} -result {PEM claimed to be private key but imported as public key}
+#>>>
+
+test rsa_import_public_key-1 {rsa_import_public_key with X.509 PEM format} -body { #<<<
+	set key [binary decode base64 {
+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
+	}]
+	set pubkey [string trim {
+-----BEGIN PUBLIC KEY-----
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAxOhYCN0lEwFBPnte4CoS
+2o7mrJmIbQvSooAGOaE/anTpXE+bk/uYD8gWBplA6/yUtEBe3bPB7OGcK/OWr/xi
+bL2IYrqDVz97wzGDtEVAJNmgir5QcYY5JmJbND9cw5JCYaZOANbU7d8z1Lrq0Ko3
+f6WnHhPuC+6HpHZ4hMciE/VovLMS8FFmzhjwvtEgJ+ydyXxDnzQNkgmTZf4ah1dV
+g+2BGsw0SDyGFU5z8us1xYXJpCGaGqfTblIJIChVdc8m0Mk5CoB7HCu25v27x/dG
+3RBHUg0/3j8o7Ct2fbv0p60QafcqJa2UFbP/WwwLuJXr0X/ddj7l83F5pbNhzu5i
+i4EpGPZhKDuxrW1tEFk/RlSaEmjGVfca9WL2LCui+U54pzlYHLFpEzPnhJSRqdbt
+lPpFDvCqH04W29z3dioVLNsd7bXfGQATmN5p0ahJmMSotn3fpjmTkHUMX97rQWLZ
+zVVQdcwEkJN/73kLkgGm30GSuKW6RbjJqyn7JQPTH87YkotQ4Gz5FbTxwGdYgDnq
+1KEzEP6FqxRCK+/+R0qgC5SwgYW7WANQIdWptwRvhd0GgZe4CYg4U0LLSYs7YsYe
+my3pEYach9oVgoQ5hqQDs8zACOh68VmLQfXlN3pdNYDwLe2kS81AYuKmnEt7R/x+
+OxlG5QPtI0IqP6Esy6V/U/kCAwEAAQ==
+-----END PUBLIC KEY-----
+}]
+	# Verify using the key
+	set hash		[tomcrypt::hash sha256 {Test message}]
+	tomcrypt::rsa_verify_hash -key $pubkey -sig [tomcrypt::rsa_sign_hash -key $key -hash $hash] -hash $hash
+} -cleanup {
+	unset -nocomplain key pubkey hash
+} -result 1
+#>>>
+test rsa_import_public_key-2 {rsa_import_public_key with RSA PEM format} -body { #<<<
+	set key [binary decode base64 {
+MIIJJwIBAAKCAgEA0Tx3UNNKHvfR0olCLnFhYoLFscKYncGzd2WkcrxJ2+lEsHS2
+XA7FFBvTSIdMEVvxPRGbkFGygs8UTOYNBDAfKbj5skkSq8hc0ZnMK4O08wosGkkR
+EEQU7xCtyYqias3hh/SBwAvt6j6y8naLvni41UG0tUUJdH5H8TPr0Anu86sSVpl/
+x0hfD69eEedliiPo/EDr+6Mh+aKRqu2aNgxKXHAyuRH/qF2aECZaL1sKnLNbZxhq
+GyqGTWoF7sXZnKTqJ617fLmc60Kns7WKnypJgbOTHjjVZKLfmUAAgogo76GLyGRg
+v1CVEKJgNG1dcVksn8jFyululzNgxHh4U8MRVDwVymiRvWbkA6zPDD8C1ipW6kV4
+edEcBbXjQOc8mmqZZOhnRCzK2bw75qdbEdRRNAeMKDota8epc9gWMpZtwbXEYbP9
++nevIuIN6rSlA2YG+ihgU35I62QNHmedRJxQjSzfP4F5NSMRhWagzU7Vqco+jsOl
+JED5ByV6LT5biY46/Z4inrKQr0/ZN+ilmrrXRKtRA2eKNwg//jrOdngD6nkZFBtA
+saqqnQgECNtpIMnhpflBUIFUTu/kCftraczxjPSrKB5zgT/eje+p/vN9gSDAG/WO
+M9yQFgfHx6Jcx/l6gwTUnHDFHK/xO1K31GcYW6pxlh+leGbU+Ls17oPuuWMCAwEA
+AQKCAgBoIS8CJv0K12txW0T4Bw4fsBRCCKXaUQWHRKroPOOHEZrRNGxy+RjEjqqC
+PG8zbm3q5gHk+3ubFQK12IGe1XIU2g1OWIZ1vmPPHjrZZxUdJTFYrYdT8IX4ifTr
+SdbVz3tPpXQTRvyS6Lw25Z9bXgoie646zk5LzvLvy9auNNtaIgeg2IiafV5t2Gk5
+AM9sRb3UGF044PFuIqVbCx+FiW1SfrYHm7j/qgGbyvJ0AduQq8Qv1RstROcMzNiC
+Aa3wgrRTpcdAhcFd5dC/I3iHCM0HQv7S+hbdHB+qTYtTav7wbxW5V5c8bxaYbi7x
+uIHaALawGIOzHaQflH6ymH/Ns9VBj7T04Ys8TmdeFEwUNRtRWdgqtN7rqFuSw7A5
+HGEXyPLYqtMQ6CxjNx//CSoX8wezLFwsWnoCOC1H7vFTB7tp0RDcMWP7e6xtOjXi
+fCNomSp27xpr72EkrYku8JLiW/gAy7tx4JgvbV3+1J+l5p32Flyc2DHbSHEzNc52
+fjETpCoDE4eIJ+3RjGKFcFwYzpaxIhmurmILpOjKQuigJw7SnnFg2WmE9IzNZLcd
+w1HmWBtClMROvLEjplQ3I9Xuew/eeZCULA4xHshq5txsg0zHnYgRNAH+F70of1di
+Dk263bQp1NLCsuqw2kTYPGGD3Q3XDTaOqEPaLhqsP52uU+buqQKCAQEA66xY/esQ
+p8LCYZvQb3HRNwX56wqkrD1Kf08VQmqrdKuC5QNTBGREv2Pp8Z3bo7581g4a4+hc
+35QTUmxZGnyn+0GSGGBYBk+spZnGZPRKsS9qsVINloWtkLEyBiJi6NFSvnewoVFw
+bWA7YVZmnmdV/Fzrwl/zGGrsnR0EUXGNkebJrOkT8phYJ0EMJUessRzMGDWGffIl
+urJ4qdv8lHjc0EKq/HrJsDj6/VCQ8mb4qwEwtMBhU7C5/ZSdM5F9Wy3yPcj6AHAK
+ThgPiVWDUZHPS4XxSvN4LozjxIn0ZeY3oGN3Yy7ZU/fYZAf+7ZRLxR0/amx303Em
+C7JOGotXHNMn+wKCAQEA40hj3IAVESOdI0tfj8n75zZ7u2kfed+K74mOZkYB7HBQ
+LUxnpxjwtRgUwA8/s6iX2ggoc0XjgQCQgWI8N3WfhPOlhfmAJTLjVCcnMhSoTCSy
+KkMRuv/AzgzgQIP1po8WzHspArbRGFf6N/nUpegQbvgobJytbwUW/SDtkOIzC3Hn
+2XwKm2DLpvqbZJn0N7hEgXzdXWCPHYlyXq3P9bjCwxKsVUUYx3JcBT3x74SWL/+m
+DZK2We+a1mRu3z2ln2ZGcp6+TIYmSrxoAxmbvbo9FIEw0MfTM5LR53CxC1p7jXJd
+XAundoFcUp3Ui/ZJPE+Sqv9asILO+bHeiO50XjNvuQKCAQBYFMwV6rsI2EOqE4At
+hs540CT98bZmIWosdrQtZIy8SDXdvgZTB96h4YfYI/WpF1K09gSa1YeQkFlAXvpW
+aeymfXVK4wdDJJgUNIrvxFX+LwijSVWGwmOCRpe5rzRka4ePZFCBmlx4pJTM5mvo
+HBsI/PmoZhAHOj9A4U1x2wzcUPNjSqGH8+ROl4Mgk885StgE3Ext2gi75GQwp+WY
+4Cs3MxOQ1Zt333P/JRNnZZDe6Mz5YUV+7/gzjE3Mrj25zExTR0AY1cckNN3pqCoy
+XFqrkV4Dc0ehrkqadC0BwK9dpI9EZIgZV/JqQIrI5LoE6899yRhn0Ew15uhGB3oB
+bfHtAoIBACZGwbKXy3R4d/VCs1RG4up8bXgRayCeOgq/MsEclyRXgdkvHeGxPJBy
+/sOdjc/W28P3TcCkC31lN/DiN1vrrjK4ya53Z1JccJZyhZJUkkdIgszFQM4qVjEd
+UALtdkhXnrJPJ4fye+JKprQYmexa2bGmj0BDXp3s0INOsVOOFKSfyTkCP9MNCR8U
+42ic2NktajQYcDtSkKebxywUv4oVVI9/rJArs9Ga+85SMVVyEc0Bk9iDVbxtsrja
+byWffy4KDmEtRMUkbnx1oFqtTGI2ZCT44Ny4WmQ8HKeKffZ4hYg7s2dV+xzlCkRL
+mkj78Dd8+ylbGc3SKcM5Zk3PQr++j9kCggEAD/RgyTxCRh7nRLpaLoRyQAseH6tb
+8w6pKyDZgMT7eCauGNsyBJTEipatdOCsOE9e0nBzpACBqcqz8fKEdskGOeA2jFKi
+6gbEbBdRFyiIyxny6c8mjfkgSkTvbLJQ7fEOPQ/d8AvXjC/Z1DqP9zs+J2LegdbR
+y9hR61UYSD+3FbmSsfIyTZcxmKae9vOVNRRSqTkYLTDIwSOgzR8UG1TzpQBJx3TU
+z9OgkBF1+48xsgQUnkkBp2toyit+0uHhi6V3jr8FqHDxKk7mxfOPdJYbKEajHR5M
+ahy4v8IKyVriK+CYtf8dPNlAAhAzbR1d3ym2A1CDhq8J7UxQdkSqwmKYWg==
+	}]
+	set pubkey [string trim {
+-----BEGIN RSA PUBLIC KEY-----
+MIICCgKCAgEA0Tx3UNNKHvfR0olCLnFhYoLFscKYncGzd2WkcrxJ2+lEsHS2XA7F
+FBvTSIdMEVvxPRGbkFGygs8UTOYNBDAfKbj5skkSq8hc0ZnMK4O08wosGkkREEQU
+7xCtyYqias3hh/SBwAvt6j6y8naLvni41UG0tUUJdH5H8TPr0Anu86sSVpl/x0hf
+D69eEedliiPo/EDr+6Mh+aKRqu2aNgxKXHAyuRH/qF2aECZaL1sKnLNbZxhqGyqG
+TWoF7sXZnKTqJ617fLmc60Kns7WKnypJgbOTHjjVZKLfmUAAgogo76GLyGRgv1CV
+EKJgNG1dcVksn8jFyululzNgxHh4U8MRVDwVymiRvWbkA6zPDD8C1ipW6kV4edEc
+BbXjQOc8mmqZZOhnRCzK2bw75qdbEdRRNAeMKDota8epc9gWMpZtwbXEYbP9+nev
+IuIN6rSlA2YG+ihgU35I62QNHmedRJxQjSzfP4F5NSMRhWagzU7Vqco+jsOlJED5
+ByV6LT5biY46/Z4inrKQr0/ZN+ilmrrXRKtRA2eKNwg//jrOdngD6nkZFBtAsaqq
+nQgECNtpIMnhpflBUIFUTu/kCftraczxjPSrKB5zgT/eje+p/vN9gSDAG/WOM9yQ
+FgfHx6Jcx/l6gwTUnHDFHK/xO1K31GcYW6pxlh+leGbU+Ls17oPuuWMCAwEAAQ==
+-----END RSA PUBLIC KEY-----
+	}]
+	# Verify using the key
+	set hash		[tomcrypt::hash sha256 {Test message}]
+	tomcrypt::rsa_verify_hash -key $pubkey -sig [tomcrypt::rsa_sign_hash -key $key -hash $hash] -hash $hash
+} -cleanup {
+	unset -nocomplain key pubkey hash
+} -result 1
+#>>>
+test rsa_import_public_key-3 {rsa_import_public_key with DER format} -body { #<<<
+	set key [binary decode base64 {
+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
+	}]
+	set pubkey [binary decode base64 {
+MIICCgKCAgEA0Tx3UNNKHvfR0olCLnFhYoLFscKYncGzd2WkcrxJ2+lEsHS2XA7F
+FBvTSIdMEVvxPRGbkFGygs8UTOYNBDAfKbj5skkSq8hc0ZnMK4O08wosGkkREEQU
+7xCtyYqias3hh/SBwAvt6j6y8naLvni41UG0tUUJdH5H8TPr0Anu86sSVpl/x0hf
+D69eEedliiPo/EDr+6Mh+aKRqu2aNgxKXHAyuRH/qF2aECZaL1sKnLNbZxhqGyqG
+TWoF7sXZnKTqJ617fLmc60Kns7WKnypJgbOTHjjVZKLfmUAAgogo76GLyGRgv1CV
+EKJgNG1dcVksn8jFyululzNgxHh4U8MRVDwVymiRvWbkA6zPDD8C1ipW6kV4edEc
+BbXjQOc8mmqZZOhnRCzK2bw75qdbEdRRNAeMKDota8epc9gWMpZtwbXEYbP9+nev
+IuIN6rSlA2YG+ihgU35I62QNHmedRJxQjSzfP4F5NSMRhWagzU7Vqco+jsOlJED5
+ByV6LT5biY46/Z4inrKQr0/ZN+ilmrrXRKtRA2eKNwg//jrOdngD6nkZFBtAsaqq
+nQgECNtpIMnhpflBUIFUTu/kCftraczxjPSrKB5zgT/eje+p/vN9gSDAG/WOM9yQ
+FgfHx6Jcx/l6gwTUnHDFHK/xO1K31GcYW6pxlh+leGbU+Ls17oPuuWMCAwEAAQ==
+	}]
+	# Verify using the key
+	set hash		[tomcrypt::hash sha256 {Test message}]
+	tomcrypt::rsa_verify_hash -key $pubkey -sig [tomcrypt::rsa_sign_hash -key $key -hash $hash] -hash $hash
+} -cleanup {
+	unset -nocomplain key pubkey hash
+} -result 1
+#>>>
+test rsa_import_public_key-4 {rsa_import_public_key with empty input} -body { #<<<
+	tomcrypt::rsa_verify_hash -key {}
+} -returnCodes error -errorCode {TOMCRYPT FORMAT RSA} -result {Invalid RSA key format}
+#>>>
+test rsa_import_public_key-4.1 {rsa_import_public_key with empty PEM input} -body { #<<<
+	tomcrypt::rsa_verify_hash -key [string trim {
+-----BEGIN PUBLIC KEY-----
+
+-----END PUBLIC KEY-----
+	}]
+} -returnCodes error -errorCode {TOMCRYPT FORMAT RSA} -result {Invalid RSA key format}
+#>>>
+test rsa_import_public_key-5 {rsa_import_public_key with no start line} -body { #<<<
+	tomcrypt::rsa_verify_hash -key "foo\n"
+} -returnCodes error -errorCode {TOMCRYPT FORMAT RSA} -result {Invalid RSA key format}
+#>>>
+test rsa_import_public_key-6 {rsa_import_public_key with mismatched labels} -body { #<<<
+	tomcrypt::rsa_verify_hash -key [string trim {
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+-----END RSA PUBLIC KEY-----
+	}]
+} -returnCodes error -errorCode {TOMCRYPT FORMAT PEM} -result {PEM labels do not match}
+#>>>
+test rsa_import_public_key-7 {rsa_import_public_key with valid but surprising base64} -body { #<<<
+	set key [binary decode base64 {
+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
+	}]
+	set pubkey [string trim {
+-----BEGIN PUBLIC KEY-----
+
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAxOhYCN0lEwFBPnte4CoS 
+2o7mrJmIbQvSooAGOaE/anTpXE+bk/uYD8gWBplA6/yUtEBe3bPB7OGcK/OWr/xi
+bL2IYrqDVz97wzGDtEVAJNmgir5QcYY5JmJbND9cw5JCYaZOANbU7d8z1Lrq0Ko3	 
+f6WnHhPuC+6HpHZ4hMciE/VovLMS8FFmzhjwvtEgJ+ydyXxDnzQNkgmTZf4ah1dV
+g+2BGsw0SDyGFU5z8us1xYXJpCGaGqfTblIJIChVdc8m0Mk5CoB7HCu25v27x/dG
+3RBHUg0/3j8o7Ct2fbv0p60QafcqJa2UFbP/WwwLuJXr0X/ddj7l83F5pbNhzu5i
+i4EpGPZhKDuxrW1tEFk/RlSaEmjGVfca9WL2LCui+U54pzlYHLFpEzPnhJSRqdbt
+lPpFDvCqH04W29z3dioVLNsd7bXfGQATmN5p0ahJmMSotn3fpjmTkHUMX97rQWLZ
+zVVQdcwEkJN/73kLkgGm30GSuKW6RbjJqyn7JQPTH87YkotQ4Gz5FbTxwGdYgDnq
+1KEzEP6FqxRCK+/+R0qgC5SwgYW7WANQIdWptwRvhd0GgZe4CYg4U0LLSYs7YsYe
+my3pEYach9oVgoQ5hqQDs8zACOh68VmLQfXlN3pdNYDwLe2kS81AYuKmnEt7R/x+
+OxlG5QPtI0IqP6Esy6V/U/kCAwEAAQ= 
+= 
+-----END PUBLIC KEY-----
+}]
+	# Verify using the key
+	set hash		[tomcrypt::hash sha256 {Test message}]
+	tomcrypt::rsa_verify_hash -key $pubkey -sig [tomcrypt::rsa_sign_hash -key $key -hash $hash] -hash $hash
+} -cleanup {
+	unset -nocomplain key pubkey hash
+} -result 1
+#>>>
+test rsa_import_public_key-8 {rsa_import_public_key with private key data} -body { #<<<
+	tomcrypt::rsa_verify_hash -key [string trim {
+-----BEGIN PUBLIC KEY-----
+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
+-----END PUBLIC KEY-----
+	}]
+} -returnCodes error -errorCode {NONE} -result {PEM claimed to be public key but imported as private key}
+#>>>
+test rsa_import_public_key-9 {rsa_import_public_key with bad binary data for DER case} -body { #<<<
+	tomcrypt::rsa_verify_hash -key "Not binary\u306f"
+} -returnCodes error -errorCode {TCL VALUE BYTES} -result "expected byte sequence but character 10 was '\u306F' (U+00306F)"
+#>>>
+
+test rsa_export_public_key-1 {verify that public key export format is X.509 PEM} -body { #<<<
+	tomcrypt::rsa_extract_pubkey $default_key
+} -match glob -result "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A*"
+#>>>
+
+rename common_prng {}
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4 noexpandtab

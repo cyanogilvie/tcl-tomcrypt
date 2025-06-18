@@ -19,7 +19,7 @@ dnl	to configure the system for the local environment.
 # so that we create the export library with the dll.
 #-----------------------------------------------------------------------
 
-AC_INIT([tomcrypt], [0.6.1])
+AC_INIT([tomcrypt], [0.7.0])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -76,11 +76,13 @@ ENABLE_TESTMODE
 # and PKG_TCL_SOURCES.
 #-----------------------------------------------------------------------
 
-TEA_ADD_SOURCES([tomcrypt.c type_ecc_key.c prng_class.c type_cipher_spec.c cipher.c])
+TEABASE_ADD_SOURCES([tomcrypt.c lexers/pem.c type_ecc_key.c type_rsa_key.c prng_class.c type_cipher_spec.c cipher.c])
 TEA_ADD_HEADERS([])
-TEA_ADD_INCLUDES([-Ilocal/include])
+TEA_ADD_INCLUDES([-Igeneric -Ilocal/include])
+#TEA_ADD_LIBS([-Llocal/lib -ltomcrypt -ltommath -ltfm -lm])
+#TEA_ADD_CFLAGS([-std=c11 -Wall -Werror -Wextra -Wno-unused-parameter -Wno-sign-compare -DUSE_LTM -DLTM_DESC -DTFM_DESC])
 TEA_ADD_LIBS([-Llocal/lib -ltomcrypt -ltommath -lm])
-TEA_ADD_CFLAGS([-std=c11 -Wall -Werror -Wextra -Wno-unused-parameter -Wno-sign-compare -DUSE_LTM -DLTM_DESC -DTFM_DESC])
+TEA_ADD_CFLAGS([-std=c11 -Wall -Werror -Wextra -Wno-unused-parameter -Wno-sign-compare -DUSE_LTM -DLTM_DESC])
 TEA_ADD_STUB_SOURCES([])
 TEA_ADD_TCL_SOURCES([])
 
@@ -156,6 +158,9 @@ TEA_ENABLE_SYMBOLS
 # Check for required polyfill
 TIP445
 TEABASE_INIT()
+
+# Cross-compilation support for re2c build
+AX_CC_FOR_BUILD
 
 #--------------------------------------------------------------------
 # This macro generates a line to use when building a library.  It

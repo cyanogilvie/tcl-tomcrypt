@@ -70,7 +70,7 @@ static int validate_private_key_structure(const unsigned char* bytes, unsigned l
 	mp_int			x, y, k;
 	int				err;
 
-	if (mp_init_multi(&x, &y, &k, NULL) != CRYPT_OK)
+	if (mp_init_multi(&x, &y, &k, NULL) != MP_OKAY)
 		return CRYPT_MEM;
 
 	err = der_decode_sequence_multi(bytes, len,

@@ -19,6 +19,12 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 **tomcrypt::ecc_make_key** *prng* *keysize*\
 **tomcrypt::ecc_verify** *sig* *message* *pbkey*\
 **tomcrypt::ecc_sign** *privkey* *message* ?*prng*?\
+**tomcrypt::rsa_make_key** ?**-keysize** *bits*? ?**-exponent** *e*? ?**-prng** *prng*?\
+**tomcrypt::rsa_extract_pubkey** *privkey*\
+**tomcrypt::rsa_sign_hash** **-key** *privkey* **-hash** *hash* ?**-padding** *type*? ?**-hashalg** *algorithm*? ?**-saltlen** *bytes*? ?**-prng** *prng*?\
+**tomcrypt::rsa_verify_hash** **-key** *pubkey* **-sig** *signature* **-hash** *hash* ?**-padding** *type*? ?**-hashalg** *algorithm*? ?**-saltlen** *bytes*?\
+**tomcrypt::rsa_encrypt_key** **-key** *pubkey* **-msg** *message* ?**-padding** *type*? ?**-hashalg** *algorithm*? ?**-lparam** *label*? ?**-prng** *prng*?\
+**tomcrypt::rsa_decrypt_key** **-key** *privkey* **-ciphertext** *ciphertext* ?**-padding** *type*? ?**-hashalg** *algorithm*? ?**-lparam** *label*?\
 **tomcrypt::rng_bytes** *count*\
 **tomcrypt::prng** **create** *prngInstance* *type* ?*entropy*?\
 **tomcrypt::prng** **new** *type* ?*entropy*?
@@ -99,6 +105,57 @@ This package provides a thin wrapper around a subset of libtomcrypt's functional
     by **ecc_make_key**). If *prng* is provided, use that PRNG instance for the signing operation,
     otherwise use the system's secure random number generator. Returns the signature in
     ANSI X9.62 format, suitable for verification with **ecc_verify**.
+
+**tomcrypt::rsa_make_key** ?**-keysize** *bits*? ?**-exponent** *e*? ?**-prng** *prng*?
+
+:   Generate a new RSA keypair. The **-keysize** option specifies the key size in bits 
+    (must be a multiple of 8 between 1024 and 4096, defaults to 2048). The **-exponent** 
+    option sets the public exponent (defaults to 0x10001). The **-prng** option specifies 
+    a PRNG instance to use; if omitted, the system's secure random number generator is used.
+    Returns the private key in PKCS#1 PEM format. The private key is suitable for use with 
+    **rsa_sign_hash** and **rsa_decrypt_key**. Use **rsa_extract_pubkey** to derive the 
+    corresponding public key for use with **rsa_verify_hash** and **rsa_encrypt_key**.
+
+**tomcrypt::rsa_extract_pubkey** *privkey*
+
+:   Extract the public key from an RSA private key *privkey* (in PKCS#1 DER/PEM format).
+    Returns the public key in PKCS#1 PEM format, suitable for use with **rsa_verify_hash**
+    and **rsa_encrypt_key**.
+
+**tomcrypt::rsa_sign_hash** **-key** *privkey* **-hash** *hash* ?**-padding** *type*? ?**-hashalg** *algorithm*? ?**-saltlen** *bytes*? ?**-prng** *prng*?
+
+:   Sign a message hash using the RSA private key *privkey* (in PKCS#1 DER/PEM format, as returned
+    by **rsa_make_key** or from other sources). The *hash* should be the raw bytes of a message digest. 
+    The **-padding** option specifies the padding scheme: **v1.5** for PKCS#1 v1.5, **pss** for PSS 
+    (default), or **v1.5_na1** for v1.5 without ASN.1 encoding (for SSL 3.0 compatibility). The 
+    **-hashalg** option only applies to **pss** and is the name of the hash function to use for that padding
+    (e.g., "sha1", "sha256", defaults to "sha256"). For PSS padding, **-saltlen** specifies the salt length in bytes 
+    (defaults to 0). If **-prng** is provided, use that PRNG instance, otherwise use the system's 
+    secure RNG (only applicable to **pss**). Returns the signature as raw bytes.
+
+**tomcrypt::rsa_verify_hash** **-key** *pubkey* **-sig** *signature* **-hash** *hash* ?**-padding** *type*? ?**-hashalg** *algorithm*? ?**-saltlen** *bytes*?
+
+:   Verify an RSA signature *signature* over the message hash *hash* using the public key *pubkey*
+    (in PKCS#1 DER/PEM format). The **-padding** (defaults to "pss"), **-hashalg** (defaults to 
+    "sha256"), and **-saltlen** (defaults to 0) options must match those used during signing. 
+    Returns true if the signature is valid, false otherwise.
+
+**tomcrypt::rsa_encrypt_key** **-key** *pubkey* **-msg** *message* ?**-padding** *type*? ?**-hashalg** *algorithm*? ?**-lparam** *label*? ?**-prng** *prng*?
+
+:   Encrypt a short message using the RSA public key *pubkey* (in PKCS#1 DER/PEM format). The 
+    **-padding** option can be **v1.5** for PKCS#1 v1.5 or **oaep** for OAEP padding (default). 
+    For OAEP, the **-hashalg** option (only applicable for **oaep** specifies the hash to use (defaults to "sha256")
+    he **-lparam** option is an optional label for OAEP (can be empty bytes). 
+    If **-prng** is provided, use that PRNG instance, otherwise use the system's secure RNG.
+    Returns the encrypted bytes. Message size limits depend on key size and padding: for a 
+    2048-bit key with OAEP/SHA-256, the maximum message size is about 190 bytes.
+
+**tomcrypt::rsa_decrypt_key** **-key** *privkey* **-ciphertext** *ciphertext* ?**-padding** *type*? ?**-hashalg** *algorithm*? ?**-lparam** *label*?
+
+:   Decrypt RSA-encrypted data using the private key *privkey* (in PKCS#1 DER/PEM format). The 
+    **-padding** (defaults to "oaep"), **-hashalg** (defaults to "sha256"), and **-lparam** 
+    options must match those used during encryption. Returns the decrypted message bytes, or 
+    throws an error if decryption fails or padding is invalid.
 
 **tomcrypt::prng** **create** *prngInstance* *type* ?*entropy*?
 
@@ -274,6 +331,71 @@ set message "Hi There"
 puts [binary encode hex [tomcrypt::hmac sha256 $key $message]]
 ~~~
 
+Generate RSA keypair and create CloudFront-style signature (PKCS#1 v1.5 + SHA-1):
+
+~~~tcl
+set privkey [tomcrypt::rsa_make_key]
+set pubkey [tomcrypt::rsa_extract_pubkey $privkey]
+
+# CloudFront policy string
+set policy {{"Statement":[{"Resource":"http://example.com/*","Condition":{"DateLessThan":{"AWS:EpochTime":1234567890}}}]}}
+set hash [tomcrypt::hash sha1 [encoding convertto utf-8 $policy]]
+
+# Sign with PKCS#1 v1.5 and SHA-1
+set signature [tomcrypt::rsa_sign_hash -key $privkey -hash $hash -padding v1.5 -hashalg sha1]
+
+# Verify signature
+set valid [tomcrypt::rsa_verify_hash -key $pubkey -sig $signature -hash $hash -padding v1.5 -hashalg sha1]
+if {$valid} {
+    puts "CloudFront signature verified successfully"
+} else {
+    puts "CloudFront signature verification failed"
+}
+~~~
+
+RSA encryption and decryption with OAEP padding:
+
+~~~tcl
+set privkey [tomcrypt::rsa_make_key]
+set pubkey [tomcrypt::rsa_extract_pubkey $privkey]
+
+set message "Secret message for RSA encryption"
+set msgbytes [encoding convertto utf-8 $message]
+set lparam "MyApplication"
+set lparambytes [encoding convertto utf-8 $lparam]
+
+# Encrypt with OAEP padding using SHA-256
+set ciphertext [tomcrypt::rsa_encrypt_key -key $pubkey -msg $msgbytes -padding oaep -hashalg sha256 -lparam $lparambytes]
+
+# Decrypt
+set decrypted [tomcrypt::rsa_decrypt_key -key $privkey -ciphertext $ciphertext -padding oaep -hashalg sha256 -lparam $lparambytes]
+set decrypted_message [encoding convertfrom utf-8 $decrypted]
+
+puts "Original: $message"
+puts "Decrypted: $decrypted_message"
+~~~
+
+RSA signature with PSS padding:
+
+~~~tcl
+set privkey [tomcrypt::rsa_make_key]
+set pubkey [tomcrypt::rsa_extract_pubkey $privkey]
+
+set message "Document to be signed with PSS"
+set hash [tomcrypt::hash sha256 [encoding convertto utf-8 $message]]
+
+# Sign with PSS padding and salt length 32
+set signature [tomcrypt::rsa_sign_hash -key $privkey -hash $hash -padding pss -hashalg sha256 -saltlen 32]
+
+# Verify signature
+set valid [tomcrypt::rsa_verify_hash -key $pubkey -sig $signature -hash $hash -padding pss -hashalg sha256 -saltlen 32]
+if {$valid} {
+    puts "PSS signature verified successfully"
+} else {
+    puts "PSS signature verification failed"
+}
+~~~
+
 
 ## BUILDING
 
@@ -376,8 +498,9 @@ This package is built on the [libtomcrypt library](https://github.com/libtom/lib
 
 ## PROJECT STATUS
 
-This is an early work in progress, but the commands documented here are implemented
-and tested and the package is in limited production use.
+This is a work in progress, but the commands documented here are implemented
+and tested and the package is in limited production use.  The ECC related
+functions are not yet production ready.
 
 With the nature of this package a lot of care is taken with memory handling
 and test coverage.  There are no known memory leaks or errors, and the

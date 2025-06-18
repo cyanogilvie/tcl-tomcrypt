@@ -4,20 +4,27 @@
 #include <tcl.h>
 #include <tclOO.h>
 #include "tclstuff.h"
-#include <tomcrypt.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <math.h>
+#include <string.h>
 #include "tip445.h"
+#include "libtomcrypt/tomcrypt.h"
 
-// Must match with lit_str[] in tomcrypt.c
+#define NS	"::tomcrypt"
+
+#define LITSTRS \
+	X(L_EMPTY,			"") \
+	X(L_NOBYTES,		"") \
+	X(L_TRUE,			"1") \
+	X(L_FALSE,			"0") \
+	X(L_PRNG_CLASS,		NS "::prng") \
+	X(L_PRNG_CLASS_DEF,	"::oo::class create " NS "::prng {}") \
+// Line intentionally left blank
 enum {
-	L_EMPTY,
-	L_NOBYTES,
-	L_TRUE,
-	L_FALSE,
-	L_PRNG_CLASS,
-	L_PRNG_CLASS_DEF,
+#define X(name, str) name,
+	LITSTRS
+#undef X
 	L_size
 };
 
@@ -34,12 +41,13 @@ extern "C" {
 #define TCL_STORAGE_CLASS DLLEXPORT
 #endif
 
-#define NS	"::tomcrypt"
-
 // tomcrypt.c internal interface <<<
 void register_intrep(Tcl_Obj* obj);
 void forget_intrep(Tcl_Obj* obj);
 // tomcrypt.c internal interface >>>
+// pem.re interface <<<
+int pem_load_first_key(Tcl_Interp* interp, Tcl_Obj* obj, uint8_t** der_buf, unsigned long* der_len, int* is_private_key);
+// pem.re interface >>>
 // type_ecc_key.c interface <<<
 // Add an enum for key type expectation
 typedef enum {
@@ -49,6 +57,15 @@ typedef enum {
 
 int GetECCKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, ecc_key_type_t expect_type, ecc_key** key);
 // type_ecc_key.c interface >>>
+// type_rsa_key.c interface <<<
+typedef enum {
+    RSA_EXPECT_PUBLIC,
+    RSA_EXPECT_PRIVATE
+} rsa_key_type_t;
+
+int GetRSAKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, rsa_key_type_t expect_type, rsa_key** key);
+Tcl_Obj* NewRSAKeyObj(rsa_key** key);
+// type_rsa_key.c interface >>>
 // type_cipher_spec.c interface <<<
 #define CIPHER_MODES_MAP_REGULAR \
 		X(cbc,	CBC) \
@@ -90,6 +107,13 @@ int prng_class_init(Tcl_Interp* interp, struct interp_cx* l);
 OBJCMD(cipher_encrypt_cmd);
 OBJCMD(cipher_decrypt_cmd);
 // cipher.c internal interface >>>
+// rsa functions <<<
+OBJCMD(rsa_make_key_cmd);
+OBJCMD(rsa_sign_hash_cmd);
+OBJCMD(rsa_verify_hash_cmd);
+OBJCMD(rsa_encrypt_key_cmd);
+OBJCMD(rsa_decrypt_key_cmd);
+// rsa functions >>>
 
 EXTERN int Tomcrypt_Init _ANSI_ARGS_((Tcl_Interp * interp));
 
@@ -99,4 +123,4 @@ EXTERN int Tomcrypt_Init _ANSI_ARGS_((Tcl_Interp * interp));
 
 #endif // _TOMCRYPTINT_H
 
-// vim: foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4
+// vim: ft=c foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4
