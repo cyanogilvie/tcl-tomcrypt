@@ -111,8 +111,10 @@ int GetRSAKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, rsa_key_type_t expect_typ
 			import_len = der_len;
 		} else {
 			// Try it as raw DER bytes
-			bytes_to_import = Tcl_GetBytesFromObj(interp, obj, &import_len);
+			int tmplen;
+			bytes_to_import = Tcl_GetBytesFromObj(interp, obj, &tmplen);
 			if (bytes_to_import == NULL) { code = TCL_ERROR; goto finally; }
+			import_len = tmplen;
 		}
 
 		if (import_len == 0) {
