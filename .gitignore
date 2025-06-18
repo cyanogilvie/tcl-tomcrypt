@@ -1,4 +1,4 @@
-Makefile
+/Makefile
 configure
 pkgIndex.tcl
 autom4te.cache

@@ -5,7 +5,7 @@
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <meta name="author" content="Cyan Ogilvie" />
-  <title>tomcrypt(3) 0.7.1 | libtomcrypt Tcl wrapper</title>
+  <title>tomcrypt(3) 0.7.2 | libtomcrypt Tcl wrapper</title>
   <style>
     html {
       color: #1a1a1a;
@@ -248,14 +248,14 @@
 </head>
 <body>
 <header id="title-block-header">
-<h1 class="title">tomcrypt(3) 0.7.1 | libtomcrypt Tcl wrapper</h1>
+<h1 class="title">tomcrypt(3) 0.7.2 | libtomcrypt Tcl wrapper</h1>
 <p class="author">Cyan Ogilvie</p>
 </header>
 <h1 id="tomcrypt">TOMCRYPT</h1>
 <p>libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl
 scripts</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<p><strong>package require tomcrypt</strong> ?0.7.1?</p>
+<p><strong>package require tomcrypt</strong> ?0.7.2?</p>
 <p><strong>tomcrypt::hash</strong> <em>algorithm</em>
 <em>bytes</em><br />
 <strong>tomcrypt::hmac</strong> <em>algorithm</em> <em>key</em>
@@ -724,12 +724,12 @@ package build process.</p>
 to support 8.6.</p>
 <h3 id="from-a-release-tarball">From a Release Tarball</h3>
 <p>Download and extract <a
-href="https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.7.1/tomcrypt0.7.1.tar.gz">the
+href="https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.7.2/tomcrypt0.7.2.tar.gz">the
 release</a>, then build in the standard TEA way:</p>
 <div class="sourceCode" id="cb10"><pre
-class="sourceCode sh"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">wget</span> https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.7.1/tomcrypt0.7.1.tar.gz</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">tar</span> xf tomcrypt0.7.1.tar.gz</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> tomcrypt0.7.1</span>
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">wget</span> https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.7.2/tomcrypt0.7.2.tar.gz</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">tar</span> xf tomcrypt0.7.2.tar.gz</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> tomcrypt0.7.2</span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="ex">./configure</span></span>
 <span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span></span>
 <span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> make install</span></code></pre></div>
@@ -750,7 +750,7 @@ only adding the installed package without documentation to the image,
 and strip debug symbols, minimising image size:</p>
 <div class="sourceCode" id="cb12"><pre
 class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WORKDIR</span> /tmp/tcl-tomcrypt</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="fu">wget</span> https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.7.1/tomcrypt0.7.1.tar.gz <span class="at">-O</span> <span class="at">-</span> <span class="kw">|</span> <span class="fu">tar</span> xz <span class="at">--strip-components</span><span class="op">=</span>1 <span class="kw">&amp;&amp;</span> <span class="dt">\</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="fu">wget</span> https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.7.2/tomcrypt0.7.2.tar.gz <span class="at">-O</span> <span class="at">-</span> <span class="kw">|</span> <span class="fu">tar</span> xz <span class="at">--strip-components</span><span class="op">=</span>1 <span class="kw">&amp;&amp;</span> <span class="dt">\</span></span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    <span class="ex">./configure</span><span class="kw">;</span> <span class="fu">make</span> test install-binaries install-libraries <span class="kw">&amp;&amp;</span> <span class="dt">\</span></span>
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">strip</span> /usr/local/lib/libtomcrypt<span class="pp">*</span>.so <span class="kw">&amp;&amp;</span> <span class="dt">\</span></span>
 <span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">cd</span> .. <span class="kw">&amp;&amp;</span> <span class="fu">rm</span> <span class="at">-rf</span> tcl-tomcrypt</span></code></pre></div>
