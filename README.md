@@ -14,6 +14,7 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 
 **tomcrypt::hash** *algorithm* *bytes*  
 **tomcrypt::hmac** *algorithm* *key* *message*  
+**tomcrypt::hkdf** *algorithm* *salt* *info* *in* *length*  
 **tomcrypt::base64url** **encode**\|**strict_encode** *bytes*  
 **tomcrypt::base64url** **decode**\|**strict_decode** *string*  
 **tomcrypt::encrypt** *spec* *key* *iv* *bytes*  
@@ -61,6 +62,21 @@ Return the hash of *bytes*, using the *algorithm*. The values available
 for *algorithm* are those that are known by libtomcrypt. The returned
 value is the raw bytearray.
 
+**tomcrypt::hmac** *algorithm* *key* *message*  
+Compute the HMAC (Hash-based Message Authentication Code) of *message*
+using the hash *algorithm* and *key*. The *algorithm* must be one of the
+hash algorithms known to libtomcrypt (like sha256). Both *key* and
+*message* must be byte arrays. Returns the HMAC result as a raw byte
+array.
+
+**tomcrypt::hkdf** *algorithm* *salt* *info* *in* *length*  
+Perform HKDF (HMAC-based Extract-and-Expand Key Derivation Function)
+using the specified *algorithm* (a hash algorithm known to libtomcrypt,
+like sha256), with the given *salt* (a bytearray, can be empty), *info*
+(a bytearray, can be empty), and input keying material *in* (a
+bytearray). The derived key will be *length* bytes long. Returns the
+derived key as a raw bytearray.
+
 **tomcrypt::base64url** **encode**\|**strict_encode** *bytes*  
 Return the base64url encoding of *bytes*, which is the same as the
 regular base64 encoding except for two substitutions: ‘+’ -\> ‘-’ and
@@ -83,13 +99,6 @@ cipher and mode specified in *spec*. See **CIPHER SPEC** for details.
 **tomcrypt::decrypt** *spec* *key* *iv* *data*  
 Decrypt the ciphertext bytes in *data* using the key *key* using the
 cipher and mode specified in *spec*. See **CIPHER SPEC** for details.
-
-**tomcrypt::hmac** *algorithm* *key* *message*  
-Compute the HMAC (Hash-based Message Authentication Code) of *message*
-using the hash *algorithm* and *key*. The *algorithm* must be one of the
-hash algorithms known to libtomcrypt (like sha256). Both *key* and
-*message* must be byte arrays. Returns the HMAC result as a raw byte
-array.
 
 **tomcrypt::ecc_make_key** *prng* *keysize*  
 Generate a new ECC keypair using the PRNG instance *prng* with the given

@@ -130,6 +130,63 @@ finally:
 }
 
 //>>>
+OBJCMD(hkdf_cmd) //<<<
+{
+	int				code = TCL_OK;
+	Tcl_Obj*		res = NULL;
+
+	enum {A_cmd, A_HASH, A_SALT, A_INFO, A_IN, A_LENGTH, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "algorithm salt info in length");
+
+	// Find hash algorithm
+	const int hash_idx = find_hash(Tcl_GetString(objv[A_HASH]));
+	if (hash_idx == -1) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "LOOKUP", "HASH", Tcl_GetString(objv[A_HASH]), NULL);
+		THROW_PRINTF_LABEL(finally, code, "Unknown hash %s", Tcl_GetString(objv[A_HASH]));
+	}
+
+	// Get salt
+	int saltlen;
+	const unsigned char* salt = Tcl_GetBytesFromObj(interp, objv[A_SALT], &saltlen);
+	if (salt == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Get info
+	int infolen;
+	const unsigned char* info = Tcl_GetBytesFromObj(interp, objv[A_INFO], &infolen);
+	if (info == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Get input keying material
+	int inlen;
+	const unsigned char* in = Tcl_GetBytesFromObj(interp, objv[A_IN], &inlen);
+	if (in == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Get output length
+	long outlen;
+	TEST_OK_LABEL(finally, code, Tcl_GetLongFromObj(interp, objv[A_LENGTH], &outlen));
+	if (outlen < 0) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+		THROW_ERROR_LABEL(finally, code, "length must be non-negative");
+	}
+
+	// Compute HKDF
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, outlen));
+	unsigned char*	out = Tcl_GetBytesFromObj(interp, res, NULL);
+	if (out == NULL) { code = TCL_ERROR; goto finally; }
+
+	int err;
+	if ((err = hkdf(hash_idx, salt, saltlen, info, infolen, in, inlen, out, outlen)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "HMAC", "COMPUTE", NULL);
+		THROW_PRINTF_LABEL(finally, code, "hmac_memory failed: %s", error_to_string(err));
+	}
+
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
+	return code;
+}
+
+//>>>
 OBJCMD(base64url_cmd) // Base64 URL encode / decode <<<
 {
 	int					code = TCL_OK;
@@ -1222,6 +1279,7 @@ static struct cmd {
 } cmds[] = {
 	{NS "::hash",							hash_cmd,				NULL},
 	{NS "::hmac",							hmac_cmd,				NULL},
+	{NS "::hkdf",							hkdf_cmd,				NULL},
 	{NS "::ecc_make_key",					ecc_make_key_cmd,		NULL},
 	{NS "::ecc_verify",						ecc_verify,				NULL},
 	{NS "::ecc_sign",						ecc_sign_cmd,			NULL},

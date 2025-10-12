@@ -260,6 +260,8 @@ scripts</p>
 <em>bytes</em><br />
 <strong>tomcrypt::hmac</strong> <em>algorithm</em> <em>key</em>
 <em>message</em><br />
+<strong>tomcrypt::hkdf</strong> <em>algorithm</em> <em>salt</em>
+<em>info</em> <em>in</em> <em>length</em><br />
 <strong>tomcrypt::base64url</strong>
 <strong>encode</strong>|<strong>strict_encode</strong>
 <em>bytes</em><br />
@@ -325,6 +327,26 @@ functionality.</p>
 values available for <em>algorithm</em> are those that are known by
 libtomcrypt. The returned value is the raw bytearray.</p>
 </dd>
+<dt><strong>tomcrypt::hmac</strong> <em>algorithm</em> <em>key</em>
+<em>message</em></dt>
+<dd>
+<p>Compute the HMAC (Hash-based Message Authentication Code) of
+<em>message</em> using the hash <em>algorithm</em> and <em>key</em>. The
+<em>algorithm</em> must be one of the hash algorithms known to
+libtomcrypt (like sha256). Both <em>key</em> and <em>message</em> must
+be byte arrays. Returns the HMAC result as a raw byte array.</p>
+</dd>
+<dt><strong>tomcrypt::hkdf</strong> <em>algorithm</em> <em>salt</em>
+<em>info</em> <em>in</em> <em>length</em></dt>
+<dd>
+<p>Perform HKDF (HMAC-based Extract-and-Expand Key Derivation Function)
+using the specified <em>algorithm</em> (a hash algorithm known to
+libtomcrypt, like sha256), with the given <em>salt</em> (a bytearray,
+can be empty), <em>info</em> (a bytearray, can be empty), and input
+keying material <em>in</em> (a bytearray). The derived key will be
+<em>length</em> bytes long. Returns the derived key as a raw
+bytearray.</p>
+</dd>
 <dt><strong>tomcrypt::base64url</strong>
 <strong>encode</strong>|<strong>strict_encode</strong>
 <em>bytes</em></dt>
@@ -360,15 +382,6 @@ valid base64url alphabet within the encoded value.</p>
 <p>Decrypt the ciphertext bytes in <em>data</em> using the key
 <em>key</em> using the cipher and mode specified in <em>spec</em>. See
 <strong>CIPHER SPEC</strong> for details.</p>
-</dd>
-<dt><strong>tomcrypt::hmac</strong> <em>algorithm</em> <em>key</em>
-<em>message</em></dt>
-<dd>
-<p>Compute the HMAC (Hash-based Message Authentication Code) of
-<em>message</em> using the hash <em>algorithm</em> and <em>key</em>. The
-<em>algorithm</em> must be one of the hash algorithms known to
-libtomcrypt (like sha256). Both <em>key</em> and <em>message</em> must
-be byte arrays. Returns the HMAC result as a raw byte array.</p>
 </dd>
 <dt><strong>tomcrypt::ecc_make_key</strong> <em>prng</em>
 <em>keysize</em></dt>

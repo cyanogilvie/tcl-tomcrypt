@@ -32,6 +32,11 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 .PD 0
 .P
 .PD
+\f[B]tomcrypt::hkdf\f[R] \f[I]algorithm\f[R] \f[I]salt\f[R]
+\f[I]info\f[R] \f[I]in\f[R] \f[I]length\f[R]
+.PD 0
+.P
+.PD
 \f[B]tomcrypt::base64url\f[R] \f[B]encode\f[R]|\f[B]strict_encode\f[R]
 \f[I]bytes\f[R]
 .PD 0
@@ -155,6 +160,23 @@ The values available for \f[I]algorithm\f[R] are those that are known by
 libtomcrypt.
 The returned value is the raw bytearray.
 .TP
+\f[B]tomcrypt::hmac\f[R] \f[I]algorithm\f[R] \f[I]key\f[R] \f[I]message\f[R]
+Compute the HMAC (Hash-based Message Authentication Code) of
+\f[I]message\f[R] using the hash \f[I]algorithm\f[R] and \f[I]key\f[R].
+The \f[I]algorithm\f[R] must be one of the hash algorithms known to
+libtomcrypt (like sha256).
+Both \f[I]key\f[R] and \f[I]message\f[R] must be byte arrays.
+Returns the HMAC result as a raw byte array.
+.TP
+\f[B]tomcrypt::hkdf\f[R] \f[I]algorithm\f[R] \f[I]salt\f[R] \f[I]info\f[R] \f[I]in\f[R] \f[I]length\f[R]
+Perform HKDF (HMAC-based Extract-and-Expand Key Derivation Function)
+using the specified \f[I]algorithm\f[R] (a hash algorithm known to
+libtomcrypt, like sha256), with the given \f[I]salt\f[R] (a bytearray,
+can be empty), \f[I]info\f[R] (a bytearray, can be empty), and input
+keying material \f[I]in\f[R] (a bytearray).
+The derived key will be \f[I]length\f[R] bytes long.
+Returns the derived key as a raw bytearray.
+.TP
 \f[B]tomcrypt::base64url\f[R] \f[B]encode\f[R]|\f[B]strict_encode\f[R] \f[I]bytes\f[R]
 Return the base64url encoding of \f[I]bytes\f[R], which is the same as
 the regular base64 encoding except for two substitutions: `+' -> `-' and
@@ -182,14 +204,6 @@ See \f[B]CIPHER SPEC\f[R] for details.
 Decrypt the ciphertext bytes in \f[I]data\f[R] using the key
 \f[I]key\f[R] using the cipher and mode specified in \f[I]spec\f[R].
 See \f[B]CIPHER SPEC\f[R] for details.
-.TP
-\f[B]tomcrypt::hmac\f[R] \f[I]algorithm\f[R] \f[I]key\f[R] \f[I]message\f[R]
-Compute the HMAC (Hash-based Message Authentication Code) of
-\f[I]message\f[R] using the hash \f[I]algorithm\f[R] and \f[I]key\f[R].
-The \f[I]algorithm\f[R] must be one of the hash algorithms known to
-libtomcrypt (like sha256).
-Both \f[I]key\f[R] and \f[I]message\f[R] must be byte arrays.
-Returns the HMAC result as a raw byte array.
 .TP
 \f[B]tomcrypt::ecc_make_key\f[R] \f[I]prng\f[R] \f[I]keysize\f[R]
 Generate a new ECC keypair using the PRNG instance \f[I]prng\f[R] with
