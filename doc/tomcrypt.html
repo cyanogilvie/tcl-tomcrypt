@@ -5,17 +5,169 @@
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <meta name="author" content="Cyan Ogilvie" />
-  <title>tomcrypt(3) 0.5.6 | libtomcrypt Tcl wrapper</title>
+  <title>tomcrypt(3) 0.8.0 | libtomcrypt Tcl wrapper</title>
   <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
     code{white-space: pre-wrap;}
     span.smallcaps{font-variant: small-caps;}
-    span.underline{text-decoration: underline;}
-    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
     div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
-    ul.task-list{list-style: none;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
     pre > code.sourceCode { white-space: pre; position: relative; }
-    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span { line-height: 1.25; }
     pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
     code.sourceCode > span { color: inherit; text-decoration: inherit; }
     div.sourceCode { margin: 1em 0; }
     pre.sourceCode { margin: 0; }
@@ -50,7 +202,7 @@
     code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
     code span.at { color: #7d9029; } /* Attribute */
     code span.bn { color: #40a070; } /* BaseN */
-    code span.bu { } /* BuiltIn */
+    code span.bu { color: #008000; } /* BuiltIn */
     code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
     code span.ch { color: #4070a0; } /* Char */
     code span.cn { color: #880000; } /* Constant */
@@ -63,7 +215,7 @@
     code span.ex { } /* Extension */
     code span.fl { color: #40a070; } /* Float */
     code span.fu { color: #06287e; } /* Function */
-    code span.im { } /* Import */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
     code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
     code span.kw { color: #007020; font-weight: bold; } /* Keyword */
     code span.op { color: #666666; } /* Operator */
@@ -96,186 +248,696 @@
 </head>
 <body>
 <header id="title-block-header">
-<h1 class="title">tomcrypt(3) 0.5.6 | libtomcrypt Tcl wrapper</h1>
+<h1 class="title">tomcrypt(3) 0.8.0 | libtomcrypt Tcl wrapper</h1>
 <p class="author">Cyan Ogilvie</p>
 </header>
 <h1 id="tomcrypt">TOMCRYPT</h1>
-<p>libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts</p>
+<p>libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl
+scripts</p>
 <h2 id="synopsis">SYNOPSIS</h2>
-<p><strong>package require tomcrypt</strong> ?0.5.6?</p>
-<p><strong>tomcrypt::hash</strong> <em>algorithm</em> <em>bytes</em><br />
-<strong>tomcrypt::base64url</strong> <strong>encode</strong>|<strong>strict_encode</strong> <em>bytes</em><br />
-<strong>tomcrypt::base64url</strong> <strong>decode</strong>|<strong>strict_decode</strong> <em>string</em><br />
-<strong>tomcrypt::ecc_verify</strong> <em>sig</em> <em>message</em> <em>pbkey</em><br />
+<p><strong>package require tomcrypt</strong> ?0.8.0?</p>
+<p><strong>tomcrypt::hash</strong> <em>algorithm</em>
+<em>bytes</em><br />
+<strong>tomcrypt::hmac</strong> <em>algorithm</em> <em>key</em>
+<em>message</em><br />
+<strong>tomcrypt::hkdf</strong> <em>algorithm</em> <em>salt</em>
+<em>info</em> <em>in</em> <em>length</em><br />
+<strong>tomcrypt::base64url</strong>
+<strong>encode</strong>|<strong>strict_encode</strong>
+<em>bytes</em><br />
+<strong>tomcrypt::base64url</strong>
+<strong>decode</strong>|<strong>strict_decode</strong>
+<em>string</em><br />
+<strong>tomcrypt::encrypt</strong> <em>spec</em> <em>key</em>
+<em>iv</em> <em>bytes</em><br />
+<strong>tomcrypt::decrypt</strong> <em>spec</em> <em>key</em>
+<em>iv</em> <em>bytes</em><br />
+<strong>tomcrypt::ecc_generate_key</strong> <em>curve</em>
+?<em>prng</em>?<br />
+<strong>tomcrypt::ecc_extract_pubkey</strong> <em>privkey</em><br />
+<strong>tomcrypt::ecc_ansi_x963_import</strong> <em>bytes</em>
+?<em>curve</em>?<br />
+<strong>tomcrypt::ecc_ansi_x963_export</strong> <em>pubkey</em><br />
+<strong>tomcrypt::ecc_verify</strong> <em>sig</em> <em>message</em>
+<em>pubkey</em><br />
+<strong>tomcrypt::ecc_sign</strong> <em>privkey</em> <em>message</em>
+?<em>prng</em>?<br />
+<strong>tomcrypt::ecc_shared_secret</strong> <em>privkey</em>
+<em>pubkey</em><br />
+<strong>tomcrypt::rsa_make_key</strong> ?<strong>-keysize</strong>
+<em>bits</em>? ?<strong>-exponent</strong> <em>e</em>?
+?<strong>-prng</strong> <em>prng</em>?<br />
+<strong>tomcrypt::rsa_extract_pubkey</strong> <em>privkey</em><br />
+<strong>tomcrypt::rsa_sign_hash</strong> <strong>-key</strong>
+<em>privkey</em> <strong>-hash</strong> <em>hash</em>
+?<strong>-padding</strong> <em>type</em>? ?<strong>-hashalg</strong>
+<em>algorithm</em>? ?<strong>-saltlen</strong> <em>bytes</em>?
+?<strong>-prng</strong> <em>prng</em>?<br />
+<strong>tomcrypt::rsa_verify_hash</strong> <strong>-key</strong>
+<em>pubkey</em> <strong>-sig</strong> <em>signature</em>
+<strong>-hash</strong> <em>hash</em> ?<strong>-padding</strong>
+<em>type</em>? ?<strong>-hashalg</strong> <em>algorithm</em>?
+?<strong>-saltlen</strong> <em>bytes</em>?<br />
+<strong>tomcrypt::rsa_encrypt_key</strong> <strong>-key</strong>
+<em>pubkey</em> <strong>-msg</strong> <em>message</em>
+?<strong>-padding</strong> <em>type</em>? ?<strong>-hashalg</strong>
+<em>algorithm</em>? ?<strong>-lparam</strong> <em>label</em>?
+?<strong>-prng</strong> <em>prng</em>?<br />
+<strong>tomcrypt::rsa_decrypt_key</strong> <strong>-key</strong>
+<em>privkey</em> <strong>-ciphertext</strong> <em>ciphertext</em>
+?<strong>-padding</strong> <em>type</em>? ?<strong>-hashalg</strong>
+<em>algorithm</em>? ?<strong>-lparam</strong> <em>label</em>?<br />
 <strong>tomcrypt::rng_bytes</strong> <em>count</em><br />
-<strong>tomcrypt::prng</strong> <strong>create</strong> <em>prngInstance</em> <em>type</em> ?<em>entropy</em>?<br />
-<strong>tomcrypt::prng</strong> <strong>new</strong> <em>type</em> ?<em>entropy</em>?</p>
+<strong>tomcrypt::prng</strong> <strong>create</strong>
+<em>prngInstance</em> <em>type</em> ?<em>entropy</em>?<br />
+<strong>tomcrypt::prng</strong> <strong>new</strong> <em>type</em>
+?<em>entropy</em>?</p>
 <p>PRNG instance methods:</p>
 <p><em>prngInstance</em> <strong>bytes</strong> <em>count</em><br />
-<em>prngInstance</em> <strong>add_entropy</strong> <em>entropy</em><br />
-<em>prngInstance</em> <strong>integer</strong> <em>lower</em> <em>upper</em><br />
+<em>prngInstance</em> <strong>add_entropy</strong>
+<em>entropy</em><br />
+<em>prngInstance</em> <strong>integer</strong> <em>lower</em>
+<em>upper</em><br />
 <em>prngInstance</em> <strong>double</strong><br />
 <em>prngInstance</em> <strong>export</strong><br />
 <em>prngInstance</em> <strong>destroy</strong></p>
 <h2 id="description">DESCRIPTION</h2>
-<p>This package provides a thin wrapper around a subset of libtomcrypt’s functionality.</p>
+<p>This package provides a thin wrapper around a subset of libtomcrypt’s
+functionality.</p>
 <h2 id="commands">COMMANDS</h2>
 <dl>
-<dt><strong>tomcrypt::hash</strong> <em>algorithm</em> <em>bytes</em></dt>
-<dd><p>Return the hash of <em>bytes</em>, using the <em>algorithm</em>. The values available for <em>algorithm</em> are those that are known by libtomcrypt. The returned value is the raw bytearray.</p>
+<dt><strong>tomcrypt::hash</strong> <em>algorithm</em>
+<em>bytes</em></dt>
+<dd>
+<p>Return the hash of <em>bytes</em>, using the <em>algorithm</em>. The
+values available for <em>algorithm</em> are those that are known by
+libtomcrypt. The returned value is the raw bytearray.</p>
 </dd>
-<dt><strong>tomcrypt::base64url</strong> <strong>encode</strong>|<strong>strict_encode</strong> <em>bytes</em></dt>
-<dd><p>Return the base64url encoding of <em>bytes</em>, which is the same as the regular base64 encoding except for two substitutions: ‘+’ -&gt; ‘-’ and ‘/’ -&gt; ‘_’, so that the result can be represented in a URL part without needing to be escaped. Also useful when using the result as a filename. If <strong>strict_encode</strong> is used, then the result will have ‘=’ padding characters appended to ensure that its length is a multiple of 4. <strong>encode</strong> does not pad its output.</p>
+<dt><strong>tomcrypt::hmac</strong> <em>algorithm</em> <em>key</em>
+<em>message</em></dt>
+<dd>
+<p>Compute the HMAC (Hash-based Message Authentication Code) of
+<em>message</em> using the hash <em>algorithm</em> and <em>key</em>. The
+<em>algorithm</em> must be one of the hash algorithms known to
+libtomcrypt (like sha256). Both <em>key</em> and <em>message</em> must
+be byte arrays. Returns the HMAC result as a raw byte array.</p>
 </dd>
-<dt><strong>tomcrypt::base64url</strong> <strong>decode</strong>|<strong>strict_decode</strong> <em>string</em></dt>
-<dd><p>Inverts the encoding applied by <strong>encode</strong> or <strong>strict_encode</strong>. Both <strong>decode</strong> and <strong>strict_decode</strong> accept both padded and unpadded input, but strict does not allow pad characters or characters outside of the valid base64url alphabet within the encoded value.</p>
+<dt><strong>tomcrypt::hkdf</strong> <em>algorithm</em> <em>salt</em>
+<em>info</em> <em>in</em> <em>length</em></dt>
+<dd>
+<p>Perform HKDF (HMAC-based Extract-and-Expand Key Derivation Function)
+using the specified <em>algorithm</em> (a hash algorithm known to
+libtomcrypt, like sha256), with the given <em>salt</em> (a bytearray,
+can be empty), <em>info</em> (a bytearray, can be empty), and input
+keying material <em>in</em> (a bytearray). The derived key will be
+<em>length</em> bytes long. Returns the derived key as a raw
+bytearray.</p>
 </dd>
-<dt><strong>tomcrypt::ecc_verify</strong> <em>sig</em> <em>message</em> <em>pbkey</em></dt>
-<dd><p>Verify the signature <em>sig</em> over the message <em>message</em> with public key <em>pbkey</em>. <em>sig</em> is in ANSI X9.62 format, <em>pbkey</em> is in ANSI X9.63 section 4.3.6 format or the native libtomcrypt format, and message is the raw bytearray (typically a hash result) that was signed. Returns true if the signature is valid, false if not, and throws an error if it couldn’t parse <em>sig</em> or <em>pbkey</em>.</p>
+<dt><strong>tomcrypt::base64url</strong>
+<strong>encode</strong>|<strong>strict_encode</strong>
+<em>bytes</em></dt>
+<dd>
+<p>Return the base64url encoding of <em>bytes</em>, which is the same as
+the regular base64 encoding except for two substitutions: ‘+’ -&gt; ‘-’
+and ‘/’ -&gt; ‘_’, so that the result can be represented in a URL part
+without needing to be escaped. Also useful when using the result as a
+filename. If <strong>strict_encode</strong> is used, then the result
+will have ‘=’ padding characters appended to ensure that its length is a
+multiple of 4. <strong>encode</strong> does not pad its output.</p>
 </dd>
-<dt><strong>tomcrypt::prng</strong> <strong>create</strong> <em>prngInstance</em> <em>type</em> ?<em>entropy</em>?</dt>
-<dd><p>Create a PRNG (pseudorandom number generator) instance accessed by the command name <em>prngInstance</em>, using the implementation <em>type</em>, such as <strong>fortuna</strong> or <strong>chacha20</strong> (as known to libtomcrypt), or "" (an empty string) to select the recommended default which may change between releases, and bootstrapped with <em>entropy</em> which must be a bytearray of high entropy bytes. If <em>entropy</em> is omitted the PRNG will be bootstrapped with at least 256 bits of entropy from the platform’s default cryptographic RNG. Returns the <em>prngInstance</em> command name.</p>
+<dt><strong>tomcrypt::base64url</strong>
+<strong>decode</strong>|<strong>strict_decode</strong>
+<em>string</em></dt>
+<dd>
+<p>Inverts the encoding applied by <strong>encode</strong> or
+<strong>strict_encode</strong>. Both <strong>decode</strong> and
+<strong>strict_decode</strong> accept both padded and unpadded input,
+but strict does not allow pad characters or characters outside of the
+valid base64url alphabet within the encoded value.</p>
 </dd>
-<dt><strong>tomcrypt::prng</strong> <strong>new</strong> <em>type</em> ?<em>entropy</em>?</dt>
-<dd><p>As above, but the <em>prngInstance</em> command name is picked automatically.</p>
+<dt><strong>tomcrypt::encrypt</strong> <em>spec</em> <em>key</em>
+<em>iv</em> <em>data</em></dt>
+<dd>
+<p>Encrypt the plaintext bytes in <em>data</em> using the key
+<em>key</em> using the cipher and mode specified in <em>spec</em>. See
+<strong>CIPHER SPEC</strong> for details.</p>
+</dd>
+<dt><strong>tomcrypt::decrypt</strong> <em>spec</em> <em>key</em>
+<em>iv</em> <em>data</em></dt>
+<dd>
+<p>Decrypt the ciphertext bytes in <em>data</em> using the key
+<em>key</em> using the cipher and mode specified in <em>spec</em>. See
+<strong>CIPHER SPEC</strong> for details.</p>
+</dd>
+<dt><strong>tomcrypt::aead</strong> <strong>encrypt</strong>
+<em>mode</em> <em>cipher</em> <em>key</em> <em>iv</em> <em>aad</em>
+<em>plaintext</em></dt>
+<dd>
+<p>Encrypt <em>plaintext</em> using authenticated encryption with
+associated data (AEAD). The <em>mode</em> can be one of:
+<strong>gcm</strong>, <strong>eax</strong>, <strong>ocb</strong>,
+<strong>ocb3</strong>, <strong>ccm</strong>, or
+<strong>chacha20poly1305</strong>. Most modes require a <em>cipher</em>
+(like “aes”), except chacha20poly1305 which uses its own cipher (pass “”
+for cipher in that case). The <em>key</em>, initialization vector
+<em>iv</em>, and additional authenticated data <em>aad</em> are all byte
+arrays. <em>aad</em> can be empty if no metadata needs to be
+authenticated. Returns a 2-element list: {ciphertext tag} where tag is
+the authentication tag (typically 16 bytes).</p>
+</dd>
+<dt><strong>tomcrypt::aead</strong> <strong>decrypt</strong>
+<em>mode</em> <em>cipher</em> <em>key</em> <em>iv</em> <em>aad</em>
+<em>ciphertext</em> <em>tag</em></dt>
+<dd>
+<p>Decrypt <em>ciphertext</em> using AEAD, verifying the authentication
+<em>tag</em>. Parameters must match those used during encryption.
+Returns the plaintext if successful, or throws an error if the tag
+verification fails (indicating tampering or corruption).</p>
+</dd>
+<dt><strong>tomcrypt::ecc_generate_key</strong> <em>curve</em>
+?<em>prng</em>?</dt>
+<dd>
+<p>Generate a new ECC key using the PRNG instance <em>prng</em>
+(defaulting to the system PRNG if not specified), using the specified
+<em>curve</em>. See <strong>CURVE SPEC</strong> for details of how to
+specify the curve. Returns the private key in PEM formatted OpenSSL
+compatible DER format.</p>
+</dd>
+<dt><strong>tomcrypt::ecc_extract_pubkey</strong> <em>privkey</em></dt>
+<dd>
+<p>Extract the public key from an ECC private key <em>privkey</em> (in
+OpenSSL’s DER format, possibly PEM encoded, as returned by
+<strong>ecc_generate_key</strong>). Returns the public key in OpenSSL
+DER format, PEM encoded.</p>
+</dd>
+<dt><strong>tomcrypt::ecc_verify</strong> <em>sig</em> <em>message</em>
+<em>pubkey</em></dt>
+<dd>
+<p>Verify the signature <em>sig</em> over the message <em>message</em>
+with public key <em>pubkey</em>. <em>sig</em> is in ANSI X9.62 format,
+<em>pubkey</em> is in ANSI X9.63 section 4.3.6 format or the native
+libtomcrypt format, and message is the raw bytearray (typically a hash
+result) that was signed. Returns true if the signature is valid, false
+if not, and throws an error if it couldn’t parse <em>sig</em> or
+<em>pubkey</em>.</p>
+</dd>
+<dt><strong>tomcrypt::ecc_sign</strong> <em>privkey</em>
+<em>message</em> ?<em>prng</em>?</dt>
+<dd>
+<p>Sign <em>message</em> using the private key <em>privkey</em> (in
+openssl’s DER format (possibly PEM encoded), as returned by
+<strong>ecc_generate_key</strong>). If <em>prng</em> is provided, use
+that PRNG instance for the signing operation, otherwise use the system’s
+secure random number generator. Returns the signature in ANSI X9.62
+format, suitable for verification with <strong>ecc_verify</strong>.</p>
+</dd>
+<dt><strong>tomcrypt::ecc_shared_secret</strong> <em>privkey</em>
+<em>pubkey</em></dt>
+<dd>
+<p>Compute an ECDH shared secret between the local private key
+<em>privkey</em> and the remote public key <em>pubkey</em>. Both parties
+compute the same shared secret value, which can be used to derive
+encryption keys. Returns the raw x-coordinate of the shared elliptic
+curve point in binary format (conforms to EC-DH from ANSI X9.63). The
+shared secret should be passed through a key derivation function like
+<strong>hkdf</strong> before being used as a key.</p>
+</dd>
+<dt><strong>tomcrypt::rsa_make_key</strong> ?<strong>-keysize</strong>
+<em>bits</em>? ?<strong>-exponent</strong> <em>e</em>?
+?<strong>-prng</strong> <em>prng</em>?</dt>
+<dd>
+<p>Generate a new RSA keypair. The <strong>-keysize</strong> option
+specifies the key size in bits (must be a multiple of 8 between 1024 and
+4096, defaults to 2048). The <strong>-exponent</strong> option sets the
+public exponent (defaults to 0x10001). The <strong>-prng</strong> option
+specifies a PRNG instance to use; if omitted, the system’s secure random
+number generator is used. Returns the private key in PKCS#1 PEM format.
+The private key is suitable for use with <strong>rsa_sign_hash</strong>
+and <strong>rsa_decrypt_key</strong>. Use
+<strong>rsa_extract_pubkey</strong> to derive the corresponding public
+key for use with <strong>rsa_verify_hash</strong> and
+<strong>rsa_encrypt_key</strong>.</p>
+</dd>
+<dt><strong>tomcrypt::rsa_extract_pubkey</strong> <em>privkey</em></dt>
+<dd>
+<p>Extract the public key from an RSA private key <em>privkey</em> (in
+PKCS#1 DER/PEM format). Returns the public key in PKCS#1 PEM format,
+suitable for use with <strong>rsa_verify_hash</strong> and
+<strong>rsa_encrypt_key</strong>.</p>
+</dd>
+<dt><strong>tomcrypt::ecc_ansi_x963_import</strong> <em>bytes</em>
+?<em>curve</em>?</dt>
+<dd>
+<p>Import an ECC public key from ANSI X9.63 section 4.3.6 format (a
+bytearray starting with 0x04 followed by the x and y coordinates). If
+<em>curve</em> is provided, it specifies the curve to use (see
+<strong>CURVE SPEC</strong>), otherwise the curve is inferred from the
+length of the x and y coordinates (only works with uncompressed format).
+Returns the public key suitable for use with <strong>ecc_verify</strong>
+and <strong>ecc_shared_secret</strong>.</p>
+</dd>
+<dt><strong>tomcrypt::ecc_ansi_x963_export</strong> <em>pubkey</em></dt>
+<dd>
+<p>Export an ECC public key <em>pubkey</em> to ANSI X9.63 section 4.3.6
+format (a bytearray starting with 0x04 followed by the x and y
+coordinates).</p>
+</dd>
+<dt><strong>tomcrypt::rsa_sign_hash</strong> <strong>-key</strong>
+<em>privkey</em> <strong>-hash</strong> <em>hash</em>
+?<strong>-padding</strong> <em>type</em>? ?<strong>-hashalg</strong>
+<em>algorithm</em>? ?<strong>-saltlen</strong> <em>bytes</em>?
+?<strong>-prng</strong> <em>prng</em>?</dt>
+<dd>
+<p>Sign a message hash using the RSA private key <em>privkey</em> (in
+PKCS#1 DER/PEM format, as returned by <strong>rsa_make_key</strong> or
+from other sources). The <em>hash</em> should be the raw bytes of a
+message digest. The <strong>-padding</strong> option specifies the
+padding scheme: <strong>v1.5</strong> for PKCS#1 v1.5,
+<strong>pss</strong> for PSS (default), or <strong>v1.5_na1</strong> for
+v1.5 without ASN.1 encoding (for SSL 3.0 compatibility). The
+<strong>-hashalg</strong> option only applies to <strong>pss</strong>
+and is the name of the hash function to use for that padding (e.g.,
+“sha1”, “sha256”, defaults to “sha256”). For PSS padding,
+<strong>-saltlen</strong> specifies the salt length in bytes (defaults
+to 0). If <strong>-prng</strong> is provided, use that PRNG instance,
+otherwise use the system’s secure RNG (only applicable to
+<strong>pss</strong>). Returns the signature as raw bytes.</p>
+</dd>
+<dt><strong>tomcrypt::rsa_verify_hash</strong> <strong>-key</strong>
+<em>pubkey</em> <strong>-sig</strong> <em>signature</em>
+<strong>-hash</strong> <em>hash</em> ?<strong>-padding</strong>
+<em>type</em>? ?<strong>-hashalg</strong> <em>algorithm</em>?
+?<strong>-saltlen</strong> <em>bytes</em>?</dt>
+<dd>
+<p>Verify an RSA signature <em>signature</em> over the message hash
+<em>hash</em> using the public key <em>pubkey</em> (in PKCS#1 DER/PEM
+format). The <strong>-padding</strong> (defaults to “pss”),
+<strong>-hashalg</strong> (defaults to “sha256”), and
+<strong>-saltlen</strong> (defaults to 0) options must match those used
+during signing. Returns true if the signature is valid, false
+otherwise.</p>
+</dd>
+<dt><strong>tomcrypt::rsa_encrypt_key</strong> <strong>-key</strong>
+<em>pubkey</em> <strong>-msg</strong> <em>message</em>
+?<strong>-padding</strong> <em>type</em>? ?<strong>-hashalg</strong>
+<em>algorithm</em>? ?<strong>-lparam</strong> <em>label</em>?
+?<strong>-prng</strong> <em>prng</em>?</dt>
+<dd>
+<p>Encrypt a short message using the RSA public key <em>pubkey</em> (in
+PKCS#1 DER/PEM format). The <strong>-padding</strong> option can be
+<strong>v1.5</strong> for PKCS#1 v1.5 or <strong>oaep</strong> for OAEP
+padding (default). For OAEP, the <strong>-hashalg</strong> option (only
+applicable for <strong>oaep</strong> specifies the hash to use (defaults
+to “sha256”) he <strong>-lparam</strong> option is an optional label for
+OAEP (can be empty bytes). If <strong>-prng</strong> is provided, use
+that PRNG instance, otherwise use the system’s secure RNG. Returns the
+encrypted bytes. Message size limits depend on key size and padding: for
+a 2048-bit key with OAEP/SHA-256, the maximum message size is about 190
+bytes.</p>
+</dd>
+<dt><strong>tomcrypt::rsa_decrypt_key</strong> <strong>-key</strong>
+<em>privkey</em> <strong>-ciphertext</strong> <em>ciphertext</em>
+?<strong>-padding</strong> <em>type</em>? ?<strong>-hashalg</strong>
+<em>algorithm</em>? ?<strong>-lparam</strong> <em>label</em>?</dt>
+<dd>
+<p>Decrypt RSA-encrypted data using the private key <em>privkey</em> (in
+PKCS#1 DER/PEM format). The <strong>-padding</strong> (defaults to
+“oaep”), <strong>-hashalg</strong> (defaults to “sha256”), and
+<strong>-lparam</strong> options must match those used during
+encryption. Returns the decrypted message bytes, or throws an error if
+decryption fails or padding is invalid.</p>
+</dd>
+<dt><strong>tomcrypt::prng</strong> <strong>create</strong>
+<em>prngInstance</em> <em>type</em> ?<em>entropy</em>?</dt>
+<dd>
+<p>Create a PRNG (pseudorandom number generator) instance accessed by
+the command name <em>prngInstance</em>, using the implementation
+<em>type</em>, such as <strong>fortuna</strong> or
+<strong>chacha20</strong> (as known to libtomcrypt), or “” (an empty
+string) to select the recommended default which may change between
+releases, and bootstrapped with <em>entropy</em> which must be a
+bytearray of high entropy bytes. If <em>entropy</em> is omitted the PRNG
+will be bootstrapped with at least 256 bits of entropy from the
+platform’s default cryptographic RNG. Returns the <em>prngInstance</em>
+command name.</p>
+</dd>
+<dt><strong>tomcrypt::prng</strong> <strong>new</strong> <em>type</em>
+?<em>entropy</em>?</dt>
+<dd>
+<p>As above, but the <em>prngInstance</em> command name is picked
+automatically.</p>
 </dd>
 </dl>
 <h2 id="prng-instance-methods">PRNG INSTANCE METHODS</h2>
 <dl>
 <dt><em>prngInstance</em> <strong>bytes</strong> <em>count</em></dt>
-<dd><p>Retrieve <em>count</em> random bytes from the PRNG. Returned as a raw bytearray.</p>
+<dd>
+<p>Retrieve <em>count</em> random bytes from the PRNG. Returned as a raw
+bytearray.</p>
 </dd>
-<dt><em>prngInstance</em> <strong>add_entropy</strong> <em>entropy</em></dt>
-<dd><p>Add entropy to the PRNG, given as a bytearray <em>entropy</em>, which should come from a high quality source of random bytes such as the platform’s secure RNG or a previously exported state by <em>prngInstance</em> <strong>export</strong>.</p>
+<dt><em>prngInstance</em> <strong>add_entropy</strong>
+<em>entropy</em></dt>
+<dd>
+<p>Add entropy to the PRNG, given as a bytearray <em>entropy</em>, which
+should come from a high quality source of random bytes such as the
+platform’s secure RNG or a previously exported state by
+<em>prngInstance</em> <strong>export</strong>.</p>
 </dd>
-<dt><em>prngInstance</em> <strong>integer</strong> <em>lower</em> <em>upper</em></dt>
-<dd><p>Generate a random integer between <em>lower</em> and <em>upper</em>, inclusive, with uniform distribution. Either <em>lower</em> or <em>upper</em>, or both, may be bignums, and negative, but <em>lower</em> must be &lt;= <em>upper</em>.</p>
+<dt><em>prngInstance</em> <strong>integer</strong> <em>lower</em>
+<em>upper</em></dt>
+<dd>
+<p>Generate a random integer between <em>lower</em> and <em>upper</em>,
+inclusive, with uniform distribution. Either <em>lower</em> or
+<em>upper</em>, or both, may be bignums, and negative, but
+<em>lower</em> must be &lt;= <em>upper</em>.</p>
 </dd>
 <dt><em>prngInstance</em> <strong>double</strong></dt>
-<dd><p>Generate a random double precision floating point value in the range [0, 1) (inclusive of the lower bound but not the upper). The result is picked from a set of 2**53 discrete values, with uniform distribution and equal resolution (uniformly spaced) across the range. The gap between each discrete value is 2**-53. This subset - 2/1023 of the possible doubles in [0, 1) - is the largest subset that satisfies the uniform resolution requirement. See <a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> for a discussion of the nuances of random floating point values.</p>
+<dd>
+<p>Generate a random double precision floating point value in the range
+[0, 1) (inclusive of the lower bound but not the upper). The result is
+picked from a set of 2**53 discrete values, with uniform distribution
+and equal resolution (uniformly spaced) across the range. The gap
+between each discrete value is 2**-53. This subset - 2/1023 of the
+possible doubles in [0, 1) - is the largest subset that satisfies the
+uniform resolution requirement. See <a href="#fn1" class="footnote-ref"
+id="fnref1" role="doc-noteref"><sup>1</sup></a> for a discussion of the
+nuances of random floating point values.</p>
 </dd>
 <dt><em>prngInstance</em> <strong>export</strong></dt>
-<dd><p>Export entropy, returning the random bytearray. Intended to preserve entropy across PRNG instances and reduce the demands on scarce platform entropy. To do that, supply the result of this command to the <em>entropy</em> argument when creating a new PRNG instance.</p>
+<dd>
+<p>Export entropy, returning the random bytearray. Intended to preserve
+entropy across PRNG instances and reduce the demands on scarce platform
+entropy. To do that, supply the result of this command to the
+<em>entropy</em> argument when creating a new PRNG instance.</p>
 </dd>
 <dt><em>prngInstance</em> <strong>destroy</strong></dt>
-<dd><p>Destroy the instance. After returning, the <em>prngInstance</em> command no longer exists and all resources are released. Renaming the instance command to {} is equivalent.</p>
+<dd>
+<p>Destroy the instance. After returning, the <em>prngInstance</em>
+command no longer exists and all resources are released. Renaming the
+instance command to {} is equivalent.</p>
 </dd>
 </dl>
+<h2 id="cipher-spec">CIPHER SPEC</h2>
+<p>The choice of cipher and mode for encrypting and decrypting is given
+by a list of 3 or 4 elements: <em>cipher</em>, <em>keysize</em>,
+<em>mode</em>, and <em>mode_opt</em> (if the mode takes options).</p>
+<p><em>cipher</em> is a name of a symmetric cipher supported by
+libtomcrypt, such as “blowfish”, “aes”, etc. <em>keysize</em> is the
+size of the key (in bits). <em>mode</em> is the streaming mode, such as
+“cbc”, “ctr”, etc. Choose “ctr” if you don’t have a good reason not
+to.</p>
+<h2 id="curve-spec">CURVE SPEC</h2>
+<p>The curve for ECC operations can be specified by any of the names
+libtomcrypt understands: by name like <strong>secp256r1</strong>, an
+alias like <strong>P-256</strong>, or the OID like
+<strong>1.2.840.10045.3.1.7</strong>. Custom curves can also be
+specified by a dictionary of parameters with the following keys: -
+<strong>prime</strong> - <strong>A</strong> - <strong>B</strong> -
+<strong>order</strong> - <strong>Gx</strong> - <strong>Gy</strong> -
+<strong>cofactor</strong> (optional, defaults to 1) -
+<strong>OID</strong> (optional)</p>
 <h2 id="examples">EXAMPLES</h2>
-<p>Print out the hex-encoded md5 of “hello, tomcrypt” (normally, when hashing strings, they should be converted to an encoding like utf-8 first, but this example leaves that out for simplicity’s sake):</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true"></a><span class="kw">puts</span> <span class="kw">[binary</span> encode hex <span class="kw">[</span>tomcrypt::hash md5 <span class="st">&quot;hello, tomcrypt&quot;</span><span class="kw">]]</span></span></code></pre></div>
+<p>Print out the hex-encoded md5 of “hello, tomcrypt” (normally, when
+hashing strings, they should be converted to an encoding like utf-8
+first, but this example leaves that out for simplicity’s sake):</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">puts</span> <span class="kw">[binary</span> encode hex <span class="kw">[</span>tomcrypt::hash md5 <span class="st">&quot;hello, tomcrypt&quot;</span><span class="kw">]]</span></span></code></pre></div>
 <p>Verify an ECC signature:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true"></a><span class="kw">set</span> verified    <span class="kw">[</span>tomcrypt::ecc_verify \</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true"></a>    <span class="kw">[binary</span> decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=<span class="kw">]</span> \</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true"></a>    <span class="kw">[binary</span> decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda<span class="kw">]</span> \</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true"></a>    <span class="kw">[binary</span> decode hex 046ddc90ba0fd79c53bd70060192211631d11ec581302e91c3559df4b20cdf747dbd8785a28c30b766e6b43325749ef70a923d0077fbc53cbcbb210de147c540e0<span class="kw">]</span> \</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true"></a><span class="kw">]</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true"></a><span class="kw">if</span> <span class="kw">{</span><span class="dt">$verified</span><span class="kw">}</span> <span class="kw">{</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true"></a>    <span class="kw">puts</span> <span class="st">&quot;signature is valid&quot;</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true"></a><span class="kw">}</span> <span class="kw">else</span> <span class="kw">{</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true"></a>    <span class="kw">puts</span> <span class="st">&quot;signature is not valid&quot;</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true"></a><span class="kw">}</span></span></code></pre></div>
-<p>Create a Fortuna PRNG with automatic entropy bootstrapping and use it to generate 10 random bytearrays:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true"></a>tomcrypt::prng <span class="ot">create</span> csprng fortuna</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true"></a><span class="kw">for</span> <span class="kw">{set</span> i <span class="dv">0</span><span class="kw">}</span> <span class="kw">{</span><span class="dt">$i</span> &lt; <span class="dv">10</span><span class="kw">}</span> <span class="kw">{incr</span> i<span class="kw">}</span> <span class="kw">{</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true"></a>    <span class="kw">puts</span> <span class="st">&quot;random bytes </span><span class="dt">$</span><span class="st">i: [binary encode hex [csprng bytes 8]]&quot;</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true"></a><span class="kw">}</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true"></a>csprng <span class="kw">destroy</span></span></code></pre></div>
-<p>Preserve scarce platform entropy between runs, and leave the choice of the PRNG implementation up to the library, and mix in 8 bytes of entropy from the platform RNG every 10 minutes:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true"></a><span class="kw">proc</span> readbin filename <span class="kw">{</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true"></a>    <span class="kw">set</span> h <span class="kw">[open</span> <span class="dt">$filename</span> rb<span class="kw">]</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true"></a>    try <span class="kw">{read</span> <span class="dt">$h</span><span class="kw">}</span> finally <span class="kw">{close</span> <span class="dt">$h</span><span class="kw">}</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true"></a><span class="kw">}</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true"></a></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true"></a><span class="kw">proc</span> writebin <span class="kw">{</span>filename bytes<span class="kw">}</span> <span class="kw">{</span></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true"></a>    <span class="kw">set</span> h <span class="kw">[open</span> <span class="dt">$filename</span> wb<span class="kw">]</span></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true"></a>    try <span class="kw">{puts</span><span class="ot"> -nonewline</span> <span class="dt">$h</span> <span class="dt">$bytes</span><span class="kw">}</span> finally <span class="kw">{close</span> <span class="dt">$h</span><span class="kw">}</span></span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true"></a><span class="kw">}</span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true"></a></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true"></a><span class="co"># Bootstrap using saved entropy if we have it</span></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true"></a><span class="kw">set</span> saved_entropy_filename  somefile.bin</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true"></a><span class="kw">if</span> <span class="kw">{[file</span> <span class="ot">exists</span> <span class="dt">$saved_entropy_filename</span><span class="kw">]}</span> <span class="kw">{</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true"></a>    tomcrypt::prng <span class="ot">create</span> csprng <span class="kw">{}</span> <span class="kw">[</span>readbin <span class="dt">$saved_entropy_filename</span><span class="kw">]</span></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true"></a><span class="kw">}</span> <span class="kw">else</span> <span class="kw">{</span></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true"></a>    tomcrypt::prng <span class="ot">create</span> csprng <span class="kw">{}</span></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true"></a><span class="kw">}</span></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true"></a></span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true"></a><span class="co"># Save entropy for next time</span></span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true"></a>writebin <span class="dt">$saved_entropy_filename</span> <span class="kw">[</span>csprng export<span class="kw">]</span></span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true"></a></span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true"></a><span class="co"># Mix in entropy periodically</span></span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true"></a>coroutine background_add_entropy <span class="kw">eval</span> <span class="kw">{</span></span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true"></a>    <span class="kw">trace</span> <span class="ot">add</span> <span class="ot">command</span> csprng <span class="ot">delete</span> <span class="kw">[list</span> <span class="kw">[info</span> coroutine<span class="kw">]</span> done<span class="kw">]</span></span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true"></a>    <span class="kw">while</span> <span class="dv">1</span> <span class="kw">{</span></span>
-<span id="cb4-26"><a href="#cb4-26" aria-hidden="true"></a>        <span class="kw">after</span> <span class="kw">[expr</span> <span class="kw">{</span><span class="dv">10</span> * <span class="dv">60</span> * <span class="dv">1000</span><span class="kw">}]</span> <span class="kw">[list</span> <span class="kw">[info</span> coroutine<span class="kw">]</span> stir<span class="kw">]</span></span>
-<span id="cb4-27"><a href="#cb4-27" aria-hidden="true"></a>        <span class="kw">switch</span> -- <span class="kw">[lindex</span> <span class="kw">[</span>yield<span class="kw">]</span> <span class="dv">0</span><span class="kw">]</span> <span class="kw">{</span></span>
-<span id="cb4-28"><a href="#cb4-28" aria-hidden="true"></a>            stir    <span class="kw">{</span> csprng add_entropy <span class="kw">[</span>tomcrypt::rng_bytes <span class="dv">8</span><span class="kw">]</span> <span class="kw">}</span></span>
-<span id="cb4-29"><a href="#cb4-29" aria-hidden="true"></a>            done    <span class="kw">{</span> <span class="kw">break</span> <span class="kw">}</span></span>
-<span id="cb4-30"><a href="#cb4-30" aria-hidden="true"></a>            <span class="ot">default</span> <span class="kw">{</span> <span class="kw">error</span> <span class="st">&quot;expecting stir or done&quot;</span> <span class="kw">}</span></span>
-<span id="cb4-31"><a href="#cb4-31" aria-hidden="true"></a>        <span class="kw">}</span></span>
-<span id="cb4-32"><a href="#cb4-32" aria-hidden="true"></a>    <span class="kw">}</span></span>
-<span id="cb4-33"><a href="#cb4-33" aria-hidden="true"></a><span class="kw">}</span></span>
-<span id="cb4-34"><a href="#cb4-34" aria-hidden="true"></a></span>
-<span id="cb4-35"><a href="#cb4-35" aria-hidden="true"></a><span class="co"># Generate a random 256 bit integer</span></span>
-<span id="cb4-36"><a href="#cb4-36" aria-hidden="true"></a><span class="kw">set</span> key <span class="kw">[</span>csprng integer <span class="dv">0</span> <span class="kw">[expr</span> <span class="kw">{</span><span class="dv">2</span>**<span class="dv">256-1</span><span class="kw">}]]</span></span>
-<span id="cb4-37"><a href="#cb4-37" aria-hidden="true"></a></span>
-<span id="cb4-38"><a href="#cb4-38" aria-hidden="true"></a><span class="co"># Enter the event loop</span></span>
-<span id="cb4-39"><a href="#cb4-39" aria-hidden="true"></a><span class="kw">if</span> <span class="kw">{</span>!<span class="kw">[info</span> <span class="ot">exists</span> <span class="kw">exit]}</span> <span class="kw">{</span></span>
-<span id="cb4-40"><a href="#cb4-40" aria-hidden="true"></a>    <span class="kw">vwait</span> <span class="kw">exit</span></span>
-<span id="cb4-41"><a href="#cb4-41" aria-hidden="true"></a><span class="kw">}</span></span>
-<span id="cb4-42"><a href="#cb4-42" aria-hidden="true"></a><span class="kw">exit</span> <span class="dt">$exit</span></span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> verified    <span class="kw">[</span>tomcrypt::ecc_verify \</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[binary</span> decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=<span class="kw">]</span> \</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[binary</span> decode hex <span class="dv">41091</span>b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda<span class="kw">]</span> \</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">[binary</span> decode hex <span class="dv">046</span>ddc90ba0fd79c53bd70060192211631d11ec581302e91c3559df4b20cdf747dbd8785a28c30b766e6b43325749ef70a923d0077fbc53cbcbb210de147c540e0<span class="kw">]</span> \</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">]</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="kw">if</span> <span class="kw">{</span><span class="dt">$verified</span><span class="kw">}</span> <span class="kw">{</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">puts</span> <span class="st">&quot;signature is valid&quot;</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span> <span class="kw">else</span> <span class="kw">{</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">puts</span> <span class="st">&quot;signature is not valid&quot;</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span></code></pre></div>
+<p>Create a Fortuna PRNG with automatic entropy bootstrapping and use it
+to generate 10 random bytearrays:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>tomcrypt::prng <span class="ot">create</span> csprng fortuna</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">for</span> <span class="kw">{set</span> i <span class="dv">0</span><span class="kw">}</span> <span class="kw">{</span><span class="dt">$i</span> &lt; <span class="dv">10</span><span class="kw">}</span> <span class="kw">{incr</span> i<span class="kw">}</span> <span class="kw">{</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">puts</span> <span class="st">&quot;random bytes </span><span class="dt">$</span><span class="st">i: [binary encode hex [csprng bytes 8]]&quot;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>csprng <span class="kw">destroy</span></span></code></pre></div>
+<p>Preserve scarce platform entropy between runs, and leave the choice
+of the PRNG implementation up to the library, and mix in 8 bytes of
+entropy from the platform RNG every 10 minutes:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">proc</span> readbin filename <span class="kw">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">set</span> h <span class="kw">[open</span> <span class="dt">$filename</span> rb<span class="kw">]</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    try <span class="kw">{read</span> <span class="dt">$h</span><span class="kw">}</span> finally <span class="kw">{close</span> <span class="dt">$h</span><span class="kw">}</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="kw">proc</span> writebin <span class="kw">{</span>filename bytes<span class="kw">}</span> <span class="kw">{</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">set</span> h <span class="kw">[open</span> <span class="dt">$filename</span> wb<span class="kw">]</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    try <span class="kw">{puts</span><span class="ot"> -nonewline</span> <span class="dt">$h</span> <span class="dt">$bytes</span><span class="kw">}</span> finally <span class="kw">{close</span> <span class="dt">$h</span><span class="kw">}</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Bootstrap using saved entropy if we have it</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> saved_entropy_filename  somefile.bin</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="kw">if</span> <span class="kw">{[file</span> <span class="ot">exists</span> <span class="dt">$saved_entropy_filename</span><span class="kw">]}</span> <span class="kw">{</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    tomcrypt::prng <span class="ot">create</span> csprng <span class="kw">{}</span> <span class="kw">[</span>readbin <span class="dt">$saved_entropy_filename</span><span class="kw">]</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span> <span class="kw">else</span> <span class="kw">{</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    tomcrypt::prng <span class="ot">create</span> csprng <span class="kw">{}</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Save entropy for next time</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>writebin <span class="dt">$saved_entropy_filename</span> <span class="kw">[</span>csprng export<span class="kw">]</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Mix in entropy periodically</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>coroutine background_add_entropy <span class="kw">eval</span> <span class="kw">{</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">trace</span> <span class="ot">add</span> <span class="ot">command</span> csprng <span class="ot">delete</span> <span class="kw">[list</span> <span class="kw">[info</span> coroutine<span class="kw">]</span> done<span class="kw">]</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">while</span> <span class="dv">1</span> <span class="kw">{</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>        <span class="kw">after</span> <span class="kw">[expr</span> <span class="kw">{</span><span class="dv">10</span> * <span class="dv">60</span> * <span class="dv">1000</span><span class="kw">}]</span> <span class="kw">[list</span> <span class="kw">[info</span> coroutine<span class="kw">]</span> stir<span class="kw">]</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>        <span class="kw">switch</span> -- <span class="kw">[lindex</span> <span class="kw">[</span>yield<span class="kw">]</span> <span class="dv">0</span><span class="kw">]</span> <span class="kw">{</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>            stir    <span class="kw">{</span> csprng add_entropy <span class="kw">[</span>tomcrypt::rng_bytes <span class="dv">8</span><span class="kw">]</span> <span class="kw">}</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>            done    <span class="kw">{</span> <span class="kw">break</span> <span class="kw">}</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>            <span class="ot">default</span> <span class="kw">{</span> <span class="kw">error</span> <span class="st">&quot;expecting stir or done&quot;</span> <span class="kw">}</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>        <span class="kw">}</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>    <span class="kw">}</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate a random 256 bit integer</span></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> key <span class="kw">[</span>csprng integer <span class="dv">0</span> <span class="kw">[expr</span> <span class="kw">{</span><span class="dv">2</span>**<span class="dv">256-1</span><span class="kw">}]]</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a><span class="co"># Enter the event loop</span></span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a><span class="kw">if</span> <span class="kw">{</span>!<span class="kw">[info</span> <span class="ot">exists</span> <span class="kw">exit]}</span> <span class="kw">{</span></span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>    <span class="kw">vwait</span> <span class="kw">exit</span></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a><span class="kw">exit</span> <span class="dt">$exit</span></span></code></pre></div>
+<p>Generate a new ECC keypair and use it to sign a message:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>tomcrypt::prng <span class="ot">create</span> rand fortuna</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> msg      <span class="kw">[binary</span> decode hex <span class="dv">41091</span>b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda<span class="kw">]</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> privkey  <span class="kw">[</span>tomcrypt::ecc_generate_key secp256r1 rand<span class="kw">]</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> pubkey   <span class="kw">[</span>tomcrypt::ecc_extract_pubkey <span class="dt">$privkey</span><span class="kw">]</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> sig      <span class="kw">[</span>tomcrypt::ecc_sign <span class="dt">$privkey</span> <span class="dt">$msg</span><span class="kw">]</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> verified <span class="kw">[</span>tomcrypt::ecc_verify <span class="dt">$sig</span> <span class="dt">$msg</span> <span class="dt">$pubkey</span><span class="kw">]</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="kw">if</span> <span class="kw">{</span><span class="dt">$verified</span><span class="kw">}</span> <span class="kw">{</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">puts</span> <span class="st">&quot;signature verified successfully&quot;</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span> <span class="kw">else</span> <span class="kw">{</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">puts</span> <span class="st">&quot;signature verification failed&quot;</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>rand <span class="kw">destroy</span></span></code></pre></div>
+<p>Compute HMAC-SHA256:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> key     <span class="kw">[binary</span> decode hex <span class="dv">0</span>b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b<span class="kw">]</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> <span class="kw">message</span> <span class="st">&quot;Hi There&quot;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">puts</span> <span class="kw">[binary</span> encode hex <span class="kw">[</span>tomcrypt::hmac sha256 <span class="dt">$key</span> <span class="dt">$message</span><span class="kw">]]</span></span></code></pre></div>
+<p>Encrypt and decrypt with AES-GCM authenticated encryption:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate a random key and IV</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> key <span class="kw">[</span>tomcrypt::rng_bytes <span class="dv">32</span><span class="kw">]</span>  ;<span class="co"># 256-bit AES key</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> iv  <span class="kw">[</span>tomcrypt::rng_bytes <span class="dv">12</span><span class="kw">]</span>  ;<span class="co"># 96-bit IV (recommended for GCM)</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> aad <span class="st">&quot;user-id:12345,timestamp:2024-01-15&quot;</span>  ;<span class="co"># Metadata to authenticate</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> plaintext <span class="st">&quot;Secret message that needs both confidentiality and authenticity&quot;</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Encrypt: returns {ciphertext tag}</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="kw">lassign</span> <span class="kw">[</span>tomcrypt::aead encrypt gcm aes <span class="dt">$key</span> <span class="dt">$iv</span> <span class="dt">$aad</span> <span class="dt">$plaintext</span><span class="kw">]</span> ciphertext <span class="ot">tag</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Store or transmit: $ciphertext, $tag, and $aad</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="co"># The IV can be transmitted in the clear (but must not be reused with the same key)</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Decrypt and verify</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> decrypted <span class="kw">[</span>tomcrypt::aead decrypt gcm aes <span class="dt">$key</span> <span class="dt">$iv</span> <span class="dt">$aad</span> <span class="dt">$ciphertext</span> <span class="dt">$tag</span><span class="kw">]</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="kw">puts</span> <span class="st">&quot;Decrypted: </span><span class="dt">$</span><span class="st">decrypted&quot;</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Tag verification failure (tampering detected)</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> bad_tag <span class="kw">[string</span> <span class="ot">repeat</span> <span class="st">&quot;</span><span class="ch">\x</span><span class="st">00&quot;</span> <span class="dv">16</span><span class="kw">]</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="kw">if</span> <span class="kw">{[catch</span> <span class="kw">{</span>tomcrypt::aead decrypt gcm aes <span class="dt">$key</span> <span class="dt">$iv</span> <span class="dt">$aad</span> <span class="dt">$ciphertext</span> <span class="dt">$bad_tag</span><span class="kw">}</span> err<span class="kw">]}</span> <span class="kw">{</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">puts</span> <span class="st">&quot;Authentication failed: </span><span class="dt">$</span><span class="st">err&quot;</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span></code></pre></div>
+<p>Generate RSA keypair and create CloudFront-style signature (PKCS#1
+v1.5 + SHA-1):</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> privkey <span class="kw">[</span>tomcrypt::rsa_make_key<span class="kw">]</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> pubkey <span class="kw">[</span>tomcrypt::rsa_extract_pubkey <span class="dt">$privkey</span><span class="kw">]</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># CloudFront policy string</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> policy <span class="kw">{{</span><span class="st">&quot;Statement&quot;</span>:<span class="kw">[{</span><span class="st">&quot;Resource&quot;</span>:<span class="st">&quot;http://example.com/*&quot;</span>,<span class="st">&quot;Condition&quot;</span>:<span class="kw">{</span><span class="st">&quot;DateLessThan&quot;</span>:<span class="kw">{</span><span class="st">&quot;AWS:EpochTime&quot;</span>:<span class="dv">1234567890</span><span class="kw">}}}]}}</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> hash <span class="kw">[</span>tomcrypt::hash sha1 <span class="kw">[encoding</span> <span class="ot">convertto</span> utf<span class="dv">-8</span> <span class="dt">$policy</span><span class="kw">]]</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Sign with PKCS#1 v1.5 and SHA-1</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> signature <span class="kw">[</span>tomcrypt::rsa_sign_hash<span class="ot"> -key</span> <span class="dt">$privkey</span><span class="ot"> -hash</span> <span class="dt">$hash</span><span class="ot"> -padding</span> v1<span class="fl">.5</span><span class="ot"> -hashalg</span> sha1<span class="kw">]</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Verify signature</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> valid <span class="kw">[</span>tomcrypt::rsa_verify_hash<span class="ot"> -key</span> <span class="dt">$pubkey</span><span class="ot"> -sig</span> <span class="dt">$signature</span><span class="ot"> -hash</span> <span class="dt">$hash</span><span class="ot"> -padding</span> v1<span class="fl">.5</span><span class="ot"> -hashalg</span> sha1<span class="kw">]</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="kw">if</span> <span class="kw">{</span><span class="dt">$valid</span><span class="kw">}</span> <span class="kw">{</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">puts</span> <span class="st">&quot;CloudFront signature verified successfully&quot;</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span> <span class="kw">else</span> <span class="kw">{</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">puts</span> <span class="st">&quot;CloudFront signature verification failed&quot;</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span></code></pre></div>
+<p>RSA encryption and decryption with OAEP padding:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> privkey <span class="kw">[</span>tomcrypt::rsa_make_key<span class="kw">]</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> pubkey <span class="kw">[</span>tomcrypt::rsa_extract_pubkey <span class="dt">$privkey</span><span class="kw">]</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> <span class="kw">message</span> <span class="st">&quot;Secret message for RSA encryption&quot;</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> msgbytes <span class="kw">[encoding</span> <span class="ot">convertto</span> utf<span class="dv">-8</span> <span class="dt">$message</span><span class="kw">]</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> lparam <span class="st">&quot;MyApplication&quot;</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> lparambytes <span class="kw">[encoding</span> <span class="ot">convertto</span> utf<span class="dv">-8</span> <span class="dt">$lparam</span><span class="kw">]</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Encrypt with OAEP padding using SHA-256</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> ciphertext <span class="kw">[</span>tomcrypt::rsa_encrypt_key<span class="ot"> -key</span> <span class="dt">$pubkey</span><span class="ot"> -msg</span> <span class="dt">$msgbytes</span><span class="ot"> -padding</span> oaep<span class="ot"> -hashalg</span> sha256<span class="ot"> -lparam</span> <span class="dt">$lparambytes</span><span class="kw">]</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Decrypt</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> decrypted <span class="kw">[</span>tomcrypt::rsa_decrypt_key<span class="ot"> -key</span> <span class="dt">$privkey</span><span class="ot"> -ciphertext</span> <span class="dt">$ciphertext</span><span class="ot"> -padding</span> oaep<span class="ot"> -hashalg</span> sha256<span class="ot"> -lparam</span> <span class="dt">$lparambytes</span><span class="kw">]</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> decrypted_message <span class="kw">[encoding</span> <span class="ot">convertfrom</span> utf<span class="dv">-8</span> <span class="dt">$decrypted</span><span class="kw">]</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="kw">puts</span> <span class="st">&quot;Original: </span><span class="dt">$</span><span class="st">message&quot;</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="kw">puts</span> <span class="st">&quot;Decrypted: </span><span class="dt">$</span><span class="st">decrypted_message&quot;</span></span></code></pre></div>
+<p>RSA signature with PSS padding:</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> privkey <span class="kw">[</span>tomcrypt::rsa_make_key<span class="kw">]</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> pubkey <span class="kw">[</span>tomcrypt::rsa_extract_pubkey <span class="dt">$privkey</span><span class="kw">]</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> <span class="kw">message</span> <span class="st">&quot;Document to be signed with PSS&quot;</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> hash <span class="kw">[</span>tomcrypt::hash sha256 <span class="kw">[encoding</span> <span class="ot">convertto</span> utf<span class="dv">-8</span> <span class="dt">$message</span><span class="kw">]]</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Sign with PSS padding and salt length 32</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> signature <span class="kw">[</span>tomcrypt::rsa_sign_hash<span class="ot"> -key</span> <span class="dt">$privkey</span><span class="ot"> -hash</span> <span class="dt">$hash</span><span class="ot"> -padding</span> pss<span class="ot"> -hashalg</span> sha256<span class="ot"> -saltlen</span> <span class="dv">32</span><span class="kw">]</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Verify signature</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="kw">set</span> valid <span class="kw">[</span>tomcrypt::rsa_verify_hash<span class="ot"> -key</span> <span class="dt">$pubkey</span><span class="ot"> -sig</span> <span class="dt">$signature</span><span class="ot"> -hash</span> <span class="dt">$hash</span><span class="ot"> -padding</span> pss<span class="ot"> -hashalg</span> sha256<span class="ot"> -saltlen</span> <span class="dv">32</span><span class="kw">]</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="kw">if</span> <span class="kw">{</span><span class="dt">$valid</span><span class="kw">}</span> <span class="kw">{</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">puts</span> <span class="st">&quot;PSS signature verified successfully&quot;</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span> <span class="kw">else</span> <span class="kw">{</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">puts</span> <span class="st">&quot;PSS signature verification failed&quot;</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span></code></pre></div>
 <h2 id="building">BUILDING</h2>
-<p>This package has no external dependencies other than Tcl. The libtom libraries it depends on are included as submodules (or baked into the release tarball) and are built and statically linked as part of the package build process.</p>
-<p>Currently Tcl 8.7 is required, but if needed polyfills could be built to support 8.6.</p>
+<p>This package has no external dependencies other than Tcl. The libtom
+libraries it depends on are included as submodules (or baked into the
+release tarball) and are built and statically linked as part of the
+package build process.</p>
+<p>Currently Tcl 8.7 is required, but if needed polyfills could be built
+to support 8.6.</p>
 <h3 id="from-a-release-tarball">From a Release Tarball</h3>
-<p>Download and extract <a href="https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.6/tomcrypt0.5.6.tar.gz">the release</a>, then build in the standard TEA way:</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true"></a><span class="fu">wget</span> https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.6/tomcrypt0.5.6.tar.gz</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true"></a><span class="fu">tar</span> xf tomcrypt0.5.6.tar.gz</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true"></a><span class="bu">cd</span> tomcrypt0.5.6</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true"></a><span class="ex">./configure</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true"></a><span class="fu">make</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true"></a><span class="fu">sudo</span> make install</span></code></pre></div>
+<p>Download and extract <a
+href="https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.8.0/tomcrypt0.8.0.tar.gz">the
+release</a>, then build in the standard TEA way:</p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">wget</span> https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.8.0/tomcrypt0.8.0.tar.gz</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">tar</span> xf tomcrypt0.8.0.tar.gz</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> tomcrypt0.8.0</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="ex">./configure</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> make install</span></code></pre></div>
 <h3 id="from-the-git-sources">From the Git Sources</h3>
-<p>Fetch <a href="https://github.com/cyanogilvie/tcl-tomcrypt">the code</a> and submodules recursively, then build in the standard autoconf / TEA way:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true"></a><span class="fu">git</span> clone --recurse-submodules https://github.com/cyanogilvie/tcl-tomcrypt</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true"></a><span class="bu">cd</span> tcl-tomcrypt</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true"></a><span class="fu">autoconf</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true"></a><span class="ex">./configure</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true"></a><span class="fu">make</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true"></a><span class="fu">sudo</span> make install</span></code></pre></div>
+<p>Fetch <a href="https://github.com/cyanogilvie/tcl-tomcrypt">the
+code</a> and submodules recursively, then build in the standard autoconf
+/ TEA way:</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone <span class="at">--recurse-submodules</span> https://github.com/cyanogilvie/tcl-tomcrypt</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> tcl-tomcrypt</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">autoconf</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="ex">./configure</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> make install</span></code></pre></div>
 <h3 id="in-a-docker-build">In a Docker Build</h3>
-<p>Build from a specified release version, avoiding layer pollution and only adding the installed package without documentation to the image, and strip debug symbols, minimising image size:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true"></a><span class="kw">WORKDIR</span> /tmp/tcl-tomcrypt</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true"></a><span class="kw">RUN</span> wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.5.6/tomcrypt0.5.6.tar.gz -O - | tar xz --strip-components=1 &amp;&amp; \</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true"></a>    ./configure; make test install-binaries install-libraries &amp;&amp; \</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true"></a>    strip /usr/local/lib/libtomcrypt*.so &amp;&amp; \</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true"></a>    cd .. &amp;&amp; rm -rf tcl-tomcrypt</span></code></pre></div>
-<p>For any of the build methods you may need to pass <code>--with-tcl /path/to/tcl/lib</code> to <code>configure</code> if your Tcl install is somewhere nonstandard.</p>
+<p>Build from a specified release version, avoiding layer pollution and
+only adding the installed package without documentation to the image,
+and strip debug symbols, minimising image size:</p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">WORKDIR</span> /tmp/tcl-tomcrypt</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="fu">wget</span> https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.8.0/tomcrypt0.8.0.tar.gz <span class="at">-O</span> <span class="at">-</span> <span class="kw">|</span> <span class="fu">tar</span> xz <span class="at">--strip-components</span><span class="op">=</span>1 <span class="kw">&amp;&amp;</span> <span class="dt">\</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="ex">./configure</span><span class="kw">;</span> <span class="fu">make</span> test install-binaries install-libraries <span class="kw">&amp;&amp;</span> <span class="dt">\</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">strip</span> /usr/local/lib/libtomcrypt<span class="pp">*</span>.so <span class="kw">&amp;&amp;</span> <span class="dt">\</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">cd</span> .. <span class="kw">&amp;&amp;</span> <span class="fu">rm</span> <span class="at">-rf</span> tcl-tomcrypt</span></code></pre></div>
+<p>For any of the build methods you may need to pass
+<code>--with-tcl /path/to/tcl/lib</code> to <code>configure</code> if
+your Tcl install is somewhere nonstandard.</p>
 <h3 id="testing">Testing</h3>
-<p>Since this package deals with security sensitive code, it’s a good idea to run the test suite after building (especially in any automated build or CI/CD pipeline):</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true"></a><span class="fu">make</span> test</span></code></pre></div>
-<p>And maybe also the memory checker <code>valgrind</code> (requires that Tcl and this package are built with suitable memory debugging flags, like <code>CFLAGS="-DPURIFY -Og" --enable-symbols</code>):</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true"></a><span class="fu">make</span> valgrind</span></code></pre></div>
+<p>Since this package deals with security sensitive code, it’s a good
+idea to run the test suite after building (especially in any automated
+build or CI/CD pipeline):</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> test</span></code></pre></div>
+<p>And maybe also the memory checker <code>valgrind</code> (requires
+that Tcl and this package are built with suitable memory debugging
+flags, like <code>CFLAGS="-DPURIFY -Og" --enable-symbols</code>):</p>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode sh"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> valgrind</span></code></pre></div>
 <h2 id="security">SECURITY</h2>
-<p>Given the limitations of a scripting language environment, this package’s code does not have sufficient control over freed memory contents (or memory paged to disk) to guarantee that key material or other sensitive material (like decrypted messages) can’t leak in a way that could be exploited by other code running on the shared memory (or disk) machine. For this reason, careful consideration should be given to the security requirements of the application as a whole when using this package in a shared execution context, or in a virtual machine. That said, operations that do not rely on secret values (like verifying cryptographic signatures) safe in these shared environments.</p>
+<p>Given the limitations of a scripting language environment, this
+package’s code does not have sufficient control over freed memory
+contents (or memory paged to disk) to guarantee that key material or
+other sensitive material (like decrypted messages) can’t leak in a way
+that could be exploited by other code running on the shared memory (or
+disk) machine. For this reason, careful consideration should be given to
+the security requirements of the application as a whole when using this
+package in a shared execution context, or in a virtual machine. That
+said, operations that do not rely on secret values (like verifying
+cryptographic signatures) safe in these shared environments.</p>
 <h2 id="fuzzing">FUZZING</h2>
 <p>TODO</p>
 <h2 id="available-in">AVAILABLE IN</h2>
-<p>The most recent release of this package is available by default in the <code>alpine-tcl</code> container image: docker.io/cyanogilvie/alpine-tcl and the <code>cftcl</code> Tcl runtime snap: <a href="https://github.com/cyanogilvie/cftcl" class="uri">https://github.com/cyanogilvie/cftcl</a>.</p>
+<p>The most recent release of this package is available by default in
+the <code>alpine-tcl</code> container image:
+docker.io/cyanogilvie/alpine-tcl and the <code>cftcl</code> Tcl runtime
+snap: <a href="https://github.com/cyanogilvie/cftcl"
+class="uri">https://github.com/cyanogilvie/cftcl</a>.</p>
 <h2 id="see-also">SEE ALSO</h2>
-<p>This package is built on the <a href="https://github.com/libtom/libtomcrypt">libtomcrypt library</a>, the <a href="https://github.com/libtom/libtommath">libtommath library</a>, and <a href="https://github.com/libtom/tomsfastmath">tomsfastmath</a>.</p>
+<p>This package is built on the <a
+href="https://github.com/libtom/libtomcrypt">libtomcrypt library</a>,
+the <a href="https://github.com/libtom/libtommath">libtommath
+library</a>, and <a
+href="https://github.com/libtom/tomsfastmath">tomsfastmath</a>.</p>
 <h2 id="project-status">PROJECT STATUS</h2>
-<p>This is a very early work in progress. Currently all that is implemented and tested are the <strong>hash</strong> and <strong>ecc_verify</strong> commands. More to come soon.</p>
-<p>With the nature of this package a lot of care is taken with memory handling and test coverage. There are no known memory leaks or errors, and the package is routinely tested by running its test suite (which aims at full coverage) through valgrind. The <code>make valgrind</code>, <code>make test</code> and <code>make coverage</code> build targets support these goals.</p>
+<p>This is a work in progress, but the commands documented here are
+implemented and tested and the package is in limited production use. The
+ECC related functions are not yet production ready.</p>
+<p>With the nature of this package a lot of care is taken with memory
+handling and test coverage. There are no known memory leaks or errors,
+and the package is routinely tested by running its test suite (which
+aims at full coverage) through valgrind. The <code>make valgrind</code>,
+<code>make test</code> and <code>make coverage</code> build targets
+support these goals.</p>
 <h2 id="source-code">SOURCE CODE</h2>
-<p>This package’s source code is available at <a href="https://github.com/cyanogilvie/tcl-tomcrypt" class="uri">https://github.com/cyanogilvie/tcl-tomcrypt</a>. Please create issues there for any bugs discovered.</p>
+<p>This package’s source code is available at <a
+href="https://github.com/cyanogilvie/tcl-tomcrypt"
+class="uri">https://github.com/cyanogilvie/tcl-tomcrypt</a>. Please
+create issues there for any bugs discovered.</p>
 <h2 id="license">LICENSE</h2>
-<p>This package is placed in the public domain: the author disclaims copyright and liability to the extent allowed by law. For those jurisdictions that limit an author’s ability to disclaim copyright this package can be used under the terms of the CC0, BSD, or MIT licenses. No attribution, permission or fees are required to use this for whatever you like, commercial or otherwise, though I would urge its users to do good and not evil to the world.</p>
-<section class="footnotes" role="doc-endnotes">
+<p>This package is placed in the public domain: the author disclaims
+copyright and liability to the extent allowed by law. For those
+jurisdictions that limit an author’s ability to disclaim copyright this
+package can be used under the terms of the CC0, BSD, or MIT licenses. No
+attribution, permission or fees are required to use this for whatever
+you like, commercial or otherwise, though I would urge its users to do
+good and not evil to the world.</p>
+<aside id="footnotes" class="footnotes footnotes-end-of-document"
+role="doc-endnotes">
 <hr />
 <ol>
-<li id="fn1" role="doc-endnote"><p>Goualard F. Generating Random Floating-Point Numbers by Dividing Integers: A Case Study. Computational Science – ICCS 2020. 2020 Jun 15;12138:15–28. doi: 10.1007/978-3-030-50417-5_2. PMCID: PMC7302591.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn1"><p>Goualard F. Generating Random Floating-Point Numbers by
+Dividing Integers: A Case Study. Computational Science – ICCS 2020. 2020
+Jun 15;12138:15–28. doi: 10.1007/978-3-030-50417-5_2. PMCID:
+PMC7302591.<a href="#fnref1" class="footnote-back"
+role="doc-backlink">↩︎</a></p></li>
 </ol>
-</section>
+</aside>
 </body>
 </html>

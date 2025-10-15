@@ -1,0 +1,276 @@
+source [file join [file dirname [info script]] common.tcl]
+
+# RFC 5869 Test Vectors
+# Test Case 1: Basic test case with SHA-256
+test hkdf-1.1 {hkdf: RFC 5869 Test Case 1 - SHA256} -body { #<<<
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+	set L		42
+	binary encode hex [tomcrypt::hkdf sha256 $salt $info $ikm $L]
+} -cleanup {
+	unset -nocomplain ikm salt info L
+} -result 3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865
+#>>>
+test hkdf-1.2 {hkdf: RFC 5869 Test Case 2 - SHA256 with longer inputs} -body { #<<<
+	set ikm		[binary decode hex 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f]
+	set salt	[binary decode hex 606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf]
+	set info	[binary decode hex b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff]
+	set L		82
+	binary encode hex [tomcrypt::hkdf sha256 $salt $info $ikm $L]
+} -cleanup {
+	unset -nocomplain ikm salt info L
+} -result b11e398dc80327a1c8e7f78c596a49344f012eda2d4efad8a050cc4c19afa97c59045a99cac7827271cb41c65e590e09da3275600c2f09b8367793a9aca3db71cc30c58179ec3e87c14c01d5c1f3434f1d87
+#>>>
+test hkdf-1.3 {hkdf: RFC 5869 Test Case 3 - SHA256 with empty salt} -body { #<<<
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set salt	{}
+	set info	{}
+	set L		42
+	binary encode hex [tomcrypt::hkdf sha256 $salt $info $ikm $L]
+} -cleanup {
+	unset -nocomplain ikm salt info L
+} -result 8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d9d201395faa4b61a96c8
+#>>>
+test hkdf-1.4 {hkdf: RFC 5869 Test Case 4 - SHA-1} -body { #<<<
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b]
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+	set L		42
+	binary encode hex [tomcrypt::hkdf sha1 $salt $info $ikm $L]
+} -cleanup {
+	unset -nocomplain ikm salt info L
+} -result 085a01ea1b10f36933068b56efa5ad81a4f14b822f5b091568a9cdd4f155fda2c22e422478d305f3f896
+#>>>
+test hkdf-1.5 {hkdf: RFC 5869 Test Case 5 - SHA-1 with longer inputs} -body { #<<<
+	set ikm		[binary decode hex 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f]
+	set salt	[binary decode hex 606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf]
+	set info	[binary decode hex b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff]
+	set L		82
+	binary encode hex [tomcrypt::hkdf sha1 $salt $info $ikm $L]
+} -cleanup {
+	unset -nocomplain ikm salt info L
+} -result 0bd770a74d1160f7c9f12cd5912a06ebff6adcae899d92191fe4305673ba2ffe8fa3f1a4e5ad79f3f334b3b202b2173c486ea37ce3d397ed034c7f9dfeb15c5e927336d0441f4c4300e2cff0d0900b52d3b4
+#>>>
+test hkdf-1.6 {hkdf: RFC 5869 Test Case 6 - SHA-1 with empty salt} -body { #<<<
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set salt	{}
+	set info	{}
+	set L		42
+	binary encode hex [tomcrypt::hkdf sha1 $salt $info $ikm $L]
+} -cleanup {
+	unset -nocomplain ikm salt info L
+} -result 0ac1af7002b3d761d1e55298da9d0506b9ae52057220a306e07b6b87e8df21d0ea00033de03984d34918
+#>>>
+test hkdf-1.7 {hkdf: RFC 5869 Test Case 7 - SHA-1 with empty info} -body { #<<<
+	set ikm		[binary decode hex 0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c]
+	set salt	{}
+	set info	{}
+	set L		42
+	binary encode hex [tomcrypt::hkdf sha1 $salt $info $ikm $L]
+} -cleanup {
+	unset -nocomplain ikm salt info L
+} -result 2c91117204d745f3500d636a62f64f0ab3bae548aa53d423b0d1f27ebba6f5e5673a081d70cce7acfc48
+#>>>
+
+# Edge Cases
+test hkdf-2.1 {hkdf: empty salt} -body { #<<<
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set salt	{}
+	set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+	binary encode hex [tomcrypt::hkdf sha256 $salt $info $ikm 32]
+} -cleanup {
+	unset -nocomplain ikm salt info
+} -result 05457f03d4a2673135004fc852843f2e47d953458b92062ab2f3380b20026d04
+#>>>
+test hkdf-2.2 {hkdf: empty info} -body { #<<<
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	set info	{}
+	binary encode hex [tomcrypt::hkdf sha256 $salt $info $ikm 32]
+} -cleanup {
+	unset -nocomplain ikm salt info
+} -result 7bd4598472fd508eaae69b3373bb2e1864f03f10356080c733908adf20962055
+#>>>
+test hkdf-2.3 {hkdf: empty salt and info} -body { #<<<
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	binary encode hex [tomcrypt::hkdf sha256 {} {} $ikm 32]
+} -cleanup {
+	unset -nocomplain ikm
+} -result b0eb0a51711fbcf146ba03d1f09554305c5754983c2ab8beac817b14c85c7e79
+#>>>
+test hkdf-2.4 {hkdf: zero length output} -body { #<<<
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+	binary encode hex [tomcrypt::hkdf sha256 $salt $info $ikm 0]
+} -cleanup {
+	unset -nocomplain ikm salt info
+} -result {}
+#>>>
+test hkdf-2.5 {hkdf: single byte output} -body { #<<<
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+	binary encode hex [tomcrypt::hkdf sha256 $salt $info $ikm 1]
+} -cleanup {
+	unset -nocomplain ikm salt info
+} -result 29
+#>>>
+test hkdf-2.6 {hkdf: large output (multiple hash rounds)} -body { #<<<
+	# SHA-256 has 32 byte output, so 128 bytes requires 4 rounds
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+	set L		128
+	set result	[tomcrypt::hkdf sha256 $salt $info $ikm $L]
+	string length [binary encode hex $result]
+} -cleanup {
+	unset -nocomplain ikm salt info L result
+} -result 256
+#>>>
+
+# Different Hash Algorithms
+test hkdf-3.1 {hkdf: sha512} -body { #<<<
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+	# Just verify it runs without error and produces expected length
+	string length [binary encode hex [tomcrypt::hkdf sha512 $salt $info $ikm 64]]
+} -cleanup {
+	unset -nocomplain ikm salt info
+} -result 128
+#>>>
+test hkdf-3.2 {hkdf: md5} -body { #<<<
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+	# Just verify it runs without error
+	string length [binary encode hex [tomcrypt::hkdf md5 $salt $info $ikm 32]]
+} -cleanup {
+	unset -nocomplain ikm salt info
+} -result 64
+#>>>
+
+# Error Cases
+test hkdf-4.1 {hkdf: unknown hash} -body { #<<<
+	tomcrypt::hkdf invalid_hash {} {} {} 32
+} -result {Unknown hash invalid_hash} -returnCodes error -errorCode {TOMCRYPT LOOKUP HASH invalid_hash}
+#>>>
+test hkdf-4.2 {hkdf: salt not bytes} -body { #<<<
+	tomcrypt::hkdf sha256 \u306f {} {} 32
+} -result "expected byte sequence but character 0 was '\u306f' (U+00306F)" -returnCodes error -errorCode {TCL VALUE BYTES}
+#>>>
+test hkdf-4.3 {hkdf: info not bytes} -body { #<<<
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	tomcrypt::hkdf sha256 $salt \u306f {} 32
+} -cleanup {
+	unset -nocomplain salt
+} -result "expected byte sequence but character 0 was '\u306f' (U+00306F)" -returnCodes error -errorCode {TCL VALUE BYTES}
+#>>>
+test hkdf-4.4 {hkdf: in not bytes} -body { #<<<
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+	tomcrypt::hkdf sha256 $salt $info \u306f 32
+} -cleanup {
+	unset -nocomplain salt info
+} -result "expected byte sequence but character 0 was '\u306f' (U+00306F)" -returnCodes error -errorCode {TCL VALUE BYTES}
+#>>>
+test hkdf-4.5 {hkdf: length not integer} -body { #<<<
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	tomcrypt::hkdf sha256 $salt $info $ikm "not an integer"
+} -cleanup {
+	unset -nocomplain salt info ikm
+} -result {expected integer but got "not an integer"} -returnCodes error -errorCode {TCL VALUE NUMBER}
+#>>>
+test hkdf-4.6 {hkdf: negative length} -body { #<<<
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	tomcrypt::hkdf sha256 $salt $info $ikm -1
+} -cleanup {
+	unset -nocomplain salt info ikm
+} -result {length must be non-negative} -returnCodes error -errorCode {TOMCRYPT VALUE}
+#>>>
+test hkdf-4.7 {hkdf: too few args} -body { #<<<
+	tomcrypt::hkdf
+} -result {wrong # args: should be "tomcrypt::hkdf algorithm salt info in length"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test hkdf-4.8 {hkdf: too many args} -body { #<<<
+	tomcrypt::hkdf sha256 salt info in 32 extra
+} -result {wrong # args: should be "tomcrypt::hkdf algorithm salt info in length"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+
+# Child Interpreter
+test hkdf-5.1 {hkdf: child interp} -body { #<<<
+	set child	[interp create]
+	$child eval {
+		load {} tomcrypt
+		set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+		set salt	[binary decode hex 000102030405060708090a0b0c]
+		set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+		set L		42
+		binary encode hex [tomcrypt::hkdf sha256 $salt $info $ikm $L]
+	}
+} -cleanup {
+	if {[info exists child]} {
+		interp delete $child
+	}
+	unset -nocomplain child
+} -result 3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865
+#>>>
+
+# Practical Use Cases
+test hkdf-6.1 {hkdf: key derivation for encryption} -body { #<<<
+	# Simulate deriving encryption and MAC keys from a master secret
+	set master_secret	[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set salt			[binary decode hex 606162636465666768696a6b6c6d6e6f]
+	set info_enc		[encoding convertto utf-8 "encryption key"]
+	set info_mac		[encoding convertto utf-8 "mac key"]
+
+	set enc_key			[tomcrypt::hkdf sha256 $salt $info_enc $master_secret 32]
+	set mac_key			[tomcrypt::hkdf sha256 $salt $info_mac $master_secret 32]
+
+	# Verify they're different
+	expr {$enc_key ne $mac_key}
+} -cleanup {
+	unset -nocomplain master_secret salt info_enc info_mac enc_key mac_key
+} -result 1
+#>>>
+test hkdf-6.2 {hkdf: deterministic output} -body { #<<<
+	# Verify that calling hkdf twice with same inputs produces same output
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+
+	set result1	[tomcrypt::hkdf sha256 $salt $info $ikm 32]
+	set result2	[tomcrypt::hkdf sha256 $salt $info $ikm 32]
+
+	expr {$result1 eq $result2}
+} -cleanup {
+	unset -nocomplain ikm salt info result1 result2
+} -result 1
+#>>>
+test hkdf-6.3 {hkdf: different info yields different output} -body { #<<<
+	# Verify that changing info produces different output
+	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
+	set salt	[binary decode hex 000102030405060708090a0b0c]
+	set info1	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
+	set info2	[binary decode hex f0f1f2f3f4f5f6f7f8fa]
+
+	set result1	[tomcrypt::hkdf sha256 $salt $info1 $ikm 32]
+	set result2	[tomcrypt::hkdf sha256 $salt $info2 $ikm 32]
+
+	expr {$result1 ne $result2}
+} -cleanup {
+	unset -nocomplain ikm salt info1 info2 result1 result2
+} -result 1
+#>>>
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4

@@ -1,0 +1,26 @@
+if {"bench" ni [info commands bench]} {
+	package require bench
+	namespace import bench::*
+}
+
+package require tomcrypt
+
+proc main {} {
+	bench hmac-1.1 {hmac sha256} -batch auto -setup { #<<<
+		set key		[binary decode hex [string repeat a 40]]
+		set data	[binary decode hex [string repeat d 100]]
+	} -deps {
+		aws			{package require hmac}
+	} -compare {
+		aws			{hmac::HMAC_SHA256 $key $data}
+		tomcrypt	{tomcrypt::hmac sha256 $key $data}
+	} -cleanup {
+		unset -nocomplain key data
+	} -result [binary decode hex 773ea91e36800e46854db8ebd09181a72959098b3ef8c122d9635514ced565fe]
+	#>>>
+}
+
+main
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4
+

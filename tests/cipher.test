@@ -1,0 +1,52 @@
+source [file join [file dirname [info script]] common.tcl]
+
+package require crypto
+
+test cipher-1.1 {blowfish cbc encrypt} -body { #<<<
+	set key		[binary decode hex 0123456789abcdeff0e1d2c3b4a59687]
+	set iv		[binary decode hex fedcba9876543210]
+	set data	[binary decode hex 37363534333231204e6f77206973207468652074696d6520666f7220]
+	set spec	[list blowfish [expr {8*[string length $key]}] cbc]
+	expr {
+	   [crypto::blowfish::decrypt_cbc [crypto::blowfish::init_key $key] [tomcrypt::encrypt $spec $key $iv $data] $iv] eq $data
+	}
+} -cleanup {
+	unset -nocomplain key spec
+} -result 1
+#>>>
+test cipher-2.1 {blowfish cbc decrypt} -body { #<<<
+	set key			[binary decode hex 0123456789abcdeff0e1d2c3b4a59687]
+	set iv			[binary decode hex fedcba9876543210]
+	set ciphertext	[binary decode hex 6B77B4D63006DEE605B156E27403979358DEB9E7154616D959F1652BD5FF92CC]
+	set spec		[list blowfish [expr {8*[string length $key]}] cbc]
+	tomcrypt::decrypt $spec $key $iv $ciphertext
+} -cleanup {
+	unset -nocomplain key iv ciphertext
+} -result [binary decode hex 37363534333231204E6F77206973207468652074696D6520666F7220]
+#>>>
+test cipher-3.1 {blowfish cbc encrypt and decrypt} -body { #<<<
+	set key			[binary decode hex 0123456789abcdeff0e1d2c3b4a59687]
+	set iv			[binary decode hex fedcba9876543210]
+	set data		[binary decode hex 37363534333231204e6f77206973207468652074696d6520666f7220]
+	set spec		[list blowfish [expr {8*[string length $key]}] cbc]
+	tomcrypt::decrypt $spec $key $iv [tomcrypt::encrypt $spec $key $iv $data]
+} -cleanup {
+	unset -nocomplain key iv ciphertext
+} -result [binary decode hex 37363534333231204E6F77206973207468652074696D6520666F7220]
+#>>>
+test cipher-4.1 {blowfish ctr encrypt and decrypt} -body { #<<<
+	set key			[binary decode hex 0123456789abcdeff0e1d2c3b4a59687]
+	set iv			[binary decode hex fedcba9876543210]
+	set data		[binary decode hex 37363534333231204e6f77206973207468652074696d6520666f7220]
+	set spec		[list blowfish [expr {8*[string length $key]}] ctr]
+	tomcrypt::decrypt $spec $key $iv [tomcrypt::encrypt $spec $key $iv $data]
+} -cleanup {
+	unset -nocomplain key iv ciphertext
+} -result [binary decode hex 37363534333231204E6F77206973207468652074696D6520666F7220]
+#>>>
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4

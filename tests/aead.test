@@ -1,0 +1,258 @@
+source [file join [file dirname [info script]] common.tcl]
+
+# GCM Tests <<<
+test aead-gcm-1.1 {GCM encrypt and decrypt round trip} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	set aad		{}
+	set pt		{Hello, GCM!}
+
+	lassign [tomcrypt::aead encrypt gcm aes $key $iv $aad $pt] ct tag
+	tomcrypt::aead decrypt gcm aes $key $iv $aad $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result {Hello, GCM!}
+#>>>
+test aead-gcm-2.1 {GCM with AAD} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	set aad		{metadata to authenticate}
+	set pt		{secret message}
+
+	lassign [tomcrypt::aead encrypt gcm aes $key $iv $aad $pt] ct tag
+	tomcrypt::aead decrypt gcm aes $key $iv $aad $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result {secret message}
+#>>>
+test aead-gcm-3.1 {GCM tag is 16 bytes} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	set aad		{}
+	set pt		test
+
+	lassign [tomcrypt::aead encrypt gcm aes $key $iv $aad $pt] ct tag
+	string length $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result 16
+#>>>
+test aead-gcm-4.1 {GCM tag verification failure} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	set aad		{}
+	set pt		test
+
+	lassign [tomcrypt::aead encrypt gcm aes $key $iv $aad $pt] ct tag
+	set bad_tag	[string repeat \xFF 16]
+	tomcrypt::aead decrypt gcm aes $key $iv $aad $ct $bad_tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag bad_tag
+} -returnCodes error -match glob -result *failed*
+#>>>
+test aead-gcm-5.1 {GCM AAD mismatch detection} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	set aad		{original metadata}
+	set pt		test
+
+	lassign [tomcrypt::aead encrypt gcm aes $key $iv $aad $pt] ct tag
+	# Try to decrypt with different AAD
+	tomcrypt::aead decrypt gcm aes $key $iv {tampered metadata} $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -returnCodes error -match glob -result *failed*
+#>>>
+test aead-gcm-6.1 {GCM requires 16-byte block cipher} -body { #<<<
+	set key		[binary decode hex 0123456789abcdeff0e1d2c3b4a59687]
+	set iv		[binary decode hex 000000000000000000000000]
+	set aad		{}
+	set pt		test
+
+	# Blowfish has 8-byte blocks, should fail
+	tomcrypt::aead encrypt gcm blowfish $key $iv $aad $pt
+} -cleanup {
+	unset -nocomplain key iv aad pt
+} -returnCodes error -match glob -result *16-byte*
+#>>>
+test aead-gcm-7.1 {GCM with empty plaintext} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	set aad		{just authenticate this}
+	set pt		{}
+
+	lassign [tomcrypt::aead encrypt gcm aes $key $iv $aad $pt] ct tag
+	list [tomcrypt::aead decrypt gcm aes $key $iv $aad $ct $tag] [string length $tag]
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result {{} 16}
+#>>>
+# GCM Tests >>>
+
+# EAX Tests <<<
+test aead-eax-1.1 {EAX encrypt and decrypt} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	set aad		{}
+	set pt		{Hello, EAX!}
+
+	lassign [tomcrypt::aead encrypt eax aes $key $iv $aad $pt] ct tag
+	tomcrypt::aead decrypt eax aes $key $iv $aad $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result {Hello, EAX!}
+#>>>
+test aead-eax-2.1 {EAX with AAD} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	set aad		{eax metadata}
+	set pt		secret
+
+	lassign [tomcrypt::aead encrypt eax aes $key $iv $aad $pt] ct tag
+	tomcrypt::aead decrypt eax aes $key $iv $aad $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result secret
+#>>>
+test aead-eax-3.1 {EAX works with various cipher block sizes} -body { #<<<
+	# EAX doesn't require 16-byte blocks like GCM
+	set key		[binary decode hex 0123456789abcdeff0e1d2c3b4a59687]
+	set iv		[binary decode hex 0000000000000000]
+	set aad		{}
+	set pt		{blowfish test}
+
+	lassign [tomcrypt::aead encrypt eax blowfish $key $iv $aad $pt] ct tag
+	tomcrypt::aead decrypt eax blowfish $key $iv $aad $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result {blowfish test}
+#>>>
+# EAX Tests >>>
+
+# OCB3 Tests <<<
+test aead-ocb3-1.1 {OCB3 encrypt and decrypt} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	set aad		{}
+	set pt		{Hello, OCB3!}
+
+	lassign [tomcrypt::aead encrypt ocb3 aes $key $iv $aad $pt] ct tag
+	tomcrypt::aead decrypt ocb3 aes $key $iv $aad $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result {Hello, OCB3!}
+#>>>
+test aead-ocb3-2.1 {OCB3 with AAD} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	set aad		{ocb3 header}
+	set pt		{ocb3 message}
+
+	lassign [tomcrypt::aead encrypt ocb3 aes $key $iv $aad $pt] ct tag
+	tomcrypt::aead decrypt ocb3 aes $key $iv $aad $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result {ocb3 message}
+#>>>
+# OCB3 Tests >>>
+
+# CCM Tests <<<
+test aead-ccm-1.1 {CCM encrypt and decrypt} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 0000000000000000]
+	set aad		{}
+	set pt		{Hello, CCM!}
+
+	lassign [tomcrypt::aead encrypt ccm aes $key $iv $aad $pt] ct tag
+	tomcrypt::aead decrypt ccm aes $key $iv $aad $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result {Hello, CCM!}
+#>>>
+test aead-ccm-2.1 {CCM with AAD} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 0000000000000000]
+	set aad		{ccm metadata}
+	set pt		{ccm secret}
+
+	lassign [tomcrypt::aead encrypt ccm aes $key $iv $aad $pt] ct tag
+	tomcrypt::aead decrypt ccm aes $key $iv $aad $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result {ccm secret}
+#>>>
+# CCM Tests >>>
+
+# ChaCha20-Poly1305 Tests <<<
+test aead-chacha20poly1305-1.1 {ChaCha20-Poly1305 encrypt and decrypt} -body { #<<<
+	set key		[string repeat "\x00" 32]
+	set iv		[string repeat "\x00" 12]
+	set aad		{}
+	set pt		{Hello, ChaCha20-Poly1305!}
+
+	# Note: cipher parameter is ignored for ChaCha20-Poly1305
+	lassign [tomcrypt::aead encrypt chacha20poly1305 "" $key $iv $aad $pt] ct tag
+	tomcrypt::aead decrypt chacha20poly1305 "" $key $iv $aad $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result {Hello, ChaCha20-Poly1305!}
+#>>>
+test aead-chacha20poly1305-2.1 {ChaCha20-Poly1305 with AAD} -body { #<<<
+	set key		[string repeat "\x00" 32]
+	set iv		[string repeat "\x00" 12]
+	set aad		{chacha20poly1305 metadata}
+	set pt		{chacha20poly1305 message}
+
+	lassign [tomcrypt::aead encrypt chacha20poly1305 "" $key $iv $aad $pt] ct tag
+	tomcrypt::aead decrypt chacha20poly1305 "" $key $iv $aad $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result {chacha20poly1305 message}
+#>>>
+test aead-chacha20poly1305-3.1 {ChaCha20-Poly1305 ignores cipher param} -body { #<<<
+	set key		[string repeat "\x00" 32]
+	set iv		[string repeat "\x00" 12]
+	set aad		{}
+	set pt		test
+
+	# Cipher parameter is ignored, can pass anything
+	lassign [tomcrypt::aead encrypt chacha20poly1305 ignored $key $iv $aad $pt] ct tag
+	tomcrypt::aead decrypt chacha20poly1305 also_ignored $key $iv $aad $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result test
+#>>>
+# ChaCha20-Poly1305 Tests >>>
+
+# Error Cases <<<
+test aead-error-1.1 {Unknown AEAD mode} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	tomcrypt::aead encrypt nosuchmode aes $key $iv {} test
+} -cleanup {
+	unset -nocomplain key iv
+} -returnCodes error -match glob -result {*Unknown AEAD mode*}
+#>>>
+test aead-error-2.1 {Unknown cipher} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	tomcrypt::aead encrypt gcm nosuchcipher $key $iv {} test
+} -cleanup {
+	unset -nocomplain key iv
+} -returnCodes error -match glob -result {*Unknown cipher*}
+#>>>
+test aead-error-3.1 {Invalid subcommand} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	tomcrypt::aead nosuchcmd gcm aes $key $iv {} test
+} -cleanup {
+	unset -nocomplain key iv
+} -returnCodes error -match glob -result *subcommand*
+#>>>
+# Error Cases >>>
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4

@@ -1,4 +1,4 @@
-Makefile
+/Makefile
 configure
 pkgIndex.tcl
 autom4te.cache
@@ -16,3 +16,4 @@ last
 local
 Makefile.teabase
 doc/.build
+build/

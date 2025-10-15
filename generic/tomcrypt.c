@@ -2,16 +2,14 @@
 
 // Must be kept in sync with the enum in tomcryptInt.tcl
 static const char* lit_str[L_size] = {
-	"",				// L_EMPTY
-	"",				// L_NOBYTES
-	"1",			// L_TRUE
-	"0",			// L_FALSE
-	NS "::prng",	// L_PRNG_CLASS
-	"::oo::class create " NS "::prng {}",	// L_PRNG_CLASS_DEF
+#define X(name, str) str,
+	LITSTRS
+#undef X
 };
 
 TCL_DECLARE_MUTEX(g_register_mutex);
 static int				g_register_init = 0;
+static int				g_sprng = -1;
 
 TCL_DECLARE_MUTEX(g_intreps_mutex);
 static Tcl_HashTable	g_intreps;
@@ -86,6 +84,110 @@ finally:
 }
 
 //>>>
+OBJCMD(hmac_cmd) //<<<
+{
+	int				code = TCL_OK;
+	unsigned char*	out = NULL;
+	unsigned long	outlen;
+	Tcl_Obj*		res = NULL;
+
+	enum {A_cmd, A_HASH, A_KEY, A_MSG, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "algorithm key message");
+
+	// Find hash algorithm
+	const int hash_idx = find_hash(Tcl_GetString(objv[A_HASH]));
+	if (hash_idx == -1) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "LOOKUP", "HASH", Tcl_GetString(objv[A_HASH]), NULL);
+		THROW_PRINTF_LABEL(finally, code, "Unknown hash %s", Tcl_GetString(objv[A_HASH]));
+	}
+
+	// Get key
+	int keylen;
+	const unsigned char* key = Tcl_GetBytesFromObj(interp, objv[A_KEY], &keylen);
+	if (key == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Get message
+	int msglen;
+	const unsigned char* msg = Tcl_GetBytesFromObj(interp, objv[A_MSG], &msglen);
+	if (msg == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Calculate output size and allocate buffer
+	outlen = hash_descriptor[hash_idx].hashsize;
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, outlen));
+	out = Tcl_GetByteArrayFromObj(res, NULL);
+
+	// Compute HMAC
+	int err;
+	if ((err = hmac_memory(hash_idx, key, keylen, msg, msglen, out, &outlen)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "HMAC", "COMPUTE", NULL);
+		THROW_PRINTF_LABEL(finally, code, "hmac_memory failed: %s", error_to_string(err));
+	}
+
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
+	return code;
+}
+
+//>>>
+OBJCMD(hkdf_cmd) //<<<
+{
+	int				code = TCL_OK;
+	Tcl_Obj*		res = NULL;
+
+	enum {A_cmd, A_HASH, A_SALT, A_INFO, A_IN, A_LENGTH, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "algorithm salt info in length");
+
+	// Find hash algorithm
+	const int hash_idx = find_hash(Tcl_GetString(objv[A_HASH]));
+	if (hash_idx == -1) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "LOOKUP", "HASH", Tcl_GetString(objv[A_HASH]), NULL);
+		THROW_PRINTF_LABEL(finally, code, "Unknown hash %s", Tcl_GetString(objv[A_HASH]));
+	}
+
+	// Get salt
+	int saltlen;
+	const unsigned char* salt = Tcl_GetBytesFromObj(interp, objv[A_SALT], &saltlen);
+	if (salt == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Get info
+	int infolen;
+	const unsigned char* info = Tcl_GetBytesFromObj(interp, objv[A_INFO], &infolen);
+	if (info == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Get input keying material
+	int inlen;
+	const unsigned char* in = Tcl_GetBytesFromObj(interp, objv[A_IN], &inlen);
+	if (in == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Get output length
+	long outlen;
+	TEST_OK_LABEL(finally, code, Tcl_GetLongFromObj(interp, objv[A_LENGTH], &outlen));
+	if (outlen < 0) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+		THROW_ERROR_LABEL(finally, code, "length must be non-negative");
+	}
+
+	// Compute HKDF
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, outlen));
+	unsigned char*	out = Tcl_GetBytesFromObj(interp, res, NULL);
+	if (out == NULL) { code = TCL_ERROR; goto finally; }
+
+	int err;
+	if ((err = hkdf(hash_idx, salt, saltlen, info, infolen, in, inlen, out, outlen)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "HMAC", "COMPUTE", NULL);
+		THROW_PRINTF_LABEL(finally, code, "hmac_memory failed: %s", error_to_string(err));
+	}
+
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
+	return code;
+}
+
+//>>>
 OBJCMD(base64url_cmd) // Base64 URL encode / decode <<<
 {
 	int					code = TCL_OK;
@@ -121,7 +223,7 @@ OBJCMD(base64url_cmd) // Base64 URL encode / decode <<<
 				const int		outlen_int = ((inlen + 2)/3) * 4;
 				replace_tclobj(&res, Tcl_NewObj());
 				Tcl_SetObjLength(res, outlen_int);
-				unsigned char*	out = (unsigned char*)Tcl_GetString(res);
+				char*	out = Tcl_GetString(res);
 				unsigned long	outlen = outlen_int + 1;	// +1: base64url_*_encode appends NUL terminator
 
 				const int	rc = mode == M_STRICT_ENCODE
@@ -144,7 +246,7 @@ OBJCMD(base64url_cmd) // Base64 URL encode / decode <<<
 				CHECK_ARGS_LABEL(finally, code, "string");
 
 				int						inlen;
-				const unsigned char*	in = (unsigned char*)Tcl_GetStringFromObj(objv[A_STR], &inlen);
+				const char*	in = Tcl_GetStringFromObj(objv[A_STR], &inlen);
 				unsigned long			outlen = ((inlen+3)/4) * 3;
 				replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, outlen));
 				unsigned char*			out = Tcl_GetBytesFromObj(interp, res, NULL);
@@ -172,6 +274,207 @@ finally:
 }
 
 //>>>
+OBJCMD(ecc_generate_key_cmd) //<<<
+{
+	int						code = TCL_OK;
+	ecc_key*				key = NULL;
+	int						key_initialized = 0;
+	prng_state*				prng = NULL;
+	int						prng_desc_idx = -1;
+	const ltc_ecc_curve*	curve = NULL;
+
+	enum {A_cmd, A_CURVE, A_args, A_objc};
+	const int A_PRNG = A_args;
+	CHECK_RANGE_ARGS_LABEL(finally, code, "curve ?prng?");
+
+	// Get the curve
+	TEST_OK_LABEL(finally, code, GetECCCurveFromObj(interp, objv[A_CURVE], &curve));
+
+	// Allocate and initialize the key structure
+	key = ckalloc(sizeof(*key));
+	*key = (ecc_key){0};
+
+	// Set the curve for the key
+	int err;
+	if ((err = ecc_set_curve(curve, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "CURVE", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_set_curve failed: %s", error_to_string(err));
+	}
+	key_initialized = 1;	// Needs to be here so that later error paths free the curve info in *key
+
+	// Get PRNG details - either from supplied prng or use system prng
+	if (objc > A_PRNG) {
+		// Use supplied PRNG
+		TEST_OK_LABEL(finally, code, GetPrngFromObj(interp, objv[A_PRNG], &prng, &prng_desc_idx));
+	} else {
+		// Use system PRNG
+		prng_desc_idx = g_sprng;
+	}
+
+	// Generate the key
+	if ((err = ecc_generate_key(objc > A_PRNG ? prng : NULL, prng_desc_idx, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "GENERATE", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_generate_key failed: %s", error_to_string(err));
+	}
+
+	// Return the key object
+	Tcl_SetObjResult(interp, NewECCKeyObj(&key));
+
+finally:
+	if (key) {
+		if (key_initialized) ecc_free(key);
+		ckfree(key);
+		key = NULL;
+	}
+	return code;
+}
+
+//>>>
+OBJCMD(ecc_extract_pubkey_cmd) //<<<
+{
+	int						code = TCL_OK;
+	ecc_key*				key = NULL;
+	ecc_key*				pubkey = NULL;
+	int						key_initialized = 0;
+
+	enum {A_cmd, A_PRIVKEY, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "privkey");
+
+	// Get the private key
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_PRIVKEY], ECC_EXPECT_PRIVATE, &key));
+	if (key->type != PK_PRIVATE) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "KEY", "TYPE", NULL);
+		THROW_ERROR_LABEL(finally, code, "key is not a private key");
+	}
+
+	uint8_t			buf[512];
+	unsigned long	buflen = sizeof(buf);
+
+	if (ecc_export_openssl(buf, &buflen, PK_PUBLIC, key) != CRYPT_OK)
+		THROW_ERROR_LABEL(finally, code, "ecc_export_openssl failed");
+
+	pubkey = ckalloc(sizeof(*key));
+	*pubkey = (ecc_key){0};
+
+	if (ecc_import_openssl(buf, buflen, pubkey) != CRYPT_OK)
+		THROW_ERROR_LABEL(finally, code, "ecc_import_openssl failed");
+
+	key_initialized = 1;
+
+	Tcl_SetObjResult(interp, NewECCKeyObj(&pubkey));
+
+finally:
+	if (pubkey) {
+		if (key_initialized) ecc_free(pubkey);
+		ckfree(pubkey);
+		pubkey = NULL;
+	}
+	return code;
+}
+
+//>>>
+OBJCMD(ecc_ansi_x963_import_cmd) //<<<
+{
+	int						code = TCL_OK;
+	ecc_key*				key = NULL;
+	int						key_initialized = 0;
+	const ltc_ecc_curve*	curve = NULL;
+
+	enum {A_cmd, A_DER, A_args, A_objc};
+	const int A_CURVE = A_args;
+	CHECK_RANGE_ARGS_LABEL(finally, code, "der ?curve?");
+
+	// Get the DER bytes
+	int derlen;
+	const uint8_t* der = Tcl_GetBytesFromObj(interp, objv[A_DER], &derlen);
+	if (der == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Allocate and initialize the key structure
+	key = ckalloc(sizeof(*key));
+	*key = (ecc_key){0};
+
+	if (objc > A_CURVE) {
+		// If curve is specified, get it
+		TEST_OK_LABEL(finally, code, GetECCCurveFromObj(interp, objv[A_CURVE], &curve));
+		if (curve == NULL) {
+			Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "CURVE", NULL);
+			THROW_ERROR_LABEL(finally, code, "curve is NULL");
+		}
+	} else {
+		// Try to infer the curve from the key size (only works for uncompressed keys)
+		int err;
+		switch (derlen) {
+			case (112/8)*2+1: err = ecc_find_curve("secp112r1", &curve); break;
+			case (128/8)*2+1: err = ecc_find_curve("secp128r1", &curve); break;
+			case (160/8)*2+1: err = ecc_find_curve("secp160r1", &curve); break;
+			case (192/8)*2+1: err = ecc_find_curve("secp192r1", &curve); break;
+			case (224/8)*2+1: err = ecc_find_curve("secp224r1", &curve); break;
+			case (256/8)*2+1: err = ecc_find_curve("secp256r1", &curve); break;
+			case (384/8)*2+1: err = ecc_find_curve("secp384r1", &curve); break;
+			case ((521+7)/8)*2+1: err = ecc_find_curve("secp521r1", &curve); break;
+			default: THROW_PRINTF_LABEL(finally, code, "Cannot infer curve from key size %d; please specify the curve", derlen);
+		}
+		if (err != CRYPT_OK) THROW_ERROR_LABEL(finally, code, "ecc_find_curve failed");
+	}
+
+	if (ecc_set_curve(curve, key) != CRYPT_OK)
+		THROW_ERROR_LABEL(finally, code, "ecc_set_curve failed");
+	key_initialized = 1;
+
+	// Import the key
+	int err;
+	if ((err = ecc_set_key(der, derlen, PK_PUBLIC, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "IMPORT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_ansi_x963_import failed: %s", error_to_string(err));
+	}
+
+	// Return the key object
+	Tcl_SetObjResult(interp, NewECCKeyObj(&key));
+
+finally:
+	if (key) {
+		if (key_initialized) ecc_free(key);
+		ckfree(key);
+		key = NULL;
+	}
+	return code;
+}
+
+//>>>
+OBJCMD(ecc_ansi_x963_export_cmd) //<<<
+{
+	int			code = TCL_OK;
+	ecc_key*	key = NULL;
+	Tcl_Obj*	res = NULL;
+
+	enum {A_cmd, A_KEY, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "key");
+
+	// Get the key
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_KEY], ECC_EXPECT_PUBLIC, &key));
+
+	// Allocate buffer for the DER bytes
+	unsigned long derlen = 256;  // Start with reasonable size
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, derlen));
+	uint8_t*	der = Tcl_GetByteArrayFromObj(res, NULL);
+
+	// Export the key
+	int err;
+	if ((err = ecc_get_key(der, &derlen, PK_PUBLIC, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "EXPORT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_get_key failed: %s", error_to_string(err));
+	}
+
+	// Adjust the byte array length to match the actual DER size
+	Tcl_SetByteArrayLength(res, derlen);
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
+	return code;
+}
+
+//>>>
 OBJCMD(ecc_verify) //<<<
 {
 	struct interp_cx*	l = cdata;
@@ -181,7 +484,7 @@ OBJCMD(ecc_verify) //<<<
 	CHECK_ARGS_LABEL(finally, code, "sig message key");
 
 	ecc_key*	key = NULL;
-	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_KEY], &key));
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_KEY], ECC_EXPECT_PUBLIC, &key));
 
 	int				siglen, msglen, stat;
 	const uint8_t*	sig = Tcl_GetBytesFromObj(interp, objv[A_SIG],  &siglen);
@@ -197,6 +500,103 @@ OBJCMD(ecc_verify) //<<<
 	Tcl_SetObjResult(interp, l->lit[stat ? L_TRUE : L_FALSE]);
 
 finally:
+	return code;
+}
+
+//>>>
+OBJCMD(ecc_sign_cmd) //<<<
+{
+	int			code = TCL_OK;
+	ecc_key*	key = NULL;
+	prng_state*	prng = NULL;
+	int			desc_idx;
+	Tcl_Obj*	res = NULL;
+
+	enum {A_cmd, A_PRIVKEY, A_MSG, A_args, A_objc};
+	const int A_PRNG = A_args;
+	CHECK_RANGE_ARGS_LABEL(finally, code, "privkey message ?prng?");
+
+	// Get the private key
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_PRIVKEY], ECC_EXPECT_PRIVATE, &key));
+	if (key->type != PK_PRIVATE) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "KEY", "TYPE", NULL);
+		THROW_ERROR_LABEL(finally, code, "key is not a private key");
+	}
+
+	// Get message to sign
+	int msglen;
+	const unsigned char* msg = Tcl_GetBytesFromObj(interp, objv[A_MSG], &msglen);
+	if (msg == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Get PRNG details - either from supplied prng or use system prng
+	if (objc > A_PRNG) {
+		// Use supplied PRNG
+		TEST_OK_LABEL(finally, code, GetPrngFromObj(interp, objv[A_PRNG], &prng, &desc_idx));
+	} else {
+		// Use system PRNG
+		desc_idx = g_sprng;
+	}
+
+	// Allocate signature buffer - start with a reasonable size
+	unsigned long siglen = 256;  // Should be plenty for ECC signatures
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, siglen));
+	unsigned char* sig = Tcl_GetByteArrayFromObj(res, NULL);
+
+	// Sign the message
+	int err;
+	if ((err = ecc_sign_hash(msg, msglen, sig, &siglen, objc > A_PRNG ? prng : NULL, desc_idx, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "SIGN", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_sign_hash failed: %s", error_to_string(err));
+	}
+
+	// Adjust the byte array length to match the actual signature size
+	Tcl_SetByteArrayLength(res, siglen);
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
+	return code;
+}
+
+//>>>
+OBJCMD(ecc_shared_secret_cmd) //<<<
+{
+	int			code = TCL_OK;
+	ecc_key*	private_key = NULL;
+	ecc_key*	public_key = NULL;
+	Tcl_Obj*	res = NULL;
+
+	enum {A_cmd, A_PRIVKEY, A_PUBKEY, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "privkey pubkey");
+
+	// Get the private key
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_PRIVKEY], ECC_EXPECT_PRIVATE, &private_key));
+	if (private_key->type != PK_PRIVATE) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "KEY", "TYPE", NULL);
+		THROW_ERROR_LABEL(finally, code, "privkey is not a private key");
+	}
+
+	// Get the public key
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_PUBKEY], ECC_EXPECT_PUBLIC, &public_key));
+
+	// Allocate buffer for shared secret - it will be the size of the prime
+	unsigned long outlen = 256;  // Start with reasonable size
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, outlen));
+	unsigned char* out = Tcl_GetByteArrayFromObj(res, NULL);
+
+	// Compute the shared secret
+	int err;
+	if ((err = ecc_shared_secret(private_key, public_key, out, &outlen)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "SHARED_SECRET", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_shared_secret failed: %s", error_to_string(err));
+	}
+
+	// Adjust the byte array length to match the actual shared secret size
+	Tcl_SetByteArrayLength(res, outlen);
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
 	return code;
 }
 
@@ -224,6 +624,661 @@ OBJCMD(rng_bytes) //<<<
 		remain -= got;
 	}
 
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
+	return code;
+}
+
+//>>>
+OBJCMD(rsa_make_key_cmd) //<<<
+{
+	int			code = TCL_OK;
+	rsa_key*	key = NULL;
+	int			key_initialized = 0;
+	prng_state*	prng = NULL;
+	int			prng_desc_idx = -1;
+	int			keysize = 2048;
+	long		exponent = 65537;
+
+	for (int i=1; i<objc; i++) {
+		static const char *opts[] = {
+			"-keysize",
+			"-exponent", 
+			"-prng",
+			NULL
+		};
+		enum optvals {
+			OPT_KEYSIZE,
+			OPT_EXPONENT,
+			OPT_PRNG,
+		} opt;
+		int optidx;
+
+#define REQUIRE_OPT_VAL \
+		do { \
+			if (i+1 >= objc) { \
+				Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", opts[opt], NULL); \
+				THROW_ERROR_LABEL(finally, code, "Missing argument for ", opts[opt]); \
+			} \
+		} while (0)
+
+		TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[i], opts, "option", TCL_EXACT, &optidx)); opt = optidx;
+		REQUIRE_OPT_VAL;
+		switch (opt) {
+			case OPT_KEYSIZE:
+				TEST_OK_LABEL(finally, code, Tcl_GetIntFromObj(interp, objv[++i], &keysize));
+				if (keysize < 1024 || keysize > 4096 || keysize % 8) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+					THROW_ERROR_LABEL(finally, code, "keysize must be a multiple of 8 between 1024 and 4096 bits");
+				}
+				break;
+
+			case OPT_EXPONENT:
+				TEST_OK_LABEL(finally, code, Tcl_GetLongFromObj(interp, objv[++i], &exponent));
+				if (exponent < 3) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+					THROW_ERROR_LABEL(finally, code, "exponent must be at least 3");
+				}
+				break;
+
+			case OPT_PRNG:
+				TEST_OK_LABEL(finally, code, GetPrngFromObj(interp, objv[++i], &prng, &prng_desc_idx));
+				break;
+
+			default:
+				THROW_PRINTF_LABEL(finally, code, "Invalid opt %d", opt);
+		}
+#undef REQUIRE_OPT_VAL
+	}
+
+	if (prng_desc_idx == -1) {
+		// Use system PRNG
+		prng_desc_idx = g_sprng;
+	}
+
+	// Generate the key
+	key = ckalloc(sizeof(*key));
+	*key = (rsa_key){0};
+	int err;
+	if ((err = rsa_make_key(prng_desc_idx != -1 ? prng : NULL, prng_desc_idx, keysize/8, exponent, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "RSA", "GENERATE", NULL);
+		THROW_PRINTF_LABEL(finally, code, "rsa_make_key failed: %s", error_to_string(err));
+	}
+	key_initialized = 1;
+
+	Tcl_SetObjResult(interp, NewRSAKeyObj(&key));
+
+finally:
+	if (key && key_initialized) rsa_free(key);
+	if (key) {ckfree(key); key = NULL;}
+	return code;
+}
+
+//>>>
+OBJCMD(rsa_extract_pubkey_cmd) //<<<
+{
+	int			code = TCL_OK;
+	rsa_key*	key = NULL;
+	rsa_key*	pbkey = NULL;
+	int			key_initialized = 0;
+
+	enum {A_cmd, A_PRIVKEY, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "privkey");
+
+	// Get the private key
+	TEST_OK_LABEL(finally, code, GetRSAKeyFromObj(interp, objv[A_PRIVKEY], RSA_EXPECT_PRIVATE, &key));
+
+	// Extract public key
+	unsigned char pubbuf[2048];
+	unsigned long pubbuflen = sizeof(pubbuf);
+	int err;
+	if ((err = rsa_export(pubbuf, &pubbuflen, PK_PUBLIC, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "RSA", "EXPORT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "rsa_export failed: %s", error_to_string(err));
+	}
+
+	// Import as a pure public key
+	pbkey = ckalloc(sizeof(*pbkey));
+	*pbkey = (rsa_key){0};
+	if ((err = rsa_import(pubbuf, pubbuflen, pbkey)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "RSA", "IMPORT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "rsa_import failed: %s", error_to_string(err));
+	}
+	key_initialized = 1;
+
+	Tcl_SetObjResult(interp, NewRSAKeyObj(&pbkey));
+
+finally:
+	if (pbkey && key_initialized) rsa_free(pbkey);
+	if (pbkey) {ckfree(pbkey); pbkey = NULL;}
+	return code;
+}
+
+//>>>
+OBJCMD(rsa_sign_hash_cmd) //<<<
+{
+	int						code = TCL_OK;
+	rsa_key*				key = NULL;
+	prng_state*				prng = NULL;
+	int						prng_desc_idx = -1;
+	Tcl_Obj*				res = NULL;
+	const unsigned char*	in = NULL;
+	int						inlen = 0;
+	int						padding = LTC_PKCS_1_PSS;
+	int						hash_idx = -1;
+	unsigned long			saltlen = 0;
+
+	for (int i=1; i<objc; i++) {
+		static const char *opts[] = {
+			"-key",
+			"-hash",
+			"-padding",
+			"-prng",
+			"-hashalg",
+			"-saltlen",
+			NULL
+		};
+		enum optvals {
+			OPT_KEY,
+			OPT_HASH,
+			OPT_PADDING,
+			OPT_PRNG,
+			OPT_HASHALG,
+			OPT_SALTLEN,
+		} opt;
+		int optidx;
+
+#define REQUIRE_OPT_VAL \
+		do { \
+			if (i+1 >= objc) { \
+				Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", opts[opt], NULL); \
+				THROW_ERROR_LABEL(finally, code, "Missing argument for ", opts[opt]); \
+			} \
+		} while (0)
+
+		TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[i], opts, "option", TCL_EXACT, &optidx)); opt = optidx;
+		REQUIRE_OPT_VAL;
+		switch (opt) {
+			case OPT_KEY:
+				TEST_OK_LABEL(finally, code, GetRSAKeyFromObj(interp, objv[++i], RSA_EXPECT_PRIVATE, &key));
+				break;
+
+			case OPT_HASH:
+				in = Tcl_GetBytesFromObj(interp, objv[++i], &inlen);
+				if (in == NULL) { code = TCL_ERROR; goto finally; }
+				break;
+
+			case OPT_PADDING:
+			{
+				static const char* padding_types[] = {"v1.5", "pss", "v1.5_na1", NULL};
+				static int padding_map[] = {LTC_PKCS_1_V1_5, LTC_PKCS_1_PSS, LTC_PKCS_1_V1_5_NA1};
+				int padding_idx;
+				TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[++i], padding_types, "padding", TCL_EXACT, &padding_idx));
+				if (padding_idx < 0 || padding_idx > sizeof(padding_map)/sizeof(padding_map[0])) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+					THROW_ERROR_LABEL(finally, code, "Invalid padding type");
+				}
+				padding = padding_map[padding_idx];
+				break;
+			}
+
+			case OPT_PRNG:
+				TEST_OK_LABEL(finally, code, GetPrngFromObj(interp, objv[++i], &prng, &prng_desc_idx));
+				break;
+
+			case OPT_HASHALG:
+				hash_idx = find_hash(Tcl_GetString(objv[++i]));
+				if (hash_idx == -1) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "LOOKUP", "HASH", Tcl_GetString(objv[i]), NULL);
+					THROW_PRINTF_LABEL(finally, code, "Unknown hash %s", Tcl_GetString(objv[i]));
+				}
+				break;
+
+			case OPT_SALTLEN:
+			{
+				Tcl_WideInt	tmpint;
+				TEST_OK_LABEL(finally, code, Tcl_GetWideIntFromObj(interp, objv[++i], &tmpint));
+				if (tmpint < 0) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+					THROW_ERROR_LABEL(finally, code, "salt length cannot be negative");
+				}
+				if (tmpint > 0xFFFFFFFF) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+					THROW_ERROR_LABEL(finally, code, "salt length too large");
+				}
+				saltlen = (unsigned long)tmpint;
+			}
+		}
+#undef REQUIRE_OPT_VAL
+	}
+
+	if (!key) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", "-key", NULL);
+		THROW_ERROR_LABEL(finally, code, "Missing -key argument");
+	}
+	if (!in) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", "-hash", NULL);
+		THROW_ERROR_LABEL(finally, code, "Missing -hash argument");
+	}
+
+	if (padding != LTC_PKCS_1_PSS && prng_desc_idx != -1) {
+		THROW_ERROR_LABEL(finally, code, "-prng only applies to pss padding");
+	} else if (prng_desc_idx == -1) {
+		// Use system PRNG
+		prng_desc_idx = g_sprng;
+	}
+
+	if (padding == LTC_PKCS_1_V1_5_NA1 && hash_idx != -1) {
+		THROW_ERROR_LABEL(finally, code, "-hash does not apply for v1.5_na1 padding");
+	} else if (hash_idx == -1) {
+		hash_idx = find_hash("sha256"); // Use sha256 as default hash
+	}
+
+	if (padding == LTC_PKCS_1_PSS && saltlen > rsa_sign_saltlen_get_max(hash_idx, key)) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", "-saltlen", NULL);
+		THROW_PRINTF_LABEL(finally, code, "salt length %lu exceeds maximum %u", saltlen, rsa_sign_saltlen_get_max(hash_idx, key));
+	}
+
+	// Allocate signature buffer
+	unsigned long siglen = rsa_get_size(key);
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, siglen));
+	unsigned char* sig = Tcl_GetByteArrayFromObj(res, NULL);
+
+	int err;
+	if ((err = rsa_sign_hash_ex(in, inlen, sig, &siglen, padding, prng, prng_desc_idx, hash_idx, saltlen, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "RSA", "SIGN", NULL);
+		THROW_PRINTF_LABEL(finally, code, "rsa_sign_hash_ex failed: %s", error_to_string(err));
+	}
+
+	// Adjust the byte array length to match the actual signature size
+	Tcl_SetByteArrayLength(res, siglen);
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
+	return code;
+}
+
+//>>>
+OBJCMD(rsa_verify_hash_cmd) //<<<
+{
+	struct interp_cx*		l = cdata;
+	int						code = TCL_OK;
+	rsa_key*				key = NULL;
+	const unsigned char*	sig = NULL;
+	int						siglen = 0;
+	const unsigned char*	hash = NULL;
+	int						hashlen = 0;
+	int						padding = LTC_PKCS_1_PSS;
+	int						hash_idx = -1;
+	unsigned long			saltlen = 0;
+
+	for (int i=1; i<objc; i++) {
+		static const char *opts[] = {
+			"-key",
+			"-sig",
+			"-hash",
+			"-padding",
+			"-hashalg",
+			"-saltlen",
+			NULL
+		};
+		enum optvals {
+			OPT_KEY,
+			OPT_SIG,
+			OPT_HASH,
+			OPT_PADDING,
+			OPT_HASHALG,
+			OPT_SALTLEN,
+		} opt;
+		int optidx;
+
+#define REQUIRE_OPT_VAL \
+		do { \
+			if (i+1 >= objc) { \
+				Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", opts[opt], NULL); \
+				THROW_ERROR_LABEL(finally, code, "Missing argument for ", opts[opt]); \
+			} \
+		} while (0)
+
+		TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[i], opts, "option", TCL_EXACT, &optidx)); opt = optidx;
+		REQUIRE_OPT_VAL;
+		switch (opt) {
+			case OPT_KEY:
+				TEST_OK_LABEL(finally, code, GetRSAKeyFromObj(interp, objv[++i], RSA_EXPECT_PUBLIC, &key));
+				break;
+
+			case OPT_SIG:
+				sig = Tcl_GetBytesFromObj(interp, objv[++i], &siglen);
+				if (sig == NULL) { code = TCL_ERROR; goto finally; }
+				break;
+
+			case OPT_HASH:
+				hash = Tcl_GetBytesFromObj(interp, objv[++i], &hashlen);
+				if (hash == NULL) { code = TCL_ERROR; goto finally; }
+				break;
+
+			case OPT_PADDING:
+			{
+				static const char* padding_types[] = {"v1.5", "pss", "v1.5_na1", NULL};
+				static int padding_map[] = {LTC_PKCS_1_V1_5, LTC_PKCS_1_PSS, LTC_PKCS_1_V1_5_NA1};
+				int padding_idx;
+				TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[++i], padding_types, "padding", TCL_EXACT, &padding_idx));
+				if (padding_idx < 0 || padding_idx >= sizeof(padding_map)/sizeof(padding_map[0])) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+					THROW_ERROR_LABEL(finally, code, "Invalid padding type");
+				}
+				padding = padding_map[padding_idx];
+				break;
+			}
+
+			case OPT_HASHALG:
+				hash_idx = find_hash(Tcl_GetString(objv[++i]));
+				if (hash_idx == -1) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "LOOKUP", "HASH", Tcl_GetString(objv[i]), NULL);
+					THROW_PRINTF_LABEL(finally, code, "Unknown hash %s", Tcl_GetString(objv[i]));
+				}
+				break;
+
+			case OPT_SALTLEN:
+			{
+				Tcl_WideInt	tmpint;
+				TEST_OK_LABEL(finally, code, Tcl_GetWideIntFromObj(interp, objv[++i], &tmpint));
+				if (tmpint < 0) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+					THROW_ERROR_LABEL(finally, code, "salt length cannot be negative");
+				}
+				if (tmpint > 0xFFFFFFFF) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+					THROW_ERROR_LABEL(finally, code, "salt length too large");
+				}
+				saltlen = (unsigned long)tmpint;
+				break;
+			}
+		}
+#undef REQUIRE_OPT_VAL
+	}
+
+	if (!key) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", "-key", NULL);
+		THROW_ERROR_LABEL(finally, code, "Missing -key argument");
+	}
+	if (!sig) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", "-sig", NULL);
+		THROW_ERROR_LABEL(finally, code, "Missing -sig argument");
+	}
+	if (!hash) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", "-hash", NULL);
+		THROW_ERROR_LABEL(finally, code, "Missing -hash argument");
+	}
+
+	if (padding == LTC_PKCS_1_V1_5_NA1 && hash_idx != -1) {
+		THROW_ERROR_LABEL(finally, code, "-hashalg does not apply for v1.5_na1 padding");
+	} else if (hash_idx == -1) {
+		hash_idx = find_hash("sha256"); // Use sha256 as default hash
+	}
+
+	int stat;
+	const int verify_rc = rsa_verify_hash_ex(sig, siglen, hash, hashlen, padding, hash_idx, saltlen, &stat, key);
+	if (verify_rc != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "RSA", "VERIFY", NULL);
+		THROW_PRINTF_LABEL(finally, code, "rsa_verify_hash_ex failed: %s", error_to_string(verify_rc));
+	}
+
+	Tcl_SetObjResult(interp, l->lit[stat ? L_TRUE : L_FALSE]);
+
+finally:
+	return code;
+}
+
+//>>>
+OBJCMD(rsa_encrypt_key_cmd) //<<<
+{
+	int						code = TCL_OK;
+	rsa_key*				key = NULL;
+	prng_state*				prng = NULL;
+	int						prng_desc_idx = -1;
+	Tcl_Obj*				res = NULL;
+	const unsigned char*	msg = NULL;
+	int						msglen = 0;
+	int						padding = LTC_PKCS_1_OAEP;
+	int						hash_idx = -1;
+	const unsigned char*	lparam = NULL;
+	int						lparamlen = 0;
+
+	for (int i=1; i<objc; i++) {
+		static const char *opts[] = {
+			"-key",
+			"-msg",
+			"-padding",
+			"-prng",
+			"-hashalg",
+			"-lparam",
+			NULL
+		};
+		enum optvals {
+			OPT_KEY,
+			OPT_MSG,
+			OPT_PADDING,
+			OPT_PRNG,
+			OPT_HASHALG,
+			OPT_LPARAM,
+		} opt;
+		int optidx;
+
+#define REQUIRE_OPT_VAL \
+		do { \
+			if (i+1 >= objc) { \
+				Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", opts[opt], NULL); \
+				THROW_ERROR_LABEL(finally, code, "Missing argument for ", opts[opt]); \
+			} \
+		} while (0)
+
+		TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[i], opts, "option", TCL_EXACT, &optidx)); opt = optidx;
+		REQUIRE_OPT_VAL;
+		switch (opt) {
+			case OPT_KEY:
+				TEST_OK_LABEL(finally, code, GetRSAKeyFromObj(interp, objv[++i], RSA_EXPECT_PUBLIC, &key));
+				break;
+
+			case OPT_MSG:
+				msg = Tcl_GetBytesFromObj(interp, objv[++i], &msglen);
+				if (msg == NULL) { code = TCL_ERROR; goto finally; }
+				break;
+
+			case OPT_PADDING:
+			{
+				static const char* padding_types[] = {"v1.5", "oaep", NULL};
+				static int padding_map[] = {LTC_PKCS_1_V1_5, LTC_PKCS_1_OAEP};
+				int padding_idx;
+				TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[++i], padding_types, "padding", TCL_EXACT, &padding_idx));
+				if (padding_idx < 0 || padding_idx >= sizeof(padding_map)/sizeof(padding_map[0])) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+					THROW_ERROR_LABEL(finally, code, "Invalid padding type");
+				}
+				padding = padding_map[padding_idx];
+				break;
+			}
+
+			case OPT_PRNG:
+				TEST_OK_LABEL(finally, code, GetPrngFromObj(interp, objv[++i], &prng, &prng_desc_idx));
+				break;
+
+			case OPT_HASHALG:
+				hash_idx = find_hash(Tcl_GetString(objv[++i]));
+				if (hash_idx == -1) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "LOOKUP", "HASH", Tcl_GetString(objv[i]), NULL);
+					THROW_PRINTF_LABEL(finally, code, "Unknown hash %s", Tcl_GetString(objv[i]));
+				}
+				break;
+
+			case OPT_LPARAM:
+				lparam = Tcl_GetBytesFromObj(interp, objv[++i], &lparamlen);
+				if (lparam == NULL) { code = TCL_ERROR; goto finally; }
+				break;
+		}
+#undef REQUIRE_OPT_VAL
+	}
+
+	if (!key) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", "-key", NULL);
+		THROW_ERROR_LABEL(finally, code, "Missing -key argument");
+	}
+	if (!msg) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", "-msg", NULL);
+		THROW_ERROR_LABEL(finally, code, "Missing -msg argument");
+	}
+
+	if (padding == LTC_PKCS_1_V1_5 && hash_idx != -1) {
+		THROW_ERROR_LABEL(finally, code, "-hashalg does not apply for v1.5 padding");
+	} else if (padding == LTC_PKCS_1_OAEP && hash_idx == -1) {
+		hash_idx = find_hash("sha256"); // Use sha256 as default hash for OAEP
+	}
+
+	if (prng_desc_idx == -1) {
+		// Use system PRNG
+		prng_desc_idx = g_sprng;
+	}
+
+	// Allocate output buffer
+	unsigned long outlen = rsa_get_size(key);
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, outlen));
+	unsigned char* out = Tcl_GetByteArrayFromObj(res, NULL);
+
+	int err;
+	if ((err = rsa_encrypt_key_ex(msg, msglen, out, &outlen, 
+						 lparamlen > 0 ? lparam : NULL, lparamlen,
+						 prng_desc_idx != -1 ? prng : NULL, prng_desc_idx, hash_idx, hash_idx, padding, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "RSA", "ENCRYPT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "rsa_encrypt_key_ex failed: %s", error_to_string(err));
+	}
+
+	// Adjust the byte array length to match the actual output size
+	Tcl_SetByteArrayLength(res, outlen);
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
+	return code;
+}
+
+//>>>
+OBJCMD(rsa_decrypt_key_cmd) //<<<
+{
+	int						code = TCL_OK;
+	rsa_key*				key = NULL;
+	Tcl_Obj*				res = NULL;
+	const unsigned char*	ciphertext = NULL;
+	int						ctlen = 0;
+	int						padding = LTC_PKCS_1_OAEP;
+	int						hash_idx = -1;
+	const unsigned char*	lparam = NULL;
+	int						lparamlen = 0;
+
+	for (int i=1; i<objc; i++) {
+		static const char *opts[] = {
+			"-key",
+			"-ciphertext",
+			"-padding",
+			"-hashalg",
+			"-lparam",
+			NULL
+		};
+		enum optvals {
+			OPT_KEY,
+			OPT_CIPHERTEXT,
+			OPT_PADDING,
+			OPT_HASHALG,
+			OPT_LPARAM,
+		} opt;
+		int optidx;
+
+#define REQUIRE_OPT_VAL \
+		do { \
+			if (i+1 >= objc) { \
+				Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", opts[opt], NULL); \
+				THROW_ERROR_LABEL(finally, code, "Missing argument for ", opts[opt]); \
+			} \
+		} while (0)
+
+		TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[i], opts, "option", TCL_EXACT, &optidx)); opt = optidx;
+		REQUIRE_OPT_VAL;
+		switch (opt) {
+			case OPT_KEY:
+				TEST_OK_LABEL(finally, code, GetRSAKeyFromObj(interp, objv[++i], RSA_EXPECT_PRIVATE, &key));
+				break;
+
+			case OPT_CIPHERTEXT:
+				ciphertext = Tcl_GetBytesFromObj(interp, objv[++i], &ctlen);
+				if (ciphertext == NULL) { code = TCL_ERROR; goto finally; }
+				break;
+
+			case OPT_PADDING:
+			{
+				static const char* padding_types[] = {"v1.5", "oaep", NULL};
+				static int padding_map[] = {LTC_PKCS_1_V1_5, LTC_PKCS_1_OAEP};
+				int padding_idx;
+				TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[++i], padding_types, "padding", TCL_EXACT, &padding_idx));
+				if (padding_idx < 0 || padding_idx >= sizeof(padding_map)/sizeof(padding_map[0])) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
+					THROW_ERROR_LABEL(finally, code, "Invalid padding type");
+				}
+				padding = padding_map[padding_idx];
+				break;
+			}
+
+			case OPT_HASHALG:
+				hash_idx = find_hash(Tcl_GetString(objv[++i]));
+				if (hash_idx == -1) {
+					Tcl_SetErrorCode(interp, "TOMCRYPT", "LOOKUP", "HASH", Tcl_GetString(objv[i]), NULL);
+					THROW_PRINTF_LABEL(finally, code, "Unknown hash %s", Tcl_GetString(objv[i]));
+				}
+				break;
+
+			case OPT_LPARAM:
+				lparam = Tcl_GetBytesFromObj(interp, objv[++i], &lparamlen);
+				if (lparam == NULL) { code = TCL_ERROR; goto finally; }
+				break;
+		}
+#undef REQUIRE_OPT_VAL
+	}
+
+	if (!key) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", "-key", NULL);
+		THROW_ERROR_LABEL(finally, code, "Missing -key argument");
+	}
+	if (!ciphertext) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ARGUMENT", "MISSING", "-ciphertext", NULL);
+		THROW_ERROR_LABEL(finally, code, "Missing -ciphertext argument");
+	}
+
+	if (padding == LTC_PKCS_1_V1_5 && hash_idx != -1) {
+		THROW_ERROR_LABEL(finally, code, "-hashalg does not apply for v1.5 padding");
+	} else if (padding == LTC_PKCS_1_OAEP && hash_idx == -1) {
+		hash_idx = find_hash("sha256"); // Use sha256 as default hash for OAEP
+	}
+
+	// Allocate output buffer
+	unsigned long outlen = rsa_get_size(key);
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, outlen));
+	unsigned char* out = Tcl_GetByteArrayFromObj(res, NULL);
+
+	int stat;
+	int err;
+	if ((err = rsa_decrypt_key_ex(ciphertext, ctlen, out, &outlen, lparam, lparamlen, hash_idx, hash_idx, padding, &stat, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "RSA", "DECRYPT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "rsa_decrypt_key_ex failed: %s", error_to_string(err));
+	}
+
+	if (!stat) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "RSA", "DECRYPT", "OAEP", NULL);
+		THROW_ERROR_LABEL(finally, code, "Invalid ciphertext or padding");
+	}
+
+	// Adjust the byte array length to match the actual output size
+	Tcl_SetByteArrayLength(res, outlen);
 	Tcl_SetObjResult(interp, res);
 
 finally:
@@ -391,6 +1446,25 @@ finally:
 }
 
 //>>>
+OBJCMD(getECCCurveFromObj) // Test GetECCCurveFromObj conversion <<<
+{
+	int						code = TCL_OK;
+	const ltc_ecc_curve*	curve = NULL;
+
+	enum {A_cmd, A_CURVE, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "curve_identifier");
+
+	TEST_OK_LABEL(finally, code, GetECCCurveFromObj(interp, objv[A_CURVE], &curve));
+
+	// Return the curve's OID or prime as confirmation
+	const char* str = (curve->OID && curve->OID[0]) ? curve->OID : curve->prime;
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(str, -1));
+
+finally:
+	return code;
+}
+
+//>>>
 #endif
 
 static struct cmd {
@@ -398,17 +1472,35 @@ static struct cmd {
 	Tcl_ObjCmdProc*	proc;
 	Tcl_ObjCmdProc*	nrproc;
 } cmds[] = {
-	{NS "::hash",							hash_cmd,			NULL},
-	{NS "::ecc_verify",						ecc_verify,			NULL},
-	{NS "::rng_bytes",						rng_bytes,			NULL},
-	{NS "::base64url",						base64url_cmd,		NULL},
+	{NS "::hash",							hash_cmd,				NULL},
+	{NS "::hmac",							hmac_cmd,				NULL},
+	{NS "::hkdf",							hkdf_cmd,				NULL},
+	{NS "::ecc_generate_key",				ecc_generate_key_cmd,	NULL},
+	{NS "::ecc_extract_pubkey",				ecc_extract_pubkey_cmd,	NULL},
+	{NS "::ecc_ansi_x963_import",			ecc_ansi_x963_import_cmd,	NULL},
+	{NS "::ecc_ansi_x963_export",			ecc_ansi_x963_export_cmd,	NULL},
+	{NS "::ecc_verify",						ecc_verify,				NULL},
+	{NS "::ecc_sign",						ecc_sign_cmd,			NULL},
+	{NS "::ecc_shared_secret",				ecc_shared_secret_cmd,	NULL},
+	{NS "::rsa_make_key",					rsa_make_key_cmd,		NULL},
+	{NS "::rsa_extract_pubkey",				rsa_extract_pubkey_cmd, NULL},
+	{NS "::rsa_sign_hash",					rsa_sign_hash_cmd,		NULL},
+	{NS "::rsa_verify_hash",				rsa_verify_hash_cmd,	NULL},
+	{NS "::rsa_encrypt_key",				rsa_encrypt_key_cmd,	NULL},
+	{NS "::rsa_decrypt_key",				rsa_decrypt_key_cmd,	NULL},
+	{NS "::rng_bytes",						rng_bytes,				NULL},
+	{NS "::encrypt",						cipher_encrypt_cmd,		NULL},
+	{NS "::decrypt",						cipher_decrypt_cmd,		NULL},
+	{NS "::aead",							aead_cmd,				NULL},
+	{NS "::base64url",						base64url_cmd,			NULL},
 #if TESTMODE
-	{NS "::_testmode_hasGetBytesFromObj",	hasGetBytesFromObj,	NULL},
-	{NS "::_testmode_isByteArray",			isByteArray,		NULL},
-	{NS "::_testmode_leakObj",				leakObj,			NULL},
-	{NS "::_testmode_dupObj",				dupObj,				NULL},
-	{NS "::_testmode_refCount",				refCount,			NULL},
-	{NS "::_testmode_doubleMantissaHist",	doubleMatissaHist,	NULL},
+	{NS "::_testmode_hasGetBytesFromObj",	hasGetBytesFromObj,		NULL},
+	{NS "::_testmode_isByteArray",			isByteArray,			NULL},
+	{NS "::_testmode_leakObj",				leakObj,				NULL},
+	{NS "::_testmode_dupObj",				dupObj,					NULL},
+	{NS "::_testmode_refCount",				refCount,				NULL},
+	{NS "::_testmode_doubleMantissaHist",	doubleMatissaHist,		NULL},
+	{NS "::_testmode_getECCCurveFromObj",	getECCCurveFromObj,		NULL},
 #endif
 	{0}
 };
@@ -432,17 +1524,20 @@ DLLEXPORT int Tomcrypt_Init(Tcl_Interp* interp) //<<<
 		register_all_ciphers();
 		register_all_hashes();
 		register_all_prngs();
+
+#ifdef USE_LTM
+		ltc_mp = ltm_desc;
+#elif defined(USE_TFM)
+		ltc_mp = tfm_desc;
+#elif defined(USE_GMP)
+		ltc_mp = gmp_desc;
+#endif
+
+		g_sprng = find_prng("sprng");
+
 		g_register_init = 1;
 	}
 	Tcl_MutexUnlock(&g_register_mutex);
-
-#ifdef USE_LTM
-	ltc_mp = ltm_desc;
-#elif defined(USE_TFM)
-	ltc_mp = tfm_desc;
-#elif defined(USE_GMP)
-	ltc_mp = gmp_desc;
-#endif
 
 	l = (struct interp_cx*)ckalloc(sizeof *l);
 	*l = (struct interp_cx){0};

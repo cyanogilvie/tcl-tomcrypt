@@ -703,6 +703,14 @@ test prng-8.2 {prng implementation: fortuna} -body { #<<<
 	}
 } -result 3
 #>>>
+test prng-8.2.1 {Basic prng output test} -setup {
+	tomcrypt::prng create prng fortuna
+} -body {
+	expr {[prng bytes 32] ne [prng bytes 32]}
+} -cleanup {
+	rename prng {}
+} -result 1
+#>>>
 test prng-8.3 {prng implementation: rc4} -body { #<<<
 	set testname	prng-8.3
 	tomcrypt::prng create $testname rc4 $fake_entropy

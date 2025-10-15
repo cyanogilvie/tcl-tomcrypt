@@ -333,6 +333,7 @@ static int method_integer(ClientData cdata, Tcl_Interp* interp, Tcl_ObjectContex
 
 		if (MP_OKAY != (rc = mp_init(&range_bigval)))									goto mp_err;
 		switch (mp_cmp_mag(&lower_bigval, &upper_bigval)) {
+			case MP_LT: break;
 			case MP_GT:
 				Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
 				THROW_ERROR_LABEL(mp_finally, code, "lower must be less than or equal to upper")
@@ -571,6 +572,31 @@ static Tcl_MethodType methods[] = {
 };
 #undef OO_VER
 
+int GetPrngFromObj(Tcl_Interp* interp, Tcl_Obj* prng, prng_state** state, int* desc_idx) //<<<
+{
+	int code = TCL_OK;
+
+	Tcl_Object obj = Tcl_GetObjectFromObj(interp, prng);
+	if (obj == NULL) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", "PRNG", NULL);
+		code = TCL_ERROR;
+		goto finally;
+	}
+
+	struct prng_md* md = Tcl_ObjectGetMetadata(obj, &prng_metadata);
+	if (md == NULL) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", "PRNG", NULL);
+		THROW_ERROR_LABEL(finally, code, "Not a prng instance");
+	}
+
+	*state = &md->prng;
+	*desc_idx = md->desc_idx;
+
+finally:
+	return code;
+}
+
+//>>>
 int prng_class_init(Tcl_Interp* interp, struct interp_cx* l) //<<<
 {
 	int				code = TCL_OK;
