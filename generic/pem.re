@@ -1,6 +1,6 @@
 #include "tomcryptInt.h"
 
-int pem_load_first_key(Tcl_Interp* interp, Tcl_Obj* obj, uint8_t** der_buf, unsigned long* der_len, int* is_private_key) //<<<
+int pem_load_first_key(Tcl_Interp* interp, Tcl_Obj* obj, uint8_t** der_buf, unsigned long* der_len, int* is_private_key, const char** type) //<<<
 {
 	int				code = TCL_OK;
 	const uint8_t*	str = (const uint8_t*)Tcl_GetString(obj);
@@ -27,18 +27,23 @@ int pem_load_first_key(Tcl_Interp* interp, Tcl_Obj* obj, uint8_t** der_buf, unsi
 	*/
 
 	for (;;) {
-		const uint8_t		*s1, *e1, *s2, *e2, *b64_start, *b64_end;
+		const uint8_t		*s1, *e1, *s2, *e2, *b64_start, *b64_end, *p, *t;
 		const uint8_t*		YYMARKER;
 		/*!re2c
 			!use:common;
 
-			label
-				= "PUBLIC KEY"
-				| "RSA PUBLIC KEY"
-				| "RSA PRIVATE KEY"
+			type
+				= "RSA "
+				| "EC "
 				;
-			preeb		= "-----BEGIN " @s1 label @e1 "-----";
-			posteb		= "-----END " @s2 label @e2 "-----";
+
+			side
+				= "PRIVATE"
+				| "PUBLIC"
+				;
+
+			preeb		= "-----BEGIN " @s1 (@t type)? @p side " KEY" @e1 "-----";
+			posteb		= "-----END " @s2 type? side " KEY" @e2 "-----";
 			b64char 	= [A-Za-z0-9+/];
 			b64line		= b64char+ WSP* eol;
 			b64final	= b64char* ("=" WSP* eol "=" | "==")? WSP* eol;
@@ -75,7 +80,9 @@ int pem_load_first_key(Tcl_Interp* interp, Tcl_Obj* obj, uint8_t** der_buf, unsi
 			THROW_PRINTF_LABEL(finally, code, "PEM labels do not match");
 		}
 
-		*is_private_key = strncmp((const char*)s1, "RSA PRIVATE", 11) == 0;
+		*is_private_key = strncmp((const char*)p, "PRIVATE", 7) == 0;
+		if (type)
+			*type = t ? (const char*)t : "RSA";
 
 		// Base64 to DER size (over)estimate
 		const size_t der_len_estimate = ((b64_end - b64_start) * 3 / 4) + 1;

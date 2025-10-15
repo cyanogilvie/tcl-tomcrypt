@@ -104,9 +104,14 @@ int GetRSAKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, rsa_key_type_t expect_typ
 		int						is_private_key = -1;
 		const unsigned char*	bytes_to_import = NULL;
 		unsigned long			import_len = 0;
+		const char*				type = NULL;
 
-		TEST_OK_LABEL(finally, code, pem_load_first_key(interp, obj, &der_buf, &der_len, &is_private_key));
+		TEST_OK_LABEL(finally, code, pem_load_first_key(interp, obj, &der_buf, &der_len, &is_private_key, &type));
 		if (der_buf) {
+			if (strncmp(type, "RSA", 3) != 0) {
+				Tcl_SetErrorCode(interp, "TOMCRYPT", "FORMAT", "PEM", NULL);
+				THROW_PRINTF_LABEL(finally, code, "PEM does not contain an RSA key");
+			}
 			bytes_to_import = der_buf;
 			import_len = der_len;
 		} else {

@@ -46,7 +46,7 @@ void register_intrep(Tcl_Obj* obj);
 void forget_intrep(Tcl_Obj* obj);
 // tomcrypt.c internal interface >>>
 // pem.re interface <<<
-int pem_load_first_key(Tcl_Interp* interp, Tcl_Obj* obj, uint8_t** der_buf, unsigned long* der_len, int* is_private_key);
+int pem_load_first_key(Tcl_Interp* interp, Tcl_Obj* obj, uint8_t** der_buf, unsigned long* der_len, int* is_private_key, const char** type);
 // pem.re interface >>>
 // type_ecc_key.c interface <<<
 // Add an enum for key type expectation
@@ -56,7 +56,11 @@ typedef enum {
 } ecc_key_type_t;
 
 int GetECCKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, ecc_key_type_t expect_type, ecc_key** key);
+Tcl_Obj* NewECCKeyObj(ecc_key** key);
 // type_ecc_key.c interface >>>
+// type_ecc_curve.c interface <<<
+int GetECCCurveFromObj(Tcl_Interp* interp, Tcl_Obj* obj, const ltc_ecc_curve** curve);
+// type_ecc_curve.c interface >>>
 // type_rsa_key.c interface <<<
 typedef enum {
     RSA_EXPECT_PUBLIC,
@@ -100,13 +104,16 @@ int GetCipherSpecFromObj(Tcl_Interp* interp, Tcl_Obj* obj, cipher_spec** spec);
 // type_cipher_spec.c interface >>>
 extern const char* cipher_mode_strs[];
 // prng_class.c internal interface <<<
-int GetPrngFromObj(Tcl_Interp* interp, Tcl_Obj* prng, prng_state* state, int* desc_idx);
+int GetPrngFromObj(Tcl_Interp* interp, Tcl_Obj* prng, prng_state** state, int* desc_idx);
 int prng_class_init(Tcl_Interp* interp, struct interp_cx* l);
 // prng_class.c internal interface >>>
 // cipher.c internal interface <<<
 OBJCMD(cipher_encrypt_cmd);
 OBJCMD(cipher_decrypt_cmd);
 // cipher.c internal interface >>>
+// aead.c internal interface <<<
+OBJCMD(aead_cmd);
+// aead.c internal interface >>>
 // rsa functions <<<
 OBJCMD(rsa_make_key_cmd);
 OBJCMD(rsa_sign_hash_cmd);

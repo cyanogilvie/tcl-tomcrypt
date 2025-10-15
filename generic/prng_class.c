@@ -572,7 +572,7 @@ static Tcl_MethodType methods[] = {
 };
 #undef OO_VER
 
-int GetPrngFromObj(Tcl_Interp* interp, Tcl_Obj* prng, prng_state* state, int* desc_idx) //<<<
+int GetPrngFromObj(Tcl_Interp* interp, Tcl_Obj* prng, prng_state** state, int* desc_idx) //<<<
 {
 	int code = TCL_OK;
 
@@ -589,7 +589,7 @@ int GetPrngFromObj(Tcl_Interp* interp, Tcl_Obj* prng, prng_state* state, int* de
 		THROW_ERROR_LABEL(finally, code, "Not a prng instance");
 	}
 
-	*state = md->prng;
+	*state = &md->prng;
 	*desc_idx = md->desc_idx;
 
 finally:

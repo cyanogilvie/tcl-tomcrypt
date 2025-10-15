@@ -1,7 +1,7 @@
 ---
 author:
 - Cyan Ogilvie
-title: tomcrypt(3) 0.7.3 \| libtomcrypt Tcl wrapper
+title: tomcrypt(3) 0.8.0 \| libtomcrypt Tcl wrapper
 ---
 
 # TOMCRYPT
@@ -10,7 +10,7 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 
 ## SYNOPSIS
 
-**package require tomcrypt** ?0.7.3?
+**package require tomcrypt** ?0.8.0?
 
 **tomcrypt::hash** *algorithm* *bytes*  
 **tomcrypt::hmac** *algorithm* *key* *message*  
@@ -19,9 +19,13 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 **tomcrypt::base64url** **decode**\|**strict_decode** *string*  
 **tomcrypt::encrypt** *spec* *key* *iv* *bytes*  
 **tomcrypt::decrypt** *spec* *key* *iv* *bytes*  
-**tomcrypt::ecc_make_key** *prng* *keysize*  
-**tomcrypt::ecc_verify** *sig* *message* *pbkey*  
+**tomcrypt::ecc_generate_key** *curve* ?*prng*?  
+**tomcrypt::ecc_extract_pubkey** *privkey*  
+**tomcrypt::ecc_ansi_x963_import** *bytes* ?*curve*?  
+**tomcrypt::ecc_ansi_x963_export** *pubkey*  
+**tomcrypt::ecc_verify** *sig* *message* *pubkey*  
 **tomcrypt::ecc_sign** *privkey* *message* ?*prng*?  
+**tomcrypt::ecc_shared_secret** *privkey* *pubkey*  
 **tomcrypt::rsa_make_key** ?**-keysize** *bits*? ?**-exponent** *e*?
 ?**-prng** *prng*?  
 **tomcrypt::rsa_extract_pubkey** *privkey*  
@@ -100,27 +104,57 @@ cipher and mode specified in *spec*. See **CIPHER SPEC** for details.
 Decrypt the ciphertext bytes in *data* using the key *key* using the
 cipher and mode specified in *spec*. See **CIPHER SPEC** for details.
 
-**tomcrypt::ecc_make_key** *prng* *keysize*  
-Generate a new ECC keypair using the PRNG instance *prng* with the given
-*keysize* in bytes. Returns a two-element list containing the private
-key in libtomcrypt’s internal format and the public key in ANSI X9.63
-format. The private key is suitable for use with **ecc_sign** and the
-public key with **ecc_verify**.
+**tomcrypt::aead** **encrypt** *mode* *cipher* *key* *iv* *aad* *plaintext*  
+Encrypt *plaintext* using authenticated encryption with associated data
+(AEAD). The *mode* can be one of: **gcm**, **eax**, **ocb**, **ocb3**,
+**ccm**, or **chacha20poly1305**. Most modes require a *cipher* (like
+“aes”), except chacha20poly1305 which uses its own cipher (pass “” for
+cipher in that case). The *key*, initialization vector *iv*, and
+additional authenticated data *aad* are all byte arrays. *aad* can be
+empty if no metadata needs to be authenticated. Returns a 2-element
+list: {ciphertext tag} where tag is the authentication tag (typically 16
+bytes).
 
-**tomcrypt::ecc_verify** *sig* *message* *pbkey*  
+**tomcrypt::aead** **decrypt** *mode* *cipher* *key* *iv* *aad* *ciphertext* *tag*  
+Decrypt *ciphertext* using AEAD, verifying the authentication *tag*.
+Parameters must match those used during encryption. Returns the
+plaintext if successful, or throws an error if the tag verification
+fails (indicating tampering or corruption).
+
+**tomcrypt::ecc_generate_key** *curve* ?*prng*?  
+Generate a new ECC key using the PRNG instance *prng* (defaulting to the
+system PRNG if not specified), using the specified *curve*. See **CURVE
+SPEC** for details of how to specify the curve. Returns the private key
+in PEM formatted OpenSSL compatible DER format.
+
+**tomcrypt::ecc_extract_pubkey** *privkey*  
+Extract the public key from an ECC private key *privkey* (in OpenSSL’s
+DER format, possibly PEM encoded, as returned by **ecc_generate_key**).
+Returns the public key in OpenSSL DER format, PEM encoded.
+
+**tomcrypt::ecc_verify** *sig* *message* *pubkey*  
 Verify the signature *sig* over the message *message* with public key
-*pbkey*. *sig* is in ANSI X9.62 format, *pbkey* is in ANSI X9.63 section
-4.3.6 format or the native libtomcrypt format, and message is the raw
-bytearray (typically a hash result) that was signed. Returns true if the
-signature is valid, false if not, and throws an error if it couldn’t
-parse *sig* or *pbkey*.
+*pubkey*. *sig* is in ANSI X9.62 format, *pubkey* is in ANSI X9.63
+section 4.3.6 format or the native libtomcrypt format, and message is
+the raw bytearray (typically a hash result) that was signed. Returns
+true if the signature is valid, false if not, and throws an error if it
+couldn’t parse *sig* or *pubkey*.
 
 **tomcrypt::ecc_sign** *privkey* *message* ?*prng*?  
-Sign *message* using the private key *privkey* (in libtomcrypt’s
-internal format, as returned by **ecc_make_key**). If *prng* is
-provided, use that PRNG instance for the signing operation, otherwise
+Sign *message* using the private key *privkey* (in openssl’s DER format
+(possibly PEM encoded), as returned by **ecc_generate_key**). If *prng*
+is provided, use that PRNG instance for the signing operation, otherwise
 use the system’s secure random number generator. Returns the signature
 in ANSI X9.62 format, suitable for verification with **ecc_verify**.
+
+**tomcrypt::ecc_shared_secret** *privkey* *pubkey*  
+Compute an ECDH shared secret between the local private key *privkey*
+and the remote public key *pubkey*. Both parties compute the same shared
+secret value, which can be used to derive encryption keys. Returns the
+raw x-coordinate of the shared elliptic curve point in binary format
+(conforms to EC-DH from ANSI X9.63). The shared secret should be passed
+through a key derivation function like **hkdf** before being used as a
+key.
 
 **tomcrypt::rsa_make_key** ?**-keysize** *bits*? ?**-exponent** *e*? ?**-prng** *prng*?  
 Generate a new RSA keypair. The **-keysize** option specifies the key
@@ -137,6 +171,18 @@ with **rsa_verify_hash** and **rsa_encrypt_key**.
 Extract the public key from an RSA private key *privkey* (in PKCS#1
 DER/PEM format). Returns the public key in PKCS#1 PEM format, suitable
 for use with **rsa_verify_hash** and **rsa_encrypt_key**.
+
+**tomcrypt::ecc_ansi_x963_import** *bytes* ?*curve*?  
+Import an ECC public key from ANSI X9.63 section 4.3.6 format (a
+bytearray starting with 0x04 followed by the x and y coordinates). If
+*curve* is provided, it specifies the curve to use (see **CURVE SPEC**),
+otherwise the curve is inferred from the length of the x and y
+coordinates (only works with uncompressed format). Returns the public
+key suitable for use with **ecc_verify** and **ecc_shared_secret**.
+
+**tomcrypt::ecc_ansi_x963_export** *pubkey*  
+Export an ECC public key *pubkey* to ANSI X9.63 section 4.3.6 format (a
+bytearray starting with 0x04 followed by the x and y coordinates).
 
 **tomcrypt::rsa_sign_hash** **-key** *privkey* **-hash** *hash* ?**-padding** *type*? ?**-hashalg** *algorithm*? ?**-saltlen** *bytes*? ?**-prng** *prng*?  
 Sign a message hash using the RSA private key *privkey* (in PKCS#1
@@ -237,6 +283,15 @@ as “blowfish”, “aes”, etc. *keysize* is the size of the key (in bits).
 *mode* is the streaming mode, such as “cbc”, “ctr”, etc. Choose “ctr” if
 you don’t have a good reason not to.
 
+## CURVE SPEC
+
+The curve for ECC operations can be specified by any of the names
+libtomcrypt understands: by name like **secp256r1**, an alias like
+**P-256**, or the OID like **1.2.840.10045.3.1.7**. Custom curves can
+also be specified by a dictionary of parameters with the following
+keys: - **prime** - **A** - **B** - **order** - **Gx** - **Gy** -
+**cofactor** (optional, defaults to 1) - **OID** (optional)
+
 ## EXAMPLES
 
 Print out the hex-encoded md5 of “hello, tomcrypt” (normally, when
@@ -327,7 +382,8 @@ Generate a new ECC keypair and use it to sign a message:
 ``` tcl
 tomcrypt::prng create rand fortuna
 set msg      [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
-lassign [tomcrypt::ecc_make_key rand 32] privkey pubkey
+set privkey  [tomcrypt::ecc_generate_key secp256r1 rand]
+set pubkey   [tomcrypt::ecc_extract_pubkey $privkey]
 set sig      [tomcrypt::ecc_sign $privkey $msg]
 set verified [tomcrypt::ecc_verify $sig $msg $pubkey]
 if {$verified} {
@@ -344,6 +400,32 @@ Compute HMAC-SHA256:
 set key     [binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
 set message "Hi There"
 puts [binary encode hex [tomcrypt::hmac sha256 $key $message]]
+```
+
+Encrypt and decrypt with AES-GCM authenticated encryption:
+
+``` tcl
+# Generate a random key and IV
+set key [tomcrypt::rng_bytes 32]  ;# 256-bit AES key
+set iv  [tomcrypt::rng_bytes 12]  ;# 96-bit IV (recommended for GCM)
+set aad "user-id:12345,timestamp:2024-01-15"  ;# Metadata to authenticate
+set plaintext "Secret message that needs both confidentiality and authenticity"
+
+# Encrypt: returns {ciphertext tag}
+lassign [tomcrypt::aead encrypt gcm aes $key $iv $aad $plaintext] ciphertext tag
+
+# Store or transmit: $ciphertext, $tag, and $aad
+# The IV can be transmitted in the clear (but must not be reused with the same key)
+
+# Decrypt and verify
+set decrypted [tomcrypt::aead decrypt gcm aes $key $iv $aad $ciphertext $tag]
+puts "Decrypted: $decrypted"
+
+# Tag verification failure (tampering detected)
+set bad_tag [string repeat "\x00" 16]
+if {[catch {tomcrypt::aead decrypt gcm aes $key $iv $aad $ciphertext $bad_tag} err]} {
+    puts "Authentication failed: $err"
+}
 ```
 
 Generate RSA keypair and create CloudFront-style signature (PKCS#1
@@ -425,13 +507,13 @@ support 8.6.
 ### From a Release Tarball
 
 Download and extract [the
-release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.7.3/tomcrypt0.7.3.tar.gz),
+release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.8.0/tomcrypt0.8.0.tar.gz),
 then build in the standard TEA way:
 
 ``` sh
-wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.7.3/tomcrypt0.7.3.tar.gz
-tar xf tomcrypt0.7.3.tar.gz
-cd tomcrypt0.7.3
+wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.8.0/tomcrypt0.8.0.tar.gz
+tar xf tomcrypt0.8.0.tar.gz
+cd tomcrypt0.8.0
 ./configure
 make
 sudo make install
@@ -459,7 +541,7 @@ and strip debug symbols, minimising image size:
 
 ``` dockerfile
 WORKDIR /tmp/tcl-tomcrypt
-RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.7.3/tomcrypt0.7.3.tar.gz -O - | tar xz --strip-components=1 && \
+RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.8.0/tomcrypt0.8.0.tar.gz -O - | tar xz --strip-components=1 && \
     ./configure; make test install-binaries install-libraries && \
     strip /usr/local/lib/libtomcrypt*.so && \
     cd .. && rm -rf tcl-tomcrypt

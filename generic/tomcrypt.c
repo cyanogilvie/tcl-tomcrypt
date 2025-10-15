@@ -9,6 +9,7 @@ static const char* lit_str[L_size] = {
 
 TCL_DECLARE_MUTEX(g_register_mutex);
 static int				g_register_init = 0;
+static int				g_sprng = -1;
 
 TCL_DECLARE_MUTEX(g_intreps_mutex);
 static Tcl_HashTable	g_intreps;
@@ -273,70 +274,203 @@ finally:
 }
 
 //>>>
-OBJCMD(ecc_make_key_cmd) //<<<
+OBJCMD(ecc_generate_key_cmd) //<<<
 {
-	int			code = TCL_OK;
-	ecc_key		key = {0};
-	int			key_initialized = 0;
-	prng_state	prng = {0};
-	int			desc_idx;
-	Tcl_Obj*	res = NULL;
-	Tcl_Obj*	privkey = NULL;
-	Tcl_Obj*	pubkey = NULL;
+	int						code = TCL_OK;
+	ecc_key*				key = NULL;
+	int						key_initialized = 0;
+	prng_state*				prng = NULL;
+	int						prng_desc_idx = -1;
+	const ltc_ecc_curve*	curve = NULL;
 
-	enum {A_cmd, A_PRNG, A_SIZE, A_objc};
-	CHECK_ARGS_LABEL(finally, code, "prng keysize");
+	enum {A_cmd, A_CURVE, A_args, A_objc};
+	const int A_PRNG = A_args;
+	CHECK_RANGE_ARGS_LABEL(finally, code, "curve ?prng?");
 
-	// Get key size
-	int keysize;
-	TEST_OK_LABEL(finally, code, Tcl_GetIntFromObj(interp, objv[A_SIZE], &keysize));
-	if (keysize <= 0) {
-		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
-		THROW_ERROR_LABEL(finally, code, "keysize must be positive");
+	// Get the curve
+	TEST_OK_LABEL(finally, code, GetECCCurveFromObj(interp, objv[A_CURVE], &curve));
+
+	// Allocate and initialize the key structure
+	key = ckalloc(sizeof(*key));
+	*key = (ecc_key){0};
+
+	// Set the curve for the key
+	int err;
+	if ((err = ecc_set_curve(curve, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "CURVE", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_set_curve failed: %s", error_to_string(err));
 	}
+	key_initialized = 1;	// Needs to be here so that later error paths free the curve info in *key
 
-	// Get PRNG state and descriptor index
-	TEST_OK_LABEL(finally, code, GetPrngFromObj(interp, objv[A_PRNG], &prng, &desc_idx));
+	// Get PRNG details - either from supplied prng or use system prng
+	if (objc > A_PRNG) {
+		// Use supplied PRNG
+		TEST_OK_LABEL(finally, code, GetPrngFromObj(interp, objv[A_PRNG], &prng, &prng_desc_idx));
+	} else {
+		// Use system PRNG
+		prng_desc_idx = g_sprng;
+	}
 
 	// Generate the key
-	int err;
-	if ((err = ecc_make_key(&prng, desc_idx, keysize, &key)) != CRYPT_OK) {
+	if ((err = ecc_generate_key(objc > A_PRNG ? prng : NULL, prng_desc_idx, key)) != CRYPT_OK) {
 		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "GENERATE", NULL);
-		THROW_PRINTF_LABEL(finally, code, "ecc_make_key failed: %s", error_to_string(err));
+		THROW_PRINTF_LABEL(finally, code, "ecc_generate_key failed: %s", error_to_string(err));
 	}
+
+	// Return the key object
+	Tcl_SetObjResult(interp, NewECCKeyObj(&key));
+
+finally:
+	if (key) {
+		if (key_initialized) ecc_free(key);
+		ckfree(key);
+		key = NULL;
+	}
+	return code;
+}
+
+//>>>
+OBJCMD(ecc_extract_pubkey_cmd) //<<<
+{
+	int						code = TCL_OK;
+	ecc_key*				key = NULL;
+	ecc_key*				pubkey = NULL;
+	int						key_initialized = 0;
+
+	enum {A_cmd, A_PRIVKEY, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "privkey");
+
+	// Get the private key
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_PRIVKEY], ECC_EXPECT_PRIVATE, &key));
+	if (key->type != PK_PRIVATE) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "KEY", "TYPE", NULL);
+		THROW_ERROR_LABEL(finally, code, "key is not a private key");
+	}
+
+	uint8_t			buf[512];
+	unsigned long	buflen = sizeof(buf);
+
+	if (ecc_export_openssl(buf, &buflen, PK_PUBLIC, key) != CRYPT_OK)
+		THROW_ERROR_LABEL(finally, code, "ecc_export_openssl failed");
+
+	pubkey = ckalloc(sizeof(*key));
+	*pubkey = (ecc_key){0};
+
+	if (ecc_import_openssl(buf, buflen, pubkey) != CRYPT_OK)
+		THROW_ERROR_LABEL(finally, code, "ecc_import_openssl failed");
+
 	key_initialized = 1;
 
-	// Export private key in internal format
-	unsigned char privbuf[512];
-	unsigned long privbuflen = sizeof(privbuf);
-	if ((err = ecc_export(privbuf, &privbuflen, PK_PRIVATE, &key)) != CRYPT_OK) {
-		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "EXPORT", NULL);
-		THROW_PRINTF_LABEL(finally, code, "ecc_export failed: %s", error_to_string(err));
+	Tcl_SetObjResult(interp, NewECCKeyObj(&pubkey));
+
+finally:
+	if (pubkey) {
+		if (key_initialized) ecc_free(pubkey);
+		ckfree(pubkey);
+		pubkey = NULL;
 	}
-	replace_tclobj(&privkey, Tcl_NewByteArrayObj(privbuf, privbuflen));
+	return code;
+}
 
-	// Export public key in X9.63 format
-	unsigned char pubbuf[512];
-	unsigned long pubbuflen = sizeof(pubbuf);
-	if ((err = ecc_ansi_x963_export(&key, pubbuf, &pubbuflen)) != CRYPT_OK) {
-		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "EXPORT", NULL);
-		THROW_PRINTF_LABEL(finally, code, "ecc_ansi_x963_export failed: %s", error_to_string(err));
+//>>>
+OBJCMD(ecc_ansi_x963_import_cmd) //<<<
+{
+	int						code = TCL_OK;
+	ecc_key*				key = NULL;
+	int						key_initialized = 0;
+	const ltc_ecc_curve*	curve = NULL;
+
+	enum {A_cmd, A_DER, A_args, A_objc};
+	const int A_CURVE = A_args;
+	CHECK_RANGE_ARGS_LABEL(finally, code, "der ?curve?");
+
+	// Get the DER bytes
+	int derlen;
+	const uint8_t* der = Tcl_GetBytesFromObj(interp, objv[A_DER], &derlen);
+	if (der == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Allocate and initialize the key structure
+	key = ckalloc(sizeof(*key));
+	*key = (ecc_key){0};
+
+	if (objc > A_CURVE) {
+		// If curve is specified, get it
+		TEST_OK_LABEL(finally, code, GetECCCurveFromObj(interp, objv[A_CURVE], &curve));
+		if (curve == NULL) {
+			Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "CURVE", NULL);
+			THROW_ERROR_LABEL(finally, code, "curve is NULL");
+		}
+	} else {
+		// Try to infer the curve from the key size (only works for uncompressed keys)
+		int err;
+		switch (derlen) {
+			case (112/8)*2+1: err = ecc_find_curve("secp112r1", &curve); break;
+			case (128/8)*2+1: err = ecc_find_curve("secp128r1", &curve); break;
+			case (160/8)*2+1: err = ecc_find_curve("secp160r1", &curve); break;
+			case (192/8)*2+1: err = ecc_find_curve("secp192r1", &curve); break;
+			case (224/8)*2+1: err = ecc_find_curve("secp224r1", &curve); break;
+			case (256/8)*2+1: err = ecc_find_curve("secp256r1", &curve); break;
+			case (384/8)*2+1: err = ecc_find_curve("secp384r1", &curve); break;
+			case ((521+7)/8)*2+1: err = ecc_find_curve("secp521r1", &curve); break;
+			default: THROW_PRINTF_LABEL(finally, code, "Cannot infer curve from key size %d; please specify the curve", derlen);
+		}
+		if (err != CRYPT_OK) THROW_ERROR_LABEL(finally, code, "ecc_find_curve failed");
 	}
-	replace_tclobj(&pubkey, Tcl_NewByteArrayObj(pubbuf, pubbuflen));
 
-	// Create result list
-	replace_tclobj(&res, Tcl_NewListObj(2, NULL));
-	TEST_OK_LABEL(finally, code, Tcl_ListObjAppendElement(interp, res, privkey));
-	TEST_OK_LABEL(finally, code, Tcl_ListObjAppendElement(interp, res, pubkey));
+	if (ecc_set_curve(curve, key) != CRYPT_OK)
+		THROW_ERROR_LABEL(finally, code, "ecc_set_curve failed");
+	key_initialized = 1;
 
+	// Import the key
+	int err;
+	if ((err = ecc_set_key(der, derlen, PK_PUBLIC, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "IMPORT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_ansi_x963_import failed: %s", error_to_string(err));
+	}
+
+	// Return the key object
+	Tcl_SetObjResult(interp, NewECCKeyObj(&key));
+
+finally:
+	if (key) {
+		if (key_initialized) ecc_free(key);
+		ckfree(key);
+		key = NULL;
+	}
+	return code;
+}
+
+//>>>
+OBJCMD(ecc_ansi_x963_export_cmd) //<<<
+{
+	int			code = TCL_OK;
+	ecc_key*	key = NULL;
+	Tcl_Obj*	res = NULL;
+
+	enum {A_cmd, A_KEY, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "key");
+
+	// Get the key
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_KEY], ECC_EXPECT_PUBLIC, &key));
+
+	// Allocate buffer for the DER bytes
+	unsigned long derlen = 256;  // Start with reasonable size
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, derlen));
+	uint8_t*	der = Tcl_GetByteArrayFromObj(res, NULL);
+
+	// Export the key
+	int err;
+	if ((err = ecc_get_key(der, &derlen, PK_PUBLIC, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "EXPORT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_get_key failed: %s", error_to_string(err));
+	}
+
+	// Adjust the byte array length to match the actual DER size
+	Tcl_SetByteArrayLength(res, derlen);
 	Tcl_SetObjResult(interp, res);
 
 finally:
-	if (key_initialized) 
-		ecc_free(&key);
 	replace_tclobj(&res, NULL);
-	replace_tclobj(&privkey, NULL);
-	replace_tclobj(&pubkey, NULL);
 	return code;
 }
 
@@ -374,7 +508,7 @@ OBJCMD(ecc_sign_cmd) //<<<
 {
 	int			code = TCL_OK;
 	ecc_key*	key = NULL;
-	prng_state	prng = {0};
+	prng_state*	prng = NULL;
 	int			desc_idx;
 	Tcl_Obj*	res = NULL;
 
@@ -400,7 +534,7 @@ OBJCMD(ecc_sign_cmd) //<<<
 		TEST_OK_LABEL(finally, code, GetPrngFromObj(interp, objv[A_PRNG], &prng, &desc_idx));
 	} else {
 		// Use system PRNG
-		desc_idx = find_prng("sprng");
+		desc_idx = g_sprng;
 	}
 
 	// Allocate signature buffer - start with a reasonable size
@@ -410,13 +544,55 @@ OBJCMD(ecc_sign_cmd) //<<<
 
 	// Sign the message
 	int err;
-	if ((err = ecc_sign_hash(msg, msglen, sig, &siglen, objc > A_PRNG ? &prng : NULL, desc_idx, key)) != CRYPT_OK) {
+	if ((err = ecc_sign_hash(msg, msglen, sig, &siglen, objc > A_PRNG ? prng : NULL, desc_idx, key)) != CRYPT_OK) {
 		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "SIGN", NULL);
 		THROW_PRINTF_LABEL(finally, code, "ecc_sign_hash failed: %s", error_to_string(err));
 	}
 
 	// Adjust the byte array length to match the actual signature size
 	Tcl_SetByteArrayLength(res, siglen);
+	Tcl_SetObjResult(interp, res);
+
+finally:
+	replace_tclobj(&res, NULL);
+	return code;
+}
+
+//>>>
+OBJCMD(ecc_shared_secret_cmd) //<<<
+{
+	int			code = TCL_OK;
+	ecc_key*	private_key = NULL;
+	ecc_key*	public_key = NULL;
+	Tcl_Obj*	res = NULL;
+
+	enum {A_cmd, A_PRIVKEY, A_PUBKEY, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "privkey pubkey");
+
+	// Get the private key
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_PRIVKEY], ECC_EXPECT_PRIVATE, &private_key));
+	if (private_key->type != PK_PRIVATE) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "KEY", "TYPE", NULL);
+		THROW_ERROR_LABEL(finally, code, "privkey is not a private key");
+	}
+
+	// Get the public key
+	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_PUBKEY], ECC_EXPECT_PUBLIC, &public_key));
+
+	// Allocate buffer for shared secret - it will be the size of the prime
+	unsigned long outlen = 256;  // Start with reasonable size
+	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, outlen));
+	unsigned char* out = Tcl_GetByteArrayFromObj(res, NULL);
+
+	// Compute the shared secret
+	int err;
+	if ((err = ecc_shared_secret(private_key, public_key, out, &outlen)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "SHARED_SECRET", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_shared_secret failed: %s", error_to_string(err));
+	}
+
+	// Adjust the byte array length to match the actual shared secret size
+	Tcl_SetByteArrayLength(res, outlen);
 	Tcl_SetObjResult(interp, res);
 
 finally:
@@ -461,7 +637,7 @@ OBJCMD(rsa_make_key_cmd) //<<<
 	int			code = TCL_OK;
 	rsa_key*	key = NULL;
 	int			key_initialized = 0;
-	prng_state	prng = {0};
+	prng_state*	prng = NULL;
 	int			prng_desc_idx = -1;
 	int			keysize = 2048;
 	long		exponent = 65537;
@@ -519,14 +695,14 @@ OBJCMD(rsa_make_key_cmd) //<<<
 
 	if (prng_desc_idx == -1) {
 		// Use system PRNG
-		prng_desc_idx = find_prng("sprng");
+		prng_desc_idx = g_sprng;
 	}
 
 	// Generate the key
 	key = ckalloc(sizeof(*key));
 	*key = (rsa_key){0};
 	int err;
-	if ((err = rsa_make_key(prng_desc_idx != -1 ? &prng : NULL, prng_desc_idx, keysize/8, exponent, key)) != CRYPT_OK) {
+	if ((err = rsa_make_key(prng_desc_idx != -1 ? prng : NULL, prng_desc_idx, keysize/8, exponent, key)) != CRYPT_OK) {
 		Tcl_SetErrorCode(interp, "TOMCRYPT", "RSA", "GENERATE", NULL);
 		THROW_PRINTF_LABEL(finally, code, "rsa_make_key failed: %s", error_to_string(err));
 	}
@@ -585,7 +761,7 @@ OBJCMD(rsa_sign_hash_cmd) //<<<
 {
 	int						code = TCL_OK;
 	rsa_key*				key = NULL;
-	prng_state				prng = {0};
+	prng_state*				prng = NULL;
 	int						prng_desc_idx = -1;
 	Tcl_Obj*				res = NULL;
 	const unsigned char*	in = NULL;
@@ -691,7 +867,7 @@ OBJCMD(rsa_sign_hash_cmd) //<<<
 		THROW_ERROR_LABEL(finally, code, "-prng only applies to pss padding");
 	} else if (prng_desc_idx == -1) {
 		// Use system PRNG
-		prng_desc_idx = find_prng("sprng");
+		prng_desc_idx = g_sprng;
 	}
 
 	if (padding == LTC_PKCS_1_V1_5_NA1 && hash_idx != -1) {
@@ -711,7 +887,7 @@ OBJCMD(rsa_sign_hash_cmd) //<<<
 	unsigned char* sig = Tcl_GetByteArrayFromObj(res, NULL);
 
 	int err;
-	if ((err = rsa_sign_hash_ex(in, inlen, sig, &siglen, padding, &prng, prng_desc_idx, hash_idx, saltlen, key)) != CRYPT_OK) {
+	if ((err = rsa_sign_hash_ex(in, inlen, sig, &siglen, padding, prng, prng_desc_idx, hash_idx, saltlen, key)) != CRYPT_OK) {
 		Tcl_SetErrorCode(interp, "TOMCRYPT", "RSA", "SIGN", NULL);
 		THROW_PRINTF_LABEL(finally, code, "rsa_sign_hash_ex failed: %s", error_to_string(err));
 	}
@@ -862,7 +1038,7 @@ OBJCMD(rsa_encrypt_key_cmd) //<<<
 {
 	int						code = TCL_OK;
 	rsa_key*				key = NULL;
-	prng_state				prng = {0};
+	prng_state*				prng = NULL;
 	int						prng_desc_idx = -1;
 	Tcl_Obj*				res = NULL;
 	const unsigned char*	msg = NULL;
@@ -963,7 +1139,7 @@ OBJCMD(rsa_encrypt_key_cmd) //<<<
 
 	if (prng_desc_idx == -1) {
 		// Use system PRNG
-		prng_desc_idx = find_prng("sprng");
+		prng_desc_idx = g_sprng;
 	}
 
 	// Allocate output buffer
@@ -974,7 +1150,7 @@ OBJCMD(rsa_encrypt_key_cmd) //<<<
 	int err;
 	if ((err = rsa_encrypt_key_ex(msg, msglen, out, &outlen, 
 						 lparamlen > 0 ? lparam : NULL, lparamlen,
-						 prng_desc_idx != -1 ? &prng : NULL, prng_desc_idx, hash_idx, hash_idx, padding, key)) != CRYPT_OK) {
+						 prng_desc_idx != -1 ? prng : NULL, prng_desc_idx, hash_idx, hash_idx, padding, key)) != CRYPT_OK) {
 		Tcl_SetErrorCode(interp, "TOMCRYPT", "RSA", "ENCRYPT", NULL);
 		THROW_PRINTF_LABEL(finally, code, "rsa_encrypt_key_ex failed: %s", error_to_string(err));
 	}
@@ -1270,6 +1446,25 @@ finally:
 }
 
 //>>>
+OBJCMD(getECCCurveFromObj) // Test GetECCCurveFromObj conversion <<<
+{
+	int						code = TCL_OK;
+	const ltc_ecc_curve*	curve = NULL;
+
+	enum {A_cmd, A_CURVE, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "curve_identifier");
+
+	TEST_OK_LABEL(finally, code, GetECCCurveFromObj(interp, objv[A_CURVE], &curve));
+
+	// Return the curve's OID or prime as confirmation
+	const char* str = (curve->OID && curve->OID[0]) ? curve->OID : curve->prime;
+	Tcl_SetObjResult(interp, Tcl_NewStringObj(str, -1));
+
+finally:
+	return code;
+}
+
+//>>>
 #endif
 
 static struct cmd {
@@ -1280,9 +1475,13 @@ static struct cmd {
 	{NS "::hash",							hash_cmd,				NULL},
 	{NS "::hmac",							hmac_cmd,				NULL},
 	{NS "::hkdf",							hkdf_cmd,				NULL},
-	{NS "::ecc_make_key",					ecc_make_key_cmd,		NULL},
+	{NS "::ecc_generate_key",				ecc_generate_key_cmd,	NULL},
+	{NS "::ecc_extract_pubkey",				ecc_extract_pubkey_cmd,	NULL},
+	{NS "::ecc_ansi_x963_import",			ecc_ansi_x963_import_cmd,	NULL},
+	{NS "::ecc_ansi_x963_export",			ecc_ansi_x963_export_cmd,	NULL},
 	{NS "::ecc_verify",						ecc_verify,				NULL},
 	{NS "::ecc_sign",						ecc_sign_cmd,			NULL},
+	{NS "::ecc_shared_secret",				ecc_shared_secret_cmd,	NULL},
 	{NS "::rsa_make_key",					rsa_make_key_cmd,		NULL},
 	{NS "::rsa_extract_pubkey",				rsa_extract_pubkey_cmd, NULL},
 	{NS "::rsa_sign_hash",					rsa_sign_hash_cmd,		NULL},
@@ -1292,6 +1491,7 @@ static struct cmd {
 	{NS "::rng_bytes",						rng_bytes,				NULL},
 	{NS "::encrypt",						cipher_encrypt_cmd,		NULL},
 	{NS "::decrypt",						cipher_decrypt_cmd,		NULL},
+	{NS "::aead",							aead_cmd,				NULL},
 	{NS "::base64url",						base64url_cmd,			NULL},
 #if TESTMODE
 	{NS "::_testmode_hasGetBytesFromObj",	hasGetBytesFromObj,		NULL},
@@ -1300,6 +1500,7 @@ static struct cmd {
 	{NS "::_testmode_dupObj",				dupObj,					NULL},
 	{NS "::_testmode_refCount",				refCount,				NULL},
 	{NS "::_testmode_doubleMantissaHist",	doubleMatissaHist,		NULL},
+	{NS "::_testmode_getECCCurveFromObj",	getECCCurveFromObj,		NULL},
 #endif
 	{0}
 };
@@ -1331,6 +1532,8 @@ DLLEXPORT int Tomcrypt_Init(Tcl_Interp* interp) //<<<
 #elif defined(USE_GMP)
 		ltc_mp = gmp_desc;
 #endif
+
+		g_sprng = find_prng("sprng");
 
 		g_register_init = 1;
 	}

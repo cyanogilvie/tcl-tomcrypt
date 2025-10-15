@@ -19,7 +19,7 @@ dnl	to configure the system for the local environment.
 # so that we create the export library with the dll.
 #-----------------------------------------------------------------------
 
-AC_INIT([tomcrypt], [0.7.4])
+AC_INIT([tomcrypt], [0.8.0])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -76,7 +76,7 @@ ENABLE_TESTMODE
 # and PKG_TCL_SOURCES.
 #-----------------------------------------------------------------------
 
-TEABASE_ADD_SOURCES([tomcrypt.c lexers/pem.c type_ecc_key.c type_rsa_key.c prng_class.c type_cipher_spec.c cipher.c])
+TEABASE_ADD_SOURCES([tomcrypt.c lexers/pem.c type_ecc_key.c type_ecc_curve.c type_rsa_key.c prng_class.c type_cipher_spec.c cipher.c aead.c])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([-Igeneric -Ilocal/include])
 #TEA_ADD_LIBS([-Llocal/lib -ltomcrypt -ltommath -ltfm -lm])

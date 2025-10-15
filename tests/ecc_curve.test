@@ -1,0 +1,140 @@
+source [file join [file dirname [info script]] common.tcl]
+
+test ecc_curve-1.1 {lookup curve by name - secp256r1} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_getECCCurveFromObj secp256r1
+} -result {1.2.840.10045.3.1.7}
+#>>>
+test ecc_curve-1.1.1 {lookup curve by name - prime256v1} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_getECCCurveFromObj prime256v1
+} -result {1.2.840.10045.3.1.7}
+#>>>
+test ecc_curve-1.1.2 {lookup curve by name - nistp256} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_getECCCurveFromObj nistp256
+} -result {1.2.840.10045.3.1.7}
+#>>>
+test ecc_curve-1.1.3 {lookup curve by name - P-256} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_getECCCurveFromObj P-256
+} -result {1.2.840.10045.3.1.7}
+#>>>
+test ecc_curve-1.2 {lookup curve by name - secp256k1} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_getECCCurveFromObj secp256k1
+} -result {1.3.132.0.10}
+#>>>
+test ecc_curve-1.3 {lookup curve by name - secp384r1} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_getECCCurveFromObj secp384r1
+} -result {1.3.132.0.34}
+#>>>
+test ecc_curve-2.1 {lookup curve by OID - secp256r1} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_getECCCurveFromObj 1.2.840.10045.3.1.7
+} -result {1.2.840.10045.3.1.7}
+#>>>
+test ecc_curve-2.2 {lookup curve by OID - secp256k1} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_getECCCurveFromObj 1.3.132.0.10
+} -result {1.3.132.0.10}
+#>>>
+test ecc_curve-3.1 {lookup curve caching - same object} -constraints testMode -body { #<<<
+	set name	secp256r1
+	set curve1 [tomcrypt::_testmode_getECCCurveFromObj $name]
+	set curve2 [tomcrypt::_testmode_getECCCurveFromObj $name]
+	expr {$curve1 eq $curve2}
+} -cleanup {
+	unset -nocomplain name curve1 curve2
+} -result 1
+#>>>
+test ecc_curve-4.1 {invalid curve name} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_getECCCurveFromObj invalid_curve_name
+} -returnCodes error -errorCode {TOMCRYPT ECC CURVE NOT_FOUND} -result {Unknown ECC curve: "invalid_curve_name"}
+#>>>
+test ecc_curve-4.2 {invalid OID} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_getECCCurveFromObj 1.2.3.4.5.6.7.8.9
+} -returnCodes error -errorCode {TOMCRYPT ECC CURVE NOT_FOUND} -result {Unknown ECC curve: "1.2.3.4.5.6.7.8.9"}
+#>>>
+test ecc_curve-5.1 {wrong # args: too few} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_getECCCurveFromObj
+} -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::_testmode_getECCCurveFromObj curve_identifier"}
+#>>>
+test ecc_curve-5.2 {wrong # args: too many} -constraints testMode -body { #<<<
+	tomcrypt::_testmode_getECCCurveFromObj secp256r1 extra
+} -returnCodes error -errorCode {TCL WRONGARGS} -result {wrong # args: should be "tomcrypt::_testmode_getECCCurveFromObj curve_identifier"}
+#>>>
+test ecc_curve-6.1 {custom curve from dict - with OID} -constraints testMode -body { #<<<
+	set custom_curve {
+		prime		FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+		A			0000000000000000000000000000000000000000000000000000000000000000
+		B			0000000000000000000000000000000000000000000000000000000000000007
+		order		FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+		Gx			79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+		Gy			483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
+		cofactor	1
+		OID			2.23.43.1.4.8
+	}
+	tomcrypt::_testmode_getECCCurveFromObj $custom_curve
+} -cleanup {
+	unset -nocomplain custom_curve
+} -result 2.23.43.1.4.8
+#>>>
+test ecc_curve-6.2 {custom curve from dict - without OID} -constraints testMode -body { #<<<
+	set custom_curve {
+		prime		FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+		A			0000000000000000000000000000000000000000000000000000000000000000
+		B			0000000000000000000000000000000000000000000000000000000000000007
+		order		FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+		Gx			79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+		Gy			483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
+		cofactor	1
+	}
+	tomcrypt::_testmode_getECCCurveFromObj $custom_curve
+} -cleanup {
+	unset -nocomplain custom_curve
+} -result FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+#>>>
+test ecc_curve-6.3 {custom curve - missing required field} -constraints testMode -body { #<<<
+	set custom_curve {
+		prime	FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+		A		0000000000000000000000000000000000000000000000000000000000000000
+		B		0000000000000000000000000000000000000000000000000000000000000007
+		order	FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+		Gx		79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+	}
+	tomcrypt::_testmode_getECCCurveFromObj $custom_curve
+} -cleanup {
+	unset -nocomplain custom_curve
+} -returnCodes error -errorCode {TOMCRYPT ECC CURVE MISSING_FIELD} -result {Missing required field 'Gy' in custom curve dict}
+#>>>
+test ecc_curve-6.4 {custom curve - default cofactor} -constraints testMode -body { #<<<
+	set custom_curve {
+		prime	FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+		A		0000000000000000000000000000000000000000000000000000000000000000
+		B		0000000000000000000000000000000000000000000000000000000000000007
+		order	FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+		Gx		79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+		Gy		483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
+		OID		2.23.43.1.4.8
+	}
+	tomcrypt::_testmode_getECCCurveFromObj $custom_curve
+} -cleanup {
+	unset -nocomplain custom_curve
+} -result 2.23.43.1.4.8
+#>>>
+test ecc_curve-6.5 {custom curve - invalid cofactor} -constraints testMode -body { #<<<
+	set custom_curve {
+		prime		FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+		A			0000000000000000000000000000000000000000000000000000000000000000
+		B			0000000000000000000000000000000000000000000000000000000000000007
+		order		FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+		Gx			79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+		Gy			483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
+		OID			2.23.43.1.4.8
+		cofactor	invalid
+	}
+	tomcrypt::_testmode_getECCCurveFromObj $custom_curve
+} -cleanup {
+	unset -nocomplain custom_curve
+} -returnCodes error -result {expected integer but got "invalid"} -errorCode {TCL VALUE NUMBER}
+#>>>
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4

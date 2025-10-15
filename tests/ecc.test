@@ -11,79 +11,315 @@ test ecc-2.1 {ecc_verify, fail} -body { #<<<
 	tomcrypt::ecc_verify \
 		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
 		[binary decode hex 51091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
-		[string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
+		[tomcrypt::ecc_ansi_x963_import [string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]]
 } -result 0
 #>>>
 
-test ecc-format-1.0 "Valid X9.63 public key import" -setup { #<<<
-    set pubkey [binary decode base64 "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A=="]
+test ecc-format-1.0 {Valid X9.63 public key import} -setup { #<<<
+    set pubkey [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==]
 } -body {
     tomcrypt::ecc_verify \
-        [binary decode base64 "MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo="] \
-        [binary decode hex "41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda"] \
+        [binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
+        [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
         [string range $pubkey 26 end]
 } -cleanup {
 	unset -nocomplain pubkey
 } -result 1
 #>>>
-test ecc-format-1.1 "Invalid X9.63 public key format" -setup { #<<<
+test ecc-format-1.1 {Invalid X9.63 public key format} -setup { #<<<
     # Corrupted first byte (should be 0x04)
-    set pubkey [binary decode base64 "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAFbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A=="]
+    set pubkey [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAFbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==]
 } -body {
-    tomcrypt::ecc_verify "" "" [string range $pubkey 26 end]
+    tomcrypt::ecc_verify {} {} [string range $pubkey 26 end]
 } -cleanup {
 	unset -nocomplain pubkey
-} -returnCodes error -result "Invalid X9.63 format key"
+} -returnCodes error -result {Invalid ECC key format}
 #>>>
-test ecc-format-2.0 "Valid private key import" -setup { #<<<
+test ecc-format-2.0 {Valid private key import} -setup { #<<<
     # Generate a test key pair first
     tomcrypt::prng create rng fortuna
-    lassign [tomcrypt::ecc_make_key rng 32] privkey pubkey
+    set key [tomcrypt::ecc_generate_key secp256r1 rng]
 
     # Now verify we can use it for signing
-    set msg [binary decode hex "0123456789abcdef"]
+    set msg [binary decode hex 0123456789abcdef]
 } -body {
-    set sig [tomcrypt::ecc_sign $privkey $msg]
-    tomcrypt::ecc_verify $sig $msg $pubkey
+    set sig [tomcrypt::ecc_sign $key $msg]
+    tomcrypt::ecc_verify $sig $msg $key
 } -cleanup {
-	unset -nocomplain privkey pubkey msg sig
+	unset -nocomplain key msg sig
 	catch {rename rng {}}
 } -result 1
 #>>>
-test ecc-format-2.1 "Invalid private key format" -setup { #<<<
+test ecc-format-2.1 {Invalid private key format} -setup { #<<<
     tomcrypt::prng create rng fortuna
-    lassign [tomcrypt::ecc_make_key rng 32] privkey pubkey
+	set privkey	[tomcrypt::ecc_generate_key secp256r1 rng]
+	set pubkey	[tomcrypt::ecc_extract_pubkey $privkey]
     # Modify the private key flag in the DER structure
     binary scan $privkey H* hex
-    set corrupted_hex [string replace $hex 8 11 "0700"]
+    set corrupted_hex [string replace $hex 8 11 0700]
     set corrupted_key [binary format H* $corrupted_hex]
 } -body {
-    tomcrypt::ecc_sign $corrupted_key "test"
+    tomcrypt::ecc_sign $corrupted_key test
 } -cleanup {
     unset -nocomplain privkey pubkey hex corrupted_hex corrupted_key
     catch {rename rng {}}
-} -returnCodes error -result "Invalid private key format"
+} -returnCodes error -result "Invalid ECC key format"
 #>>>
-test ecc-format-3.0 "Completely invalid key format" -body { #<<<
-    tomcrypt::ecc_sign "not a key at all" "test"
-} -returnCodes error -result {Invalid private key format}
+test ecc-format-3.0 {Completely invalid key format} -body { #<<<
+    tomcrypt::ecc_sign {not a key at all} test
+} -returnCodes error -result {Invalid ECC key format}
 #>>>
-test ecc-format-4.0 "Key pair round trip" -setup { #<<<
-    # Test that a generated key pair works for sign/verify
-    tomcrypt::prng create rng fortuna
-    lassign [tomcrypt::ecc_make_key rng 32] privkey pubkey
-    set msg "test message"
+test ecc-format-4.0 {Key pair round trip} -setup { #<<<
+	# Test that a generated key pair works for sign/verify
+	tomcrypt::prng create rng fortuna
+	set privkey [tomcrypt::ecc_generate_key secp256r1 rng]
+	set pubkey	[tomcrypt::ecc_extract_pubkey $privkey]
+	set msg		{test message}
 } -body {
-    set sig [tomcrypt::ecc_sign $privkey $msg]
-    tomcrypt::ecc_verify $sig $msg $pubkey
+	set sig [tomcrypt::ecc_sign $privkey $msg]
+	tomcrypt::ecc_verify $sig $msg $pubkey
 } -cleanup {
-	unset -nocomplain privkey pubkey msg sig
+	unset -nocomplain privkey pubkey sig msg
 	catch {rename rng {}}
 } -result 1
 #>>>
 
+# ANSI X9.63 import/export tests
+test ecc-x963-1.1 {ecc_ansi_x963_export: basic export from generated key} -setup { #<<<
+	tomcrypt::prng create rng fortuna
+	set privkey [tomcrypt::ecc_generate_key secp256r1 rng]
+	set pubkey [tomcrypt::ecc_extract_pubkey $privkey]
+} -body {
+	set x963_bytes [tomcrypt::ecc_ansi_x963_export $pubkey]
+	# For secp256r1, should be 65 bytes: 0x04 + 32 bytes x + 32 bytes y
+	list [string length $x963_bytes] [binary scan $x963_bytes H2 first_byte; set first_byte]
+} -cleanup {
+	unset -nocomplain privkey pubkey x963_bytes first_byte
+	catch {rename rng {}}
+} -result {65 04}
+#>>>
+test ecc-x963-1.2 {ecc_ansi_x963_export: can export from private key} -setup { #<<<
+	tomcrypt::prng create rng fortuna
+	set privkey [tomcrypt::ecc_generate_key secp256r1 rng]
+} -body {
+	set x963_bytes [tomcrypt::ecc_ansi_x963_export $privkey]
+	# Should work even with private key
+	list [string length $x963_bytes] [binary scan $x963_bytes H2 first_byte; set first_byte]
+} -cleanup {
+	unset -nocomplain privkey x963_bytes first_byte
+	catch {rename rng {}}
+} -result {65 04}
+#>>>
+test ecc-x963-1.3 {ecc_ansi_x963_export: known test vector} -setup { #<<<
+	# Use a known public key
+	set pubkey [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==]
+} -body {
+	set x963_bytes [tomcrypt::ecc_ansi_x963_export $pubkey]
+	binary encode hex $x963_bytes
+} -cleanup {
+	unset -nocomplain pubkey x963_bytes
+} -result {046ddc90ba0fd79c53bd70060192211631d11ec581302e91c3559df4b20cdf747dbd8785a28c30b766e6b43325749ef70a923d0077fbc53cbcbb210de147c540e0}
+#>>>
+test ecc-x963-1.4 {ecc_ansi_x963_export: too few args} -body { #<<<
+	tomcrypt::ecc_ansi_x963_export
+} -result {wrong # args: should be "tomcrypt::ecc_ansi_x963_export key"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test ecc-x963-1.5 {ecc_ansi_x963_export: too many args} -body { #<<<
+	tomcrypt::ecc_ansi_x963_export a b
+} -result {wrong # args: should be "tomcrypt::ecc_ansi_x963_export key"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test ecc-x963-1.6 {ecc_ansi_x963_export: invalid key} -body { #<<<
+	tomcrypt::ecc_ansi_x963_export notakey
+} -result {Invalid ECC key format} -returnCodes error
+#>>>
+
+test ecc-x963-2.1 {ecc_ansi_x963_import: basic import without curve} -setup { #<<<
+	# Known X9.63 format public key (uncompressed, 0x04 prefix)
+	set x963_bytes [binary decode hex 046ddc90ba0fd79c53bd70060192211631d11ec581302e91c3559df4b20cdf747dbd8785a28c30b766e6b43325749ef70a923d0077fbc53cbcbb210de147c540e0]
+	set msg [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+	set sig [binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=]
+} -body {
+	set imported_key [tomcrypt::ecc_ansi_x963_import $x963_bytes]
+	tomcrypt::ecc_verify $sig $msg $imported_key
+} -cleanup {
+	unset -nocomplain x963_bytes msg sig imported_key
+} -result 1
+#>>>
+test ecc-x963-2.2 {ecc_ansi_x963_import: import with explicit curve} -setup { #<<<
+	set x963_bytes [binary decode hex 046ddc90ba0fd79c53bd70060192211631d11ec581302e91c3559df4b20cdf747dbd8785a28c30b766e6b43325749ef70a923d0077fbc53cbcbb210de147c540e0]
+	set msg [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+	set sig [binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=]
+} -body {
+	set imported_key [tomcrypt::ecc_ansi_x963_import $x963_bytes secp256r1]
+	tomcrypt::ecc_verify $sig $msg $imported_key
+} -cleanup {
+	unset -nocomplain x963_bytes msg sig imported_key
+} -result 1
+#>>>
+test ecc-x963-2.3 {ecc_ansi_x963_import: import with curve alias} -setup { #<<<
+	set x963_bytes [binary decode hex 046ddc90ba0fd79c53bd70060192211631d11ec581302e91c3559df4b20cdf747dbd8785a28c30b766e6b43325749ef70a923d0077fbc53cbcbb210de147c540e0]
+	set msg [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+	set sig [binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=]
+} -body {
+	set imported_key [tomcrypt::ecc_ansi_x963_import $x963_bytes P-256]
+	tomcrypt::ecc_verify $sig $msg $imported_key
+} -cleanup {
+	unset -nocomplain x963_bytes msg sig imported_key
+} -result 1
+#>>>
+test ecc-x963-2.4 {ecc_ansi_x963_import: import with curve OID} -setup { #<<<
+	set x963_bytes [binary decode hex 046ddc90ba0fd79c53bd70060192211631d11ec581302e91c3559df4b20cdf747dbd8785a28c30b766e6b43325749ef70a923d0077fbc53cbcbb210de147c540e0]
+	set msg [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+	set sig [binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=]
+} -body {
+	# secp256r1 OID is 1.2.840.10045.3.1.7
+	set imported_key [tomcrypt::ecc_ansi_x963_import $x963_bytes 1.2.840.10045.3.1.7]
+	tomcrypt::ecc_verify $sig $msg $imported_key
+} -cleanup {
+	unset -nocomplain x963_bytes msg sig imported_key
+} -result 1
+#>>>
+test ecc-x963-2.5 {ecc_ansi_x963_import: too few args} -body { #<<<
+	tomcrypt::ecc_ansi_x963_import
+} -result {wrong # args: should be "tomcrypt::ecc_ansi_x963_import der ?curve?"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test ecc-x963-2.6 {ecc_ansi_x963_import: too many args} -body { #<<<
+	tomcrypt::ecc_ansi_x963_import a b c
+} -result {wrong # args: should be "tomcrypt::ecc_ansi_x963_import der ?curve?"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test ecc-x963-2.7 {ecc_ansi_x963_import: invalid X9.63 format (bad prefix)} -body { #<<<
+	# Change first byte from 0x04 to 0x05 (invalid)
+	set bad_bytes [binary decode hex 056ddc90ba0fd79c53bd70060192211631d11ec581302e91c3559df4b20cdf747dbd8785a28c30b766e6b43325749ef70a923d0077fbc53cbcbb210de147c540e0]
+	tomcrypt::ecc_ansi_x963_import $bad_bytes
+} -cleanup {
+	unset -nocomplain bad_bytes
+} -returnCodes error -match glob -result {ecc_ansi_x963_import failed:*}
+#>>>
+test ecc-x963-2.8 {ecc_ansi_x963_import: invalid X9.63 format (truncated)} -body { #<<<
+	# Only 32 bytes instead of 65
+	set bad_bytes [binary decode hex 046ddc90ba0fd79c53bd70060192211631d11ec581302e91c3559df4b20cdf74]
+	tomcrypt::ecc_ansi_x963_import $bad_bytes
+} -cleanup {
+	unset -nocomplain bad_bytes
+} -returnCodes error -result {Cannot infer curve from key size 32; please specify the curve}
+#>>>
+test ecc-x963-2.9 {ecc_ansi_x963_import: invalid X9.63 format (not bytes)} -body { #<<<
+	tomcrypt::ecc_ansi_x963_import \u306f
+} -result "expected byte sequence but character 0 was '\u306f' (U+00306F)" -returnCodes error -errorCode {TCL VALUE BYTES}
+#>>>
+test ecc-x963-2.10 {ecc_ansi_x963_import: invalid curve name} -setup { #<<<
+	set x963_bytes [binary decode hex 046ddc90ba0fd79c53bd70060192211631d11ec581302e91c3559df4b20cdf747dbd8785a28c30b766e6b43325749ef70a923d0077fbc53cbcbb210de147c540e0]
+} -body {
+	tomcrypt::ecc_ansi_x963_import $x963_bytes invalid_curve_name
+} -cleanup {
+	unset -nocomplain x963_bytes
+} -result {Unknown ECC curve: "invalid_curve_name"} -returnCodes error -errorCode {TOMCRYPT ECC CURVE NOT_FOUND}
+#>>>
+
+test ecc-x963-3.1 {Round trip: export then import} -setup { #<<<
+	tomcrypt::prng create rng fortuna
+	set privkey [tomcrypt::ecc_generate_key secp256r1 rng]
+	set pubkey [tomcrypt::ecc_extract_pubkey $privkey]
+	set msg {test message for round trip}
+} -body {
+	# Export to X9.63 format
+	set x963_bytes [tomcrypt::ecc_ansi_x963_export $pubkey]
+	# Import it back
+	set imported_key [tomcrypt::ecc_ansi_x963_import $x963_bytes]
+	# Verify a signature with both keys
+	set sig [tomcrypt::ecc_sign $privkey $msg]
+	list \
+		[tomcrypt::ecc_verify $sig $msg $pubkey] \
+		[tomcrypt::ecc_verify $sig $msg $imported_key]
+} -cleanup {
+	unset -nocomplain privkey pubkey msg x963_bytes imported_key sig
+	catch {rename rng {}}
+} -result {1 1}
+#>>>
+test ecc-x963-3.2 {Round trip: export then import with curve} -setup { #<<<
+	tomcrypt::prng create rng fortuna
+	set privkey [tomcrypt::ecc_generate_key secp384r1 rng]
+	set pubkey [tomcrypt::ecc_extract_pubkey $privkey]
+	set msg {test message for secp384r1}
+} -body {
+	# Export to X9.63 format
+	set x963_bytes [tomcrypt::ecc_ansi_x963_export $pubkey]
+	# For secp384r1, should be 97 bytes: 0x04 + 48 bytes x + 48 bytes y
+	# Import it back with explicit curve
+	set imported_key [tomcrypt::ecc_ansi_x963_import $x963_bytes secp384r1]
+	# Verify a signature with both keys
+	set sig [tomcrypt::ecc_sign $privkey $msg]
+	list \
+		[string length $x963_bytes] \
+		[tomcrypt::ecc_verify $sig $msg $pubkey] \
+		[tomcrypt::ecc_verify $sig $msg $imported_key]
+} -cleanup {
+	unset -nocomplain privkey pubkey msg x963_bytes imported_key sig
+	catch {rename rng {}}
+} -result {97 1 1}
+#>>>
+test ecc-x963-3.3 {Round trip with ECDH shared secret} -setup { #<<<
+	tomcrypt::prng create rng fortuna
+	set alice_privkey [tomcrypt::ecc_generate_key secp256r1 rng]
+	set bob_privkey [tomcrypt::ecc_generate_key secp256r1 rng]
+	set bob_pubkey [tomcrypt::ecc_extract_pubkey $bob_privkey]
+} -body {
+	# Alice exports Bob's public key to X9.63
+	set bob_x963 [tomcrypt::ecc_ansi_x963_export $bob_pubkey]
+	# Alice imports it back
+	set bob_imported [tomcrypt::ecc_ansi_x963_import $bob_x963]
+	# Compute shared secrets
+	set shared1 [tomcrypt::ecc_shared_secret $alice_privkey $bob_pubkey]
+	set shared2 [tomcrypt::ecc_shared_secret $alice_privkey $bob_imported]
+	# They should be the same
+	expr {$shared1 eq $shared2}
+} -cleanup {
+	unset -nocomplain alice_privkey bob_privkey bob_pubkey bob_x963 bob_imported shared1 shared2
+	catch {rename rng {}}
+} -result 1
+#>>>
+test ecc-x963-3.4 {Import can work with existing X9.63 public keys} -setup { #<<<
+	# This is the same public key used in the verify tests, but in raw X9.63 format
+	set x963_key [string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
+} -body {
+	# The existing tests already use this format directly in ecc_verify
+	# This test shows we can also import it explicitly
+	set imported [tomcrypt::ecc_ansi_x963_import $x963_key]
+	tomcrypt::ecc_verify \
+		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
+		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
+		$imported
+} -cleanup {
+	unset -nocomplain x963_key imported
+} -result 1
+#>>>
+test ecc-x963-3.5 {Child interp} -body { #<<<
+	set child [interp create]
+	$child eval {
+		load {} tomcrypt
+		tomcrypt::prng create rng fortuna
+		set privkey [tomcrypt::ecc_generate_key secp256r1 rng]
+		set pubkey [tomcrypt::ecc_extract_pubkey $privkey]
+		# Export and import
+		set x963 [tomcrypt::ecc_ansi_x963_export $pubkey]
+		set imported [tomcrypt::ecc_ansi_x963_import $x963]
+		# Test with signature
+		set msg "test in child"
+		set sig [tomcrypt::ecc_sign $privkey $msg]
+		list \
+			[tomcrypt::ecc_verify $sig $msg $pubkey] \
+			[tomcrypt::ecc_verify $sig $msg $imported]
+	}
+} -cleanup {
+	if {[info exists child]} {
+		interp delete $child
+	}
+	unset -nocomplain child
+} -result {1 1}
+#>>>
+
 # Coverage golf:
-test ecc-10.1 {GetECCKeyFromObj, existing key intrep} -setup { #<<<
+test ecc-10.1.1 {GetECCKeyFromObj, existing key intrep} -setup { #<<<
 	set key	[string range [binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==] 26 end]
 } -body {
 	tomcrypt::ecc_verify \
@@ -98,12 +334,19 @@ test ecc-10.1 {GetECCKeyFromObj, existing key intrep} -setup { #<<<
 	unset -nocomplain key
 } -result 1
 #>>>
-test ecc-10.2 {GetECCKeyFromObj, bad key} -body { #<<<
+test ecc-10.1.2 {GetECCKeyFromObj} -body { #<<<
 	tomcrypt::ecc_verify \
 		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
 		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
 		[binary decode base64 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbdyQug/XnFO9cAYBkiEWMdEexYEwLpHDVZ30sgzfdH29h4WijDC3Zua0MyV0nvcKkj0Ad/vFPLy7IQ3hR8VA4A==]
-} -result {Invalid X9.63 format key} -returnCodes error -errorCode {TOMCRYPT FORMAT X963}
+} -result 1
+#>>>
+test ecc-10.2 {GetECCKeyFromObj, bad key} -body { #<<<
+	tomcrypt::ecc_verify \
+		[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
+		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
+		badkey
+} -result {Invalid ECC key format} -returnCodes error
 #>>>
 test ecc-10.3 {ecc_verify: too few args} -body { #<<<
 	tomcrypt::ecc_verify a b
@@ -171,98 +414,124 @@ test ecc-10.10 {child interp} -body { #<<<
 #>>>
 
 # Basic functionality
-test ecc-20.1 {ecc_make_key: basic usage} -setup { #<<<
-	tomcrypt::prng create prng fortuna
-} -body {
-	# Verify we got a two element list
-	llength [tomcrypt::ecc_make_key prng 32]
-} -cleanup {
-	rename prng {}
-} -result 2
+test ecc-20.1.1 {ecc_generate_key: basic usage with system PRNG} -body { #<<<
+	tomcrypt::ecc_generate_key secp256r1
+} -match glob -result "-----BEGIN EC PRIVATE KEY-----\n*\n-----END EC PRIVATE KEY-----\n"
 #>>>
-test ecc-20.2 {ecc_make_key: key verification} -setup { #<<<
+test ecc-20.1.2 {ecc_generate_key: basic usage with explicit PRNG} -setup { #<<<
 	tomcrypt::prng create prng fortuna
-	set msg		[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
 } -body {
-	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
-
-	# Sign with private key
-	set sig			[tomcrypt::ecc_sign $private_key $msg]
-	# Verify with public key
-	tomcrypt::ecc_verify $sig $msg $public_key
+	tomcrypt::ecc_generate_key secp256r1 prng
 } -cleanup {
-	unset -nocomplain private_key public_key msg sig
 	rename prng {}
+} -match glob -result "-----BEGIN EC PRIVATE KEY-----\n*\n-----END EC PRIVATE KEY-----\n"
+#>>>
+test ecc-20.2.1 {ecc_generate_key: Ensure unique keys are generated, system PRNG} -body { #<<<
+	expr {
+		[tomcrypt::ecc_generate_key secp256r1] eq
+		[tomcrypt::ecc_generate_key secp256r1]
+	}
+} -result 0
+#>>>
+test ecc-20.2.2 {ecc_generate_key: Ensure unique keys are generated, supplied PRNG} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+} -body {
+	expr {
+		[tomcrypt::ecc_generate_key secp256r1 prng] eq
+		[tomcrypt::ecc_generate_key secp256r1 prng]
+	}
+} -cleanup {
+	rename prng {}
+} -result 0
+#>>>
+test ecc-20.2.3 {ecc_generate_key: Ensure unique keys are generated, different supplied PRNG} -setup { #<<<
+	tomcrypt::prng create prng1 fortuna
+	tomcrypt::prng create prng2 fortuna
+} -body {
+	expr {
+		[tomcrypt::ecc_generate_key secp256r1 prng1] eq
+		[tomcrypt::ecc_generate_key secp256r1 prng2]
+	}
+} -cleanup {
+	rename prng1 {}
+	rename prng2 {}
+} -result 0
+#>>>
+test ecc-20.3 {ecc_generate_key: key can sign and verify} -setup { #<<<
+	set msg [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+} -body {
+	set key [tomcrypt::ecc_generate_key secp256r1]
+	set sig [tomcrypt::ecc_sign $key $msg]
+	tomcrypt::ecc_verify $sig $msg $key
+} -cleanup {
+	unset -nocomplain key msg sig
 } -result 1
 #>>>
-test ecc-20.3 {ecc_make_key: generated key formats} -setup { #<<<
-	tomcrypt::prng create prng fortuna
-} -body {
-	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
-
-	# Public key should start with 0x04 (uncompressed point format)
-	string index $public_key 0
+test ecc-20.4 {ecc_generate_key: different curves} -body { #<<<
+	# Test generating keys for different curves
+	set key1 [tomcrypt::ecc_generate_key secp256r1]
+	set key2 [tomcrypt::ecc_generate_key secp256k1]
+	set key3 [tomcrypt::ecc_generate_key secp384r1]
+	list [expr {[string length $key1] > 0}] [expr {[string length $key2] > 0}] [expr {[string length $key3] > 0}]
 } -cleanup {
-	unset -nocomplain private_key public_key
-	rename prng {}
-} -result \x04
+	unset -nocomplain key1 key2 key3
+} -result {1 1 1}
+#>>>
+test ecc-20.5 {ecc_generate_key: curve by OID} -body { #<<<
+	# secp256r1 OID is 1.2.840.10045.3.1.7
+	set key [tomcrypt::ecc_generate_key 1.2.840.10045.3.1.7]
+	expr {[string length $key] > 0}
+} -cleanup {
+	unset -nocomplain key
+} -result 1
+#>>>
+test ecc-20.6 {ecc_generate_key: curve by alias} -body { #<<<
+	# secp256r1 has aliases: prime256v1, nistp256, P-256
+	set key1 [tomcrypt::ecc_generate_key prime256v1]
+	set key2 [tomcrypt::ecc_generate_key nistp256]
+	set key3 [tomcrypt::ecc_generate_key P-256]
+	list [expr {[string length $key1] > 0}] [expr {[string length $key2] > 0}] [expr {[string length $key3] > 0}]
+} -cleanup {
+	unset -nocomplain key1 key2 key3
+} -result {1 1 1}
 #>>>
 # Error cases
-test ecc-20.4 {ecc_make_key: too few args} -body { #<<<
-	tomcrypt::ecc_make_key
-} -result {wrong # args: should be "tomcrypt::ecc_make_key prng keysize"} -returnCodes error -errorCode {TCL WRONGARGS}
+test ecc-20.7 {ecc_generate_key: too few args} -body { #<<<
+	tomcrypt::ecc_generate_key
+} -result {wrong # args: should be "tomcrypt::ecc_generate_key curve ?prng?"} -returnCodes error -errorCode {TCL WRONGARGS}
 #>>>
-test ecc-20.5 {ecc_make_key: too many args} -body { #<<<
-	tomcrypt::ecc_make_key a b c
-} -result {wrong # args: should be "tomcrypt::ecc_make_key prng keysize"} -returnCodes error -errorCode {TCL WRONGARGS}
+test ecc-20.8 {ecc_generate_key: too many args} -body { #<<<
+	tomcrypt::ecc_generate_key a b c
+} -result {wrong # args: should be "tomcrypt::ecc_generate_key curve ?prng?"} -returnCodes error -errorCode {TCL WRONGARGS}
 #>>>
-test ecc-20.6 {ecc_make_key: invalid prng object} -body { #<<<
-	tomcrypt::ecc_make_key not_a_prng 32
+test ecc-20.9 {ecc_generate_key: invalid curve name} -body { #<<<
+	tomcrypt::ecc_generate_key invalid_curve
+} -result {Unknown ECC curve: "invalid_curve"} -returnCodes error -errorCode {TOMCRYPT ECC CURVE NOT_FOUND}
+#>>>
+test ecc-20.10 {ecc_generate_key: invalid prng object} -body { #<<<
+	tomcrypt::ecc_generate_key secp256r1 not_a_prng
 } -result {not_a_prng does not refer to an object} -returnCodes error -errorCode {TOMCRYPT VALUE PRNG}
 #>>>
-test ecc-20.7 {ecc_make_key: negative keysize} -setup { #<<<
-	tomcrypt::prng create prng fortuna
-} -body {
-	tomcrypt::ecc_make_key prng -1
-} -cleanup {
-	rename prng {}
-} -result {keysize must be positive} -returnCodes error -errorCode {TOMCRYPT VALUE}
-#>>>
-test ecc-20.8 {ecc_make_key: zero keysize} -setup { #<<<
-	tomcrypt::prng create prng fortuna
-} -body {
-	tomcrypt::ecc_make_key prng 0
-} -cleanup {
-	rename prng {}
-} -result {keysize must be positive} -returnCodes error -errorCode {TOMCRYPT VALUE}
-#>>>
-test ecc-20.9 {ecc_make_key: keysize not an integer} -setup { #<<<
-	tomcrypt::prng create prng fortuna
-} -body {
-	tomcrypt::ecc_make_key prng badsize
-} -cleanup {
-	rename prng {}
-} -returnCodes error -errorCode {TCL VALUE NUMBER} -match glob -result *
-#>>>
 # Test with child interp for memory handling
-test ecc-20.10 {child interp} -body { #<<<
-	set child	[interp create]
+test ecc-20.11 {ecc_generate_key: child interp} -body { #<<<
+	set child [interp create]
 	$child eval {
 		load {} tomcrypt
-		tomcrypt::prng create prng fortuna
-		llength [tomcrypt::ecc_make_key prng 32]
+		set key [tomcrypt::ecc_generate_key secp256r1]
+		expr {[string length $key] > 0}
 	}
 } -cleanup {
 	if {[info exists child]} {
 		interp delete $child
 	}
 	unset -nocomplain child
-} -result 2
+} -result 1
 #>>>
 
 test ecc-30.1 {ecc_sign: basic usage with default PRNG} -setup { #<<<
 	tomcrypt::prng create prng fortuna
-	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+	set private_key	[tomcrypt::ecc_generate_key secp256r1 prng]
+	set public_key	[tomcrypt::ecc_extract_pubkey $private_key]
 	set msg	[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
 } -body {
 	set sig	[tomcrypt::ecc_sign $private_key $msg]
@@ -274,7 +543,8 @@ test ecc-30.1 {ecc_sign: basic usage with default PRNG} -setup { #<<<
 #>>>
 test ecc-30.2 {ecc_sign: basic usage with supplied PRNG} -setup { #<<<
 	tomcrypt::prng create prng fortuna
-	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+	set private_key	[tomcrypt::ecc_generate_key secp256r1 prng]
+	set public_key	[tomcrypt::ecc_extract_pubkey $private_key]
 	set msg	[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
 } -body {
 	set sig	[tomcrypt::ecc_sign $private_key $msg prng]
@@ -286,14 +556,15 @@ test ecc-30.2 {ecc_sign: basic usage with supplied PRNG} -setup { #<<<
 #>>>
 test ecc-30.3 {ecc_sign: refuse to sign with public key} -setup { #<<<
 	tomcrypt::prng create prng fortuna
-	lassign	[tomcrypt::ecc_make_key prng 32] private_key public_key
+	set private_key	[tomcrypt::ecc_generate_key secp256r1 prng]
+	set public_key	[tomcrypt::ecc_extract_pubkey $private_key]
 	set msg	[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
 } -body {
 	tomcrypt::ecc_sign $public_key $msg
 } -cleanup {
 	rename prng {}
 	unset -nocomplain private_key public_key msg
-} -result {Invalid private key format} -returnCodes error -errorCode {TOMCRYPT FORMAT PRIVATE}
+} -result {key is not a private key} -returnCodes error -errorCode {TOMCRYPT KEY TYPE}
 #>>>
 test ecc-30.4 {ecc_sign: too few args} -body { #<<<
 	tomcrypt::ecc_sign
@@ -309,11 +580,12 @@ test ecc-30.6 {ecc_sign: invalid key} -setup { #<<<
 	tomcrypt::ecc_sign notakey $msg
 } -cleanup {
 	unset -nocomplain msg
-} -result {Invalid private key format} -returnCodes error -errorCode {TOMCRYPT FORMAT PRIVATE}
+} -result {Invalid ECC key format} -returnCodes error
 #>>>
 test ecc-30.7 {ecc_sign: message not bytes} -setup { #<<<
 	tomcrypt::prng create prng fortuna
-	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+	set private_key	[tomcrypt::ecc_generate_key secp256r1 prng]
+	set public_key	[tomcrypt::ecc_extract_pubkey $private_key]
 } -body {
 	tomcrypt::ecc_sign $private_key \u306f
 } -cleanup {
@@ -323,7 +595,8 @@ test ecc-30.7 {ecc_sign: message not bytes} -setup { #<<<
 #>>>
 test ecc-30.8 {ecc_sign: invalid PRNG object} -setup { #<<<
 	tomcrypt::prng create prng fortuna
-	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+	set private_key	[tomcrypt::ecc_generate_key secp256r1 prng]
+	set public_key	[tomcrypt::ecc_extract_pubkey $private_key]
 	set msg	[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
 } -body {
 	tomcrypt::ecc_sign $private_key $msg not_a_prng
@@ -338,7 +611,8 @@ test ecc-30.9 {child interp} -body { #<<<
 	$child eval {
 		load {} tomcrypt
 		tomcrypt::prng create prng fortuna
-		lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+		set private_key	[tomcrypt::ecc_generate_key secp256r1 prng]
+		set public_key	[tomcrypt::ecc_extract_pubkey $private_key]
 		set msg	[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
 		# Test both with and without explicit PRNG
 		set sig1 [tomcrypt::ecc_sign $private_key $msg]
@@ -356,7 +630,8 @@ test ecc-30.9 {child interp} -body { #<<<
 #>>>
 test ecc-30.10 {ecc_sign: verify signature different for different messages} -setup { #<<<
 	tomcrypt::prng create prng fortuna
-	lassign [tomcrypt::ecc_make_key prng 32] private_key public_key
+	set private_key	[tomcrypt::ecc_generate_key secp256r1 prng]
+	set public_key	[tomcrypt::ecc_extract_pubkey $private_key]
 	set msg1	[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
 	set msg2	[binary decode hex 51091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
 } -body {
@@ -368,6 +643,148 @@ test ecc-30.10 {ecc_sign: verify signature different for different messages} -se
 	rename prng {}
 	unset -nocomplain private_key public_key msg1 msg2 sig1 sig2
 } -result 1
+#>>>
+
+test ecc-40.1 {ecc_shared_secret: basic usage} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	set alice_key	[tomcrypt::ecc_generate_key secp256r1 prng]
+	set bob_key		[tomcrypt::ecc_generate_key secp256r1 prng]
+} -body {
+	set alice_shared	[tomcrypt::ecc_shared_secret $alice_key [tomcrypt::ecc_extract_pubkey $bob_key]]
+	set bob_shared		[tomcrypt::ecc_shared_secret $bob_key [tomcrypt::ecc_extract_pubkey $alice_key]]
+	expr {$alice_shared eq $bob_shared}
+} -cleanup {
+	rename prng {}
+	unset -nocomplain alice_key bob_key alice_shared bob_shared
+} -result 1
+#>>>
+test ecc-40.2 {ecc_shared_secret: shared secret has expected length} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	set key1 [tomcrypt::ecc_generate_key secp256r1 prng]
+	set key2 [tomcrypt::ecc_generate_key secp256r1 prng]
+} -body {
+	set shared [tomcrypt::ecc_shared_secret $key1 [tomcrypt::ecc_extract_pubkey $key2]]
+	# For secp256r1, shared secret should be 32 bytes
+	string length $shared
+} -cleanup {
+	rename prng {}
+	unset -nocomplain key1 key2 shared
+} -result 32
+#>>>
+test ecc-40.3 {ecc_shared_secret: with ecc_generate_key} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	set alice_key	[tomcrypt::ecc_generate_key secp256r1 prng]
+	set bob_key		[tomcrypt::ecc_generate_key secp256r1 prng]
+} -body {
+	set shared [tomcrypt::ecc_shared_secret $alice_key [tomcrypt::ecc_extract_pubkey $bob_key]]
+	# Check that we got a valid shared secret (non-empty, reasonable length)
+	expr {[string length $shared] == 32}
+} -cleanup {
+	rename prng {}
+	unset -nocomplain alice_key bob_key shared
+} -result 1
+#>>>
+test ecc-40.4 {ecc_shared_secret: too few args} -body { #<<<
+	tomcrypt::ecc_shared_secret a
+} -result {wrong # args: should be "tomcrypt::ecc_shared_secret privkey pubkey"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test ecc-40.5 {ecc_shared_secret: too many args} -body { #<<<
+	tomcrypt::ecc_shared_secret a b c
+} -result {wrong # args: should be "tomcrypt::ecc_shared_secret privkey pubkey"} -returnCodes error -errorCode {TCL WRONGARGS}
+#>>>
+test ecc-40.6 {ecc_shared_secret: requires private key} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	set key1 [tomcrypt::ecc_generate_key secp256r1 prng]
+	set key2 [tomcrypt::ecc_generate_key secp256r1 prng]
+} -body {
+	# Try to use public key as private key
+	tomcrypt::ecc_shared_secret [tomcrypt::ecc_extract_pubkey $key1] $key2
+} -cleanup {
+	rename prng {}
+	unset -nocomplain key1 key2
+} -result {privkey is not a private key} -returnCodes error -errorCode {TOMCRYPT KEY TYPE}
+#>>>
+test ecc-40.7 {ecc_shared_secret: invalid private key} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	set key1 [tomcrypt::ecc_generate_key secp256r1 prng]
+} -body {
+	tomcrypt::ecc_shared_secret notakey $key1
+} -cleanup {
+	rename prng {}
+	unset -nocomplain key1
+} -result {Invalid ECC key format} -returnCodes error
+#>>>
+test ecc-40.8 {ecc_shared_secret: invalid public key} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	set key1 [tomcrypt::ecc_generate_key secp256r1 prng]
+} -body {
+	tomcrypt::ecc_shared_secret $key1 notakey
+} -cleanup {
+	rename prng {}
+	unset -nocomplain key1
+} -result {Invalid ECC key format} -returnCodes error
+#>>>
+test ecc-40.9 {ecc_shared_secret: different shared secrets for different key pairs} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	set alice_key	[tomcrypt::ecc_generate_key secp256r1 prng]
+	set bob_key		[tomcrypt::ecc_generate_key secp256r1 prng]
+	set carol_key	[tomcrypt::ecc_generate_key secp256r1 prng]
+} -body {
+	#puts stderr "bob privkey:\n$bob_key"
+	#puts stderr "carol privkey:\n$carol_key"
+	#puts stderr "bob pubkey:\n[tomcrypt::ecc_extract_pubkey $bob_key]"
+	#puts stderr "carol pubkey:\n[tomcrypt::ecc_extract_pubkey $carol_key]"
+	# Alice-Bob shared secret (alice's private, bob's public)
+	set ab_shared [tomcrypt::ecc_shared_secret $alice_key [tomcrypt::ecc_extract_pubkey $bob_key]]
+	# Alice-Carol shared secret (alice's private, carol's public)
+	set ac_shared [tomcrypt::ecc_shared_secret $alice_key [tomcrypt::ecc_extract_pubkey $carol_key]]
+	# They should be different
+	expr {$ab_shared ne $ac_shared}
+} -cleanup {
+	rename prng {}
+	unset -nocomplain alice_key bob_key carol_key ab_shared ac_shared
+} -result 1
+#>>>
+test ecc-40.10 {ecc_shared_secret: child interp} -body { #<<<
+	set child [interp create]
+	$child eval {
+		load {} tomcrypt
+		tomcrypt::prng create prng fortuna
+		set key1 [tomcrypt::ecc_generate_key secp256r1 prng]
+		set key2 [tomcrypt::ecc_generate_key secp256r1 prng]
+		set shared1 [tomcrypt::ecc_shared_secret $key1 [tomcrypt::ecc_extract_pubkey $key2]]
+		set shared2 [tomcrypt::ecc_shared_secret $key2 [tomcrypt::ecc_extract_pubkey $key1]]
+		expr {$shared1 eq $shared2}
+	}
+} -cleanup {
+	if {[info exists child]} {
+		interp delete $child
+	}
+	unset -nocomplain child
+} -result 1
+#>>>
+test ecc-40.11 {ecc_shared_secret: use with HKDF for key derivation} -setup { #<<<
+	tomcrypt::prng create prng fortuna
+	set alice_key	[tomcrypt::ecc_generate_key secp256r1 prng]
+	set bob_key		[tomcrypt::ecc_generate_key secp256r1 prng]
+	set salt		{}
+	set info		application-specific-context
+} -body {
+	# Both parties compute the same shared secret
+	set alice_shared	[tomcrypt::ecc_shared_secret $alice_key [tomcrypt::ecc_extract_pubkey $bob_key]]
+	set bob_shared		[tomcrypt::ecc_shared_secret $bob_key [tomcrypt::ecc_extract_pubkey $alice_key]]
+	# Derive a 32-byte AES key from the shared secret using HKDF
+	set alice_derived	[tomcrypt::hkdf sha256 $salt $info $alice_shared 32]
+	set bob_derived		[tomcrypt::hkdf sha256 $salt $info $bob_shared 32]
+	# Both should derive the same key
+	list \
+		[expr {$alice_shared eq $bob_shared}] \
+		[expr {$alice_derived eq $bob_derived}] \
+		[string length $alice_derived]
+} -cleanup {
+	rename prng {}
+	unset -nocomplain alice_key bob_key salt info alice_shared bob_shared alice_derived bob_derived
+} -result {1 1 32}
 #>>>
 
 # cleanup

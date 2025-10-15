@@ -548,6 +548,7 @@ local/lib/libtfm.a: build
 	make -C build/tomsfastmath --include-dir=$(abspath $(srcdir)/deps/tomsfastmath) COMPILE_DEBUG="" DESTDIR="$(top_builddir)" INSTALL_USER=`id -u -n` INSTALL_GROUP=`id -g -n` LIBPATH=/local/lib INCPATH=/local/include CFLAGS="-g3 -Wall -W -Wshadow -Isrc/headers -O3 -funroll-loops -fomit-frame-pointer -fPIC" -j 12 install
 
 local/lib/libtomcrypt.a: build local/lib/libtommath.a local/lib/libtfm.a
+	#make -C build/libtomcrypt --include-dir=$(abspath $(srcdir)/deps/libtomcrypt) CFLAGS="-I$(top_builddir)/local/include -L$(top_builddir)/local/lib -fPIC -DLTM_DESC -DTFM_DESC -DLTC_PTHREAD -g" DESTDIR="$(top_builddir)" PREFIX=/local -j 12 install
 	make -C build/libtomcrypt --include-dir=$(abspath $(srcdir)/deps/libtomcrypt) CFLAGS="-I$(top_builddir)/local/include -L$(top_builddir)/local/lib -fPIC -DLTM_DESC -DTFM_DESC -g" DESTDIR="$(top_builddir)" PREFIX=/local -j 12 install
 
 .PHONY: all binaries clean depend distclean doc install libraries test
