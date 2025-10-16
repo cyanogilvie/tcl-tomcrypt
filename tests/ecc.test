@@ -132,6 +132,22 @@ test ecc-x963-1.6 {ecc_ansi_x963_export: invalid key} -body { #<<<
 	tomcrypt::ecc_ansi_x963_export notakey
 } -result {Invalid ECC key format} -returnCodes error
 #>>>
+test ecc-x963-1.7 {From PEM public key} -setup {
+	set pubkey {-----BEGIN EC PUBLIC KEY-----
+MIIBMzCB7AYHKoZIzj0CATCB4AIBATAsBgcqhkjOPQEBAiEA/////wAAAAEAAAAA
+AAAAAAAAAAD///////////////8wRAQg/////wAAAAEAAAAAAAAAAAAAAAD/////
+//////////wEIFrGNdiqOpPns+u9VXaYhrxlHQawzFOw9jvOPD4n0mBLBEEEaxfR
+8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84z
+V2sxXs7LtkBoN79R9QIhAP////8AAAAA//////////+85vqtpxeehPO5ysL8YyVR
+AgEBA0IABJ73ALx9hnNZ+zDfXsICiFOp0YmWvVTnw8f0LUY/IotX9/YiuN+0ErjO
+PA4SL91HVVQQOCSdddwgRWXc7I9p6hY=
+-----END EC PUBLIC KEY-----}
+} -body {
+	tomcrypt::base64url encode [tomcrypt::ecc_ansi_x963_export $pubkey]
+} -cleanup {
+	unset -nocomplain pubkey
+} -result BJ73ALx9hnNZ-zDfXsICiFOp0YmWvVTnw8f0LUY_IotX9_YiuN-0ErjOPA4SL91HVVQQOCSdddwgRWXc7I9p6hY
+#>>>
 
 test ecc-x963-2.1 {ecc_ansi_x963_import: basic import without curve} -setup { #<<<
 	# Known X9.63 format public key (uncompressed, 0x04 prefix)

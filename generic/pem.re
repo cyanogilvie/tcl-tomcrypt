@@ -46,7 +46,7 @@ int pem_load_first_key(Tcl_Interp* interp, Tcl_Obj* obj, uint8_t** der_buf, unsi
 			posteb		= "-----END " @s2 type? side " KEY" @e2 "-----";
 			b64char 	= [A-Za-z0-9+/];
 			b64line		= b64char+ WSP* eol;
-			b64final	= b64char* ("=" WSP* eol "=" | "==")? WSP* eol;
+			b64final	= b64char* ("=" | "=" WSP* eol "=" | "==")? WSP* eol;
 			b64text		= b64line* b64final;
 
 			end		{ break; }

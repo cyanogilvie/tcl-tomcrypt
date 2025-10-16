@@ -108,11 +108,10 @@ int GetECCKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, ecc_key_type_t expect_typ
 		unsigned long			import_len = 0;
 		const char*				type = NULL;
 
-		// TODO: replace this with loading (possibly PEM encoded) ecc_import_openssl
 		// Remove PEM encoding if any
 		TEST_OK_LABEL(finally, code, pem_load_first_key(interp, obj, &der_buf, &der_len, &is_private_key, &type));
 		if (der_buf) {
-			if (strncmp(type, "EC", 3) != 0) {
+			if (strncmp(type, "EC ", 3) != 0) {
 				Tcl_SetErrorCode(interp, "TOMCRYPT", "FORMAT", "PEM", NULL);
 				THROW_ERROR_LABEL(finally, code, "PEM does not contain an EC key");
 			}
