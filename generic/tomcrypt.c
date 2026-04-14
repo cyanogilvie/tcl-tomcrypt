@@ -491,7 +491,8 @@ OBJCMD(ecc_verify) //<<<
 	if (sig == NULL) { code = TCL_ERROR; goto finally; }
 	const uint8_t*	msg = Tcl_GetBytesFromObj(interp, objv[A_HASH], &msglen);
 	if (msg == NULL) { code = TCL_ERROR; goto finally; }
-	const int		verify_rc = ecc_verify_hash(sig, siglen, msg, msglen, &stat, key);
+	ltc_ecc_sig_opts	verify_opts = { .type = LTC_ECCSIG_ANSIX962 };
+	const int		verify_rc = ecc_verify_hash_v2(sig, siglen, msg, msglen, &verify_opts, &stat, key);
 	if (verify_rc != CRYPT_OK) {
 		Tcl_SetErrorCode(interp, "TOMCRYPT", "FORMAT", NULL);
 		THROW_PRINTF_LABEL(finally, code, "ecc_verify_hash failed: %s", error_to_string(verify_rc));
@@ -543,8 +544,13 @@ OBJCMD(ecc_sign_cmd) //<<<
 	unsigned char* sig = Tcl_GetByteArrayFromObj(res, NULL);
 
 	// Sign the message
+	ltc_ecc_sig_opts	sign_opts = {
+		.type	= LTC_ECCSIG_ANSIX962,
+		.prng	= objc > A_PRNG ? prng : NULL,
+		.wprng	= desc_idx,
+	};
 	int err;
-	if ((err = ecc_sign_hash(msg, msglen, sig, &siglen, objc > A_PRNG ? prng : NULL, desc_idx, key)) != CRYPT_OK) {
+	if ((err = ecc_sign_hash_v2(msg, msglen, sig, &siglen, &sign_opts, key)) != CRYPT_OK) {
 		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "SIGN", NULL);
 		THROW_PRINTF_LABEL(finally, code, "ecc_sign_hash failed: %s", error_to_string(err));
 	}
