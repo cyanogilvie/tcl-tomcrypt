@@ -231,6 +231,7 @@ static const aead_mode_desc aead_modes[] = {
 
 OBJCMD(aead_cmd) //<<<
 {
+	(void)cdata;
 	int						code = TCL_OK;
 	Tcl_Obj*				res = NULL;
 	Tcl_Obj*				ct_obj = NULL;
@@ -286,7 +287,7 @@ OBJCMD(aead_cmd) //<<<
 		}
 
 		// Get all the byte array parameters
-		int keylen, ivlen, aadlen, ptlen;
+		Tcl_Size keylen, ivlen, aadlen, ptlen;
 		const unsigned char* key = Tcl_GetBytesFromObj(interp, objv[A_KEY], &keylen);
 		if (key == NULL) { code = TCL_ERROR; goto finally; }
 		const unsigned char* iv = Tcl_GetBytesFromObj(interp, objv[A_IV], &ivlen);
@@ -345,7 +346,7 @@ OBJCMD(aead_cmd) //<<<
 		}
 
 		// Get parameters
-		int keylen, ivlen, aadlen, ctlen, taglen;
+		Tcl_Size keylen, ivlen, aadlen, ctlen, taglen;
 		const unsigned char* key = Tcl_GetBytesFromObj(interp, objv[A_KEY], &keylen);
 		if (key == NULL) { code = TCL_ERROR; goto finally; }
 		const unsigned char* iv = Tcl_GetBytesFromObj(interp, objv[A_IV], &ivlen);

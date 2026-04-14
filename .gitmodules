@@ -1,7 +1,3 @@
-[submodule "tclconfig"]
-	path = tclconfig
-	url = https://github.com/cyanogilvie/tclconfig.git
-	shallow = true
 [submodule "teabase"]
 	path = teabase
 	url = https://github.com/cyanogilvie/teabase
@@ -12,10 +8,3 @@
 [submodule "deps/libtomcrypt"]
 	path = deps/libtomcrypt
 	url = https://github.com/cyanogilvie/libtomcrypt
-[submodule "deps/tomsfastmath"]
-	path = deps/tomsfastmath
-	url = https://github.com/libtom/tomsfastmath
-[submodule "tools/re2c"]
-	path = tools/re2c
-	url = https://github.com/skvadrik/re2c
-	shallow = true

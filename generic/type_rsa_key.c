@@ -80,7 +80,7 @@ static void update_string_rep(Tcl_Obj* obj) //<<<
 
 	ckfree(b64_buf); b64_buf = NULL;
 
-	int				pem_str_len;
+	Tcl_Size		pem_str_len;
 	const char*		pem_str = Tcl_GetStringFromObj(pem, &pem_str_len);
 	Tcl_InitStringRep(obj, pem_str, pem_str_len);
 	replace_tclobj(&pem, NULL);
@@ -110,13 +110,13 @@ int GetRSAKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, rsa_key_type_t expect_typ
 		if (der_buf) {
 			if (strncmp(type, "RSA", 3) != 0) {
 				Tcl_SetErrorCode(interp, "TOMCRYPT", "FORMAT", "PEM", NULL);
-				THROW_PRINTF_LABEL(finally, code, "PEM does not contain an RSA key");
+				THROW_ERROR_LABEL(finally, code, "PEM does not contain an RSA key");
 			}
 			bytes_to_import = der_buf;
 			import_len = der_len;
 		} else {
 			// Try it as raw DER bytes
-			int tmplen;
+			Tcl_Size tmplen;
 			bytes_to_import = Tcl_GetBytesFromObj(interp, obj, &tmplen);
 			if (bytes_to_import == NULL) { code = TCL_ERROR; goto finally; }
 			import_len = tmplen;
@@ -125,12 +125,12 @@ int GetRSAKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, rsa_key_type_t expect_typ
 		if (import_len == 0) {
 			// rsa_import aborts on this case
 			Tcl_SetErrorCode(interp, "TOMCRYPT", "FORMAT", "RSA", NULL);
-			THROW_PRINTF_LABEL(finally, code, "Invalid RSA key format");
+			THROW_ERROR_LABEL(finally, code, "Invalid RSA key format");
 		}
 
 		if (rsa_import(bytes_to_import, import_len, newkey) != CRYPT_OK) {
 			Tcl_SetErrorCode(interp, "TOMCRYPT", "FORMAT", "RSA", NULL);
-			THROW_PRINTF_LABEL(finally, code, "Invalid RSA key format");
+			THROW_ERROR_LABEL(finally, code, "Invalid RSA key format");
 		}
 		key_initialized = 1;
 

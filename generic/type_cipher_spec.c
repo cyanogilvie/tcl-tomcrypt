@@ -60,7 +60,7 @@ static void update_string_rep(Tcl_Obj* obj) //<<<
 	Tcl_ListObjAppendElement(NULL, list, Tcl_NewIntObj(spec->key_size * 8));
 	Tcl_ListObjAppendElement(NULL, list, Tcl_NewStringObj(cipher_mode_strs[spec->cipher_idx], -1));
 
-	int len;
+	Tcl_Size len;
 	const char* str = Tcl_GetStringFromObj(list, &len);
 	Tcl_InitStringRep(obj, str, len);
 	replace_tclobj(&list, NULL);
@@ -80,7 +80,7 @@ int GetCipherSpecFromObj(Tcl_Interp* interp, Tcl_Obj* obj, cipher_spec** spec) /
 		*new_spec = (cipher_spec){0};
 
 		// Parse the list specification
-		int			objc;
+		Tcl_Size	objc;
 		Tcl_Obj**	objv;
 		TEST_OK_LABEL(finally, code, Tcl_ListObjGetElements(interp, obj, &objc, &objv));
 		enum {A_CIPHER, A_KEYSIZE, A_MODE, A_MODE_OPTS};
@@ -114,7 +114,9 @@ int GetCipherSpecFromObj(Tcl_Interp* interp, Tcl_Obj* obj, cipher_spec** spec) /
 		}
 
 		// Parse mode
-		TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[A_MODE], cipher_mode_strs, "mode", TCL_EXACT, &new_spec->mode));
+		int mode_idx;
+		TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[A_MODE], cipher_mode_strs, "mode", TCL_EXACT, &mode_idx));
+		new_spec->mode = (enum cipher_mode)mode_idx;
 
 		switch (new_spec->mode) {
 			case CM_CTR: //<<<
@@ -122,7 +124,7 @@ int GetCipherSpecFromObj(Tcl_Interp* interp, Tcl_Obj* obj, cipher_spec** spec) /
 					int		endian_selected = 0;
 
 					if (A_MODE_OPTS < objc) {
-						int			fc;
+						Tcl_Size	fc;
 						Tcl_Obj**	fv;
 						TEST_OK_LABEL(finally, code, Tcl_ListObjGetElements(interp, objv[A_MODE_OPTS], &fc, &fv));
 						for (int i=0; i<fc; i++) {
@@ -153,8 +155,13 @@ int GetCipherSpecFromObj(Tcl_Interp* interp, Tcl_Obj* obj, cipher_spec** spec) /
 						// TODO: reject RFC3686 mode with a non-standard counter size
 					}
 
+					// Default to big-endian counter to match NIST SP 800-38A and most
+					// other CTR implementations (OpenSSL, Java JCE, etc.).  This is
+					// the opposite of libtomcrypt's own default, so we set it
+					// explicitly here.  Pass {CTR_COUNTER_LITTLE_ENDIAN} as the 4th
+					// spec element to opt back into the libtomcrypt convention.
 					if (!endian_selected)
-						new_spec->ctr_mode |= CTR_COUNTER_LITTLE_ENDIAN;
+						new_spec->ctr_mode |= CTR_COUNTER_BIG_ENDIAN;
 				}
 				break;
 				//>>>

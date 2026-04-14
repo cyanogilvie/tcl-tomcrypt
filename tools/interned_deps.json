@@ -1,0 +1,30 @@
+{
+  "deps": {
+    "libtommath": {
+      "source":  "deps/libtommath",
+      "builder": "cmake",
+      "defines": {
+        "CMAKE_BUILD_TYPE":     "Release",
+        "CMAKE_INSTALL_PREFIX": "${prefix}",
+        "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
+        "BUILD_SHARED_LIBS":    "OFF",
+        "BUILD_TESTING":        "OFF"
+      }
+    },
+    "libtomcrypt": {
+      "source":  "deps/libtomcrypt",
+      "builder": "cmake",
+      "depends": ["libtommath"],
+      "defines": {
+        "CMAKE_BUILD_TYPE":     "Release",
+        "CMAKE_INSTALL_PREFIX": "${prefix}",
+        "CMAKE_PREFIX_PATH":    "${prefix}",
+        "CMAKE_POSITION_INDEPENDENT_CODE": "ON",
+        "BUILD_SHARED_LIBS":    "OFF",
+        "BUILD_TESTING":        "OFF",
+        "WITH_LTM":             "ON",
+        "MPI_PROVIDER":         "LTM"
+      }
+    }
+  }
+}

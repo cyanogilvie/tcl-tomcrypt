@@ -180,10 +180,10 @@ test hkdf-4.5 {hkdf: length not integer} -body { #<<<
 	set salt	[binary decode hex 000102030405060708090a0b0c]
 	set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]
 	set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
-	tomcrypt::hkdf sha256 $salt $info $ikm "not an integer"
+	tomcrypt::hkdf sha256 $salt $info $ikm notaninteger
 } -cleanup {
 	unset -nocomplain salt info ikm
-} -result {expected integer but got "not an integer"} -returnCodes error -errorCode {TCL VALUE NUMBER}
+} -match glob -result {expected * but got "notaninteger"} -returnCodes error -errorCode {TCL VALUE *}
 #>>>
 test hkdf-4.6 {hkdf: negative length} -body { #<<<
 	set salt	[binary decode hex 000102030405060708090a0b0c]
@@ -207,7 +207,7 @@ test hkdf-4.8 {hkdf: too many args} -body { #<<<
 test hkdf-5.1 {hkdf: child interp} -body { #<<<
 	set child	[interp create]
 	$child eval {
-		load {} tomcrypt
+		load {} Tomcrypt
 		set ikm		[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b]
 		set salt	[binary decode hex 000102030405060708090a0b0c]
 		set info	[binary decode hex f0f1f2f3f4f5f6f7f8f9]

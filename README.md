@@ -1,16 +1,10 @@
----
-author:
-- Cyan Ogilvie
-title: tomcrypt(3) 0.8.3 \| libtomcrypt Tcl wrapper
----
-
 # TOMCRYPT
 
 libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 
 ## SYNOPSIS
 
-**package require tomcrypt** ?0.8.3?
+**package require tomcrypt** ?0.9.0?
 
 **tomcrypt::hash** *algorithm* *bytes*  
 **tomcrypt::hmac** *algorithm* *key* *message*  
@@ -19,6 +13,10 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 **tomcrypt::base64url** **decode**\|**strict_decode** *string*  
 **tomcrypt::encrypt** *spec* *key* *iv* *bytes*  
 **tomcrypt::decrypt** *spec* *key* *iv* *bytes*  
+**tomcrypt::aead** **encrypt** *mode* *cipher* *key* *iv* *aad*
+*plaintext*  
+**tomcrypt::aead** **decrypt** *mode* *cipher* *key* *iv* *aad*
+*ciphertext* *tag*  
 **tomcrypt::ecc_generate_key** *curve* ?*prng*?  
 **tomcrypt::ecc_extract_pubkey** *privkey*  
 **tomcrypt::ecc_ansi_x963_import** *bytes* ?*curve*?  
@@ -59,6 +57,44 @@ PRNG instance methods:
 This package provides a thin wrapper around a subset of libtomcrypt’s
 functionality.
 
+## BYTE VALUES AND STRINGS
+
+Most arguments described as “bytes” or “bytearray” below are read with
+`Tcl_GetBytesFromObj`, which uses the Tcl 8.7+ bytearray semantics: a
+byte value is conceptually a string whose Unicode codepoints are
+constrained to the range U+0000–U+00FF, and each codepoint is taken as a
+single octet. This means:
+
+- Pure-ASCII string literals work as bytes (their codepoints are all in
+  0–127).
+- Latin-1 strings (codepoints in U+0080–U+00FF) **also work**, but the
+  bytes passed to the library are the Latin-1 octets, *not* the UTF-8
+  encoding of those codepoints. So `tomcrypt::hash sha256 "héllo"`
+  hashes the 5 bytes `68 e9 6c 6c 6f`, not the 6 bytes of the UTF-8
+  encoding of “héllo”. This is almost certainly not what you want when
+  hashing or signing user-supplied text.
+- Strings containing any codepoint U+0100 or higher raise the error
+  `expected byte sequence but character N was '...'` with errorCode
+  `{TCL VALUE BYTES}`.
+
+For deterministic, portable, and round-trippable byte values, construct
+them explicitly:
+
+``` tcl
+tomcrypt::hash sha256 [encoding convertto utf-8 $text]   ;# text → UTF-8 bytes
+tomcrypt::hash sha256 [binary decode hex $hex]           ;# hex → bytes
+tomcrypt::hash sha256 [binary format c* $ints]           ;# ints → bytes
+```
+
+Bytearrays produced this way survive transport through Tcl operations
+that internally re-encode strings (channels in non-binary mode, `subst`,
+etc.) and will convert back to the same octets when fed to
+`Tcl_GetBytesFromObj`.
+
+This rule applies to every byte argument in the commands below. RSA and
+ECC **key** arguments are an exception — they accept ordinary Tcl
+strings (PEM is text) as well as raw DER bytes.
+
 ## COMMANDS
 
 **tomcrypt::hash** *algorithm* *bytes*  
@@ -81,6 +117,13 @@ like sha256), with the given *salt* (a bytearray, can be empty), *info*
 bytearray). The derived key will be *length* bytes long. Returns the
 derived key as a raw bytearray.
 
+Per RFC 5869, *length* is capped at 255 × the hash output size (8160
+bytes for sha256, 16320 for sha512). Asking for more raises an error
+with message `hmac_memory failed: Invalid argument provided.` and
+errorCode `{TOMCRYPT HMAC COMPUTE}` (which doesn’t mention HKDF — if you
+see that error from `hkdf`, the output length is almost certainly the
+cause).
+
 **tomcrypt::base64url** **encode**\|**strict_encode** *bytes*  
 Return the base64url encoding of *bytes*, which is the same as the
 regular base64 encoding except for two substitutions: ‘+’ -\> ‘-’ and
@@ -92,9 +135,21 @@ of 4. **encode** does not pad its output.
 
 **tomcrypt::base64url** **decode**\|**strict_decode** *string*  
 Inverts the encoding applied by **encode** or **strict_encode**. Both
-**decode** and **strict_decode** accept both padded and unpadded input,
-but strict does not allow pad characters or characters outside of the
-valid base64url alphabet within the encoded value.
+forms accept padded and unpadded input. They differ in how they treat
+unexpected characters:
+
+**decode** is permissive: any character that is not in the base64url
+alphabet (including whitespace, stray `=`, and the standard-base64
+characters `+` and `/`) is silently *skipped* and decoding continues on
+the remaining valid characters. This means a malformed input does not
+raise an error — it produces a possibly-shorter result. Use **decode**
+only on input you trust to be well-formed (or where silent recovery is
+the desired behaviour).
+
+**strict_decode** rejects any character outside the base64url alphabet
+(`A-Z`, `a-z`, `0-9`, `-`, `_`, and `=` only as trailing padding) with
+the error `base64url decode failed: Invalid input packet.` and errorCode
+`{TOMCRYPT BASE64URL DECODE}`. Use it for any input you do not control.
 
 **tomcrypt::encrypt** *spec* *key* *iv* *data*  
 Encrypt the plaintext bytes in *data* using the key *key* using the
@@ -107,19 +162,32 @@ cipher and mode specified in *spec*. See **CIPHER SPEC** for details.
 **tomcrypt::aead** **encrypt** *mode* *cipher* *key* *iv* *aad* *plaintext*  
 Encrypt *plaintext* using authenticated encryption with associated data
 (AEAD). The *mode* can be one of: **gcm**, **eax**, **ocb**, **ocb3**,
-**ccm**, or **chacha20poly1305**. Most modes require a *cipher* (like
-“aes”), except chacha20poly1305 which uses its own cipher (pass “” for
-cipher in that case). The *key*, initialization vector *iv*, and
-additional authenticated data *aad* are all byte arrays. *aad* can be
-empty if no metadata needs to be authenticated. Returns a 2-element
-list: {ciphertext tag} where tag is the authentication tag (typically 16
-bytes).
+**ccm**, or **chacha20poly1305**. See the table below for per-mode
+constraints. Most modes require a *cipher* (like “aes”);
+**chacha20poly1305** has its own cipher built in and ignores the
+*cipher* argument (pass `""` by convention). The *key*, initialization
+vector *iv*, and additional authenticated data *aad* are all byte
+arrays. *aad* can be empty if no metadata needs to be authenticated.
+Returns a 2-element list: `{ciphertext tag}`, where tag is always 16
+bytes.
+
+Per-mode constraints:
+
+| mode                 | cipher                 | block size                                           | typical IV                    | notes                                     |
+|----------------------|------------------------|------------------------------------------------------|-------------------------------|-------------------------------------------|
+| **gcm**              | required (use **aes**) | must be 16 bytes                                     | 12 bytes                      | IV must never be reused with the same key |
+| **ocb3**             | required (use **aes**) | must be 16 bytes                                     | 12 bytes                      |                                           |
+| **ocb**              | required (use **aes**) | must be 16 bytes                                     | block size (16 bytes for AES) | OCB1; prefer **ocb3** for new code        |
+| **ccm**              | required (use **aes**) | must be 16 bytes                                     | 7–13 bytes                    |                                           |
+| **eax**              | required               | any (works with smaller-block ciphers like blowfish) | flexible                      |                                           |
+| **chacha20poly1305** | ignored (pass `""`)    | n/a                                                  | must be 12 bytes              |                                           |
 
 **tomcrypt::aead** **decrypt** *mode* *cipher* *key* *iv* *aad* *ciphertext* *tag*  
 Decrypt *ciphertext* using AEAD, verifying the authentication *tag*.
 Parameters must match those used during encryption. Returns the
-plaintext if successful, or throws an error if the tag verification
-fails (indicating tampering or corruption).
+plaintext if successful, or raises an error with errorCode
+`{TOMCRYPT AEAD DECRYPT` *mode*`}` if the tag verification fails
+(indicating tampering, corruption, wrong key, or wrong AAD).
 
 **tomcrypt::ecc_generate_key** *curve* ?*prng*?  
 Generate a new ECC key using the PRNG instance *prng* (defaulting to the
@@ -262,10 +330,29 @@ uniform resolution requirement. See [^1] for a discussion of the nuances
 of random floating point values.
 
 *prngInstance* **export**  
-Export entropy, returning the random bytearray. Intended to preserve
-entropy across PRNG instances and reduce the demands on scarce platform
-entropy. To do that, supply the result of this command to the *entropy*
-argument when creating a new PRNG instance.
+Export the PRNG’s state as a bytearray suitable for use as the *entropy*
+argument of a future **tomcrypt::prng create** / **new** call. Intended
+to preserve entropy across runs and reduce demands on scarce platform
+entropy.
+
+The exported blob is **deterministic seed material, not fresh
+randomness**: two PRNGs of the same type re-created from the same blob
+will produce identical streams. Treat it as secret keying material —
+anyone with read access to a saved blob can replay every byte the next
+instance generates from it. When persisting it, restrict the file’s
+permissions accordingly:
+
+``` tcl
+writebin $state_file [csprng export]
+file attributes $state_file -permissions 0600
+```
+
+Note that calling `export` on the *original* instance advances its
+state, so the original and a fresh instance imported from
+`[orig export]` will *not* produce the same subsequent bytes. Calling
+`export` twice in a row on the same instance likewise produces different
+blobs. This rules out using export/import for deterministic test
+fixtures or stream replay.
 
 *prngInstance* **destroy**  
 Destroy the instance. After returning, the *prngInstance* command no
@@ -279,9 +366,40 @@ a list of 3 or 4 elements: *cipher*, *keysize*, *mode*, and *mode_opt*
 (if the mode takes options).
 
 *cipher* is a name of a symmetric cipher supported by libtomcrypt, such
-as “blowfish”, “aes”, etc. *keysize* is the size of the key (in bits).
-*mode* is the streaming mode, such as “cbc”, “ctr”, etc. Choose “ctr” if
-you don’t have a good reason not to.
+as “blowfish”, “aes”, etc. *keysize* is the size of the key, **in
+bits**, not bytes — for a 32-byte AES key write `256`. *mode* is one of
+**cbc**, **cfb**, **ofb**, **ctr**, **lrw**, or **f8**. If you need
+authenticated encryption use **tomcrypt::aead** instead — AEAD modes
+(gcm, ccm, ocb3, etc.) are not available through this command.
+
+The *iv* argument supplied to **tomcrypt::encrypt** /
+**tomcrypt::decrypt** must be exactly the cipher’s block size (8 bytes
+for blowfish, 16 bytes for aes). Mismatch raises
+`IV must be same length as cipher block size` with errorCode
+`{TOMCRYPT VALUE IV_SIZE}`.
+
+**cbc** mode applies PKCS#7 padding automatically on encrypt and removes
+it on decrypt; do not pre-pad your plaintext. The other modes do not pad
+and accept arbitrary-length input.
+
+**ctr** mode defaults to a **big-endian** counter, matching NIST SP
+800-38A and the overwhelming majority of other CTR implementations
+(OpenSSL, Java JCE, etc.). This is the opposite of the underlying
+libtomcrypt’s own default — if you need to interoperate with code that
+relies on the libtomcrypt little-endian convention, opt back into it by
+passing the 4th list element as a list of flags containing
+`CTR_COUNTER_LITTLE_ENDIAN`:
+
+``` tcl
+set spec [list aes 256 ctr {CTR_COUNTER_LITTLE_ENDIAN}]
+```
+
+Available CTR flags: `CTR_COUNTER_BIG_ENDIAN`,
+`CTR_COUNTER_LITTLE_ENDIAN`, `LTC_CTR_RFC3686`. At most one endianness
+flag may be specified. The **lrw** mode requires a tweak as the 4th
+element; **f8** requires a salt.
+
+Choose “ctr” if you don’t have a good reason not to.
 
 ## CURVE SPEC
 
@@ -496,60 +614,70 @@ if {$valid} {
 
 ## BUILDING
 
-This package has no external dependencies other than Tcl. The libtom
-libraries it depends on are included as submodules (or baked into the
-release tarball) and are built and statically linked as part of the
-package build process.
+This package builds with [meson](https://mesonbuild.com/) and supports
+Tcl 8.6 and Tcl 9. The libtom libraries it depends on (libtomcrypt and
+libtommath) are included as git submodules, or baked into the release
+tarball, and are built and statically linked as part of the package
+build — no system libtomcrypt is consulted. The only external
+dependencies are Tcl itself, a C compiler, cmake (used to build the
+interned libtom deps), and pandoc (to regenerate the README / manpage
+from source; not required when building from a release tarball).
 
-Currently Tcl 8.7 is required, but if needed polyfills could be built to
-support 8.6.
+If Tcl can’t be found via `pkg-config` a meson wrap subproject will
+fetch and build Tcl 9 from source as a fallback — useful for
+cross-compilation and for CI where no Tcl is installed.
 
 ### From a Release Tarball
 
 Download and extract [the
-release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.8.3/tomcrypt0.8.3.tar.gz),
-then build in the standard TEA way:
+release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.0/tomcrypt-0.9.0.tar.gz),
+then build:
 
 ``` sh
-wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.8.3/tomcrypt0.8.3.tar.gz
-tar xf tomcrypt0.8.3.tar.gz
-cd tomcrypt0.8.3
-./configure
-make
-sudo make install
+wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.0/tomcrypt-0.9.0.tar.gz
+tar xf tomcrypt-0.9.0.tar.gz
+cd tomcrypt-0.9.0
+meson setup build
+meson compile -C build
+sudo meson install -C build
 ```
 
 ### From the Git Sources
 
 Fetch [the code](https://github.com/cyanogilvie/tcl-tomcrypt) and
-submodules recursively, then build in the standard autoconf / TEA way:
+submodules recursively, then build:
 
 ``` sh
 git clone --recurse-submodules https://github.com/cyanogilvie/tcl-tomcrypt
 cd tcl-tomcrypt
-autoconf
-./configure
-make
-sudo make install
+meson setup build
+meson compile -C build
+sudo meson install -C build
+```
+
+To build against a Tcl installed in a nonstandard prefix, point
+`pkg-config` at it:
+
+``` sh
+PKG_CONFIG_PATH=/opt/tcl9/lib/pkgconfig meson setup build
 ```
 
 ### In a Docker Build
 
 Build from a specified release version, avoiding layer pollution and
-only adding the installed package without documentation to the image,
-and strip debug symbols, minimising image size:
+only adding the installed package to the image, and strip debug symbols
+to minimise image size:
 
 ``` dockerfile
 WORKDIR /tmp/tcl-tomcrypt
-RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.8.3/tomcrypt0.8.3.tar.gz -O - | tar xz --strip-components=1 && \
-    ./configure; make test install-binaries install-libraries && \
-    strip /usr/local/lib/libtomcrypt*.so && \
+RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.0/tomcrypt-0.9.0.tar.gz -O - | tar xz --strip-components=1 && \
+    meson setup build && \
+    meson compile -C build && \
+    meson test -C build && \
+    meson install -C build && \
+    strip /usr/local/lib/tomcrypt-0.9.0/*.so && \
     cd .. && rm -rf tcl-tomcrypt
 ```
-
-For any of the build methods you may need to pass
-`--with-tcl /path/to/tcl/lib` to `configure` if your Tcl install is
-somewhere nonstandard.
 
 ### Testing
 
@@ -558,15 +686,21 @@ to run the test suite after building (especially in any automated build
 or CI/CD pipeline):
 
 ``` sh
-make test
+meson test -C build
 ```
 
-And maybe also the memory checker `valgrind` (requires that Tcl and this
-package are built with suitable memory debugging flags, like
-`CFLAGS="-DPURIFY -Og" --enable-symbols`):
+To run a single test file or a pattern, pass `TESTFLAGS`:
 
 ``` sh
-make valgrind
+TESTFLAGS='-file ecc.test -match ecc-1.*' meson test -C build
+```
+
+And to run the suite under `valgrind --leak-check=full` (this picks up
+any memory leaks introduced by the extension — the test suite aims to be
+leak-clean on a conforming Tcl build):
+
+``` sh
+meson test -C build --wrapper 'valgrind --keep-debuginfo=yes --trace-children=yes --leak-check=full' --timeout-multiplier 5
 ```
 
 ## SECURITY
@@ -586,6 +720,30 @@ cryptographic signatures) safe in these shared environments.
 
 TODO
 
+## CLAUDE CODE SKILL
+
+This package ships a Claude Code skill at
+`claude/skills/using-tomcrypt/SKILL.md` (relative to the source tree or
+extracted release tarball). The skill gives Claude Code expert knowledge
+of this package’s API, gotchas, default values, error codes, and
+idiomatic usage — install it so Claude sessions that write or debug Tcl
+code calling `tomcrypt::*` get it right on the first try.
+
+To install it for your user (picked up by every Claude Code session):
+
+``` sh
+mkdir -p ~/.claude/skills/using-tomcrypt
+cp claude/skills/using-tomcrypt/SKILL.md ~/.claude/skills/using-tomcrypt/
+```
+
+To scope it to a single project instead, copy it into that project’s
+`.claude/skills/using-tomcrypt/SKILL.md`.
+
+Claude Code auto-discovers skills in these locations and loads the
+skill’s metadata (name and description) at startup; the body is only
+read when a task actually involves this package, so there is no context
+cost for sessions that don’t touch cryptography.
+
 ## AVAILABLE IN
 
 The most recent release of this package is available by default in the
@@ -595,21 +753,19 @@ The most recent release of this package is available by default in the
 ## SEE ALSO
 
 This package is built on the [libtomcrypt
-library](https://github.com/libtom/libtomcrypt), the [libtommath
-library](https://github.com/libtom/libtommath), and
-[tomsfastmath](https://github.com/libtom/tomsfastmath).
+library](https://github.com/libtom/libtomcrypt) and the [libtommath
+library](https://github.com/libtom/libtommath).
 
 ## PROJECT STATUS
 
 This is a work in progress, but the commands documented here are
-implemented and tested and the package is in limited production use. The
-ECC related functions are not yet production ready.
+implemented and tested and the package is in limited production use.
 
 With the nature of this package a lot of care is taken with memory
 handling and test coverage. There are no known memory leaks or errors,
 and the package is routinely tested by running its test suite (which
-aims at full coverage) through valgrind. The `make valgrind`,
-`make test` and `make coverage` build targets support these goals.
+aims at full coverage) through valgrind — see the **Testing** section
+above for the invocations.
 
 ## SOURCE CODE
 

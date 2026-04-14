@@ -1,8 +1,6 @@
 source [file join [file dirname [info script]] common.tcl]
 
-package require crypto
-
-test cipher-1.1 {blowfish cbc encrypt} -body { #<<<
+test cipher-1.1 {blowfish cbc encrypt} -constraints have_crypto -body { #<<<
 	set key		[binary decode hex 0123456789abcdeff0e1d2c3b4a59687]
 	set iv		[binary decode hex fedcba9876543210]
 	set data	[binary decode hex 37363534333231204e6f77206973207468652074696d6520666f7220]
@@ -44,6 +42,57 @@ test cipher-4.1 {blowfish ctr encrypt and decrypt} -body { #<<<
 	unset -nocomplain key iv ciphertext
 } -result [binary decode hex 37363534333231204E6F77206973207468652074696D6520666F7220]
 #>>>
+
+# CTR endianness defaults: pin the package's default to NIST big-endian and
+# verify the explicit flags work.  Vectors from NIST SP 800-38A Appendix F.5.1
+# (CTR-AES128.Encrypt) — the canonical CTR test vector that OpenSSL, Java JCE,
+# and most other implementations interoperate against.
+
+# NIST SP 800-38A F.5.1 CTR-AES128 plaintext + ciphertext + key + IV
+set nist_ctr_aes128_key  [binary decode hex 2b7e151628aed2a6abf7158809cf4f3c]
+set nist_ctr_aes128_iv   [binary decode hex f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff]
+set nist_ctr_aes128_pt   [binary decode hex 6bc1bee22e409f96e93d7e117393172aae2d8a571e03ac9c9eb76fac45af8e5130c81c46a35ce411e5fbc1191a0a52eff69f2445df4f9b17ad2b417be66c3710]
+set nist_ctr_aes128_ct   [binary decode hex 874d6191b620e3261bef6864990db6ce9806f66b7970fdff8617187bb9fffdff5ae4df3edbd5d35e5b4f09020db03eab1e031dda2fbe03d1792170a0f3009cee]
+
+test cipher-ctr-default-1.1 {ctr default endianness matches NIST SP 800-38A F.5.1} -body { #<<<
+	# The default (no 4th spec element) must produce the NIST big-endian
+	# ciphertext — this is the "least surprising" interop behaviour.  If a
+	# future change flips the default back to libtomcrypt's little-endian
+	# convention this test will fail loudly.
+	tomcrypt::encrypt {aes 128 ctr} $nist_ctr_aes128_key $nist_ctr_aes128_iv $nist_ctr_aes128_pt
+} -result $nist_ctr_aes128_ct
+#>>>
+test cipher-ctr-default-1.2 {ctr default round trip} -body { #<<<
+	tomcrypt::decrypt {aes 128 ctr} $nist_ctr_aes128_key $nist_ctr_aes128_iv \
+		[tomcrypt::encrypt {aes 128 ctr} $nist_ctr_aes128_key $nist_ctr_aes128_iv $nist_ctr_aes128_pt]
+} -result $nist_ctr_aes128_pt
+#>>>
+test cipher-ctr-default-1.3 {explicit CTR_COUNTER_BIG_ENDIAN matches default} -body { #<<<
+	tomcrypt::encrypt {aes 128 ctr {CTR_COUNTER_BIG_ENDIAN}} \
+		$nist_ctr_aes128_key $nist_ctr_aes128_iv $nist_ctr_aes128_pt
+} -result $nist_ctr_aes128_ct
+#>>>
+test cipher-ctr-default-1.4 {CTR_COUNTER_LITTLE_ENDIAN opts back into libtomcrypt convention} -body { #<<<
+	# Just verify it differs from the NIST vector and round-trips.  Pinning
+	# the exact little-endian ciphertext is left as an exercise — the goal of
+	# this test is to confirm the flag is honoured.
+	set le_ct [tomcrypt::encrypt {aes 128 ctr {CTR_COUNTER_LITTLE_ENDIAN}} \
+		$nist_ctr_aes128_key $nist_ctr_aes128_iv $nist_ctr_aes128_pt]
+	list \
+		[expr {$le_ct ne $nist_ctr_aes128_ct}] \
+		[expr {[tomcrypt::decrypt {aes 128 ctr {CTR_COUNTER_LITTLE_ENDIAN}} \
+			$nist_ctr_aes128_key $nist_ctr_aes128_iv $le_ct] eq $nist_ctr_aes128_pt}]
+} -cleanup {
+	unset -nocomplain le_ct
+} -result {1 1}
+#>>>
+test cipher-ctr-default-1.5 {conflicting endian flags rejected} -body { #<<<
+	tomcrypt::encrypt {aes 128 ctr {CTR_COUNTER_LITTLE_ENDIAN CTR_COUNTER_BIG_ENDIAN}} \
+		$nist_ctr_aes128_key $nist_ctr_aes128_iv $nist_ctr_aes128_pt
+} -returnCodes error -match glob -result {*At most one of*}
+#>>>
+
+unset -nocomplain nist_ctr_aes128_key nist_ctr_aes128_iv nist_ctr_aes128_pt nist_ctr_aes128_ct
 
 # cleanup
 ::tcltest::cleanupTests

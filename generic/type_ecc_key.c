@@ -82,7 +82,7 @@ static void update_string_rep(Tcl_Obj* obj) //<<<
 
 	ckfree(b64_buf); b64_buf = NULL;
 
-	int				pem_str_len;
+	Tcl_Size		pem_str_len;
 	const char*		pem_str = Tcl_GetStringFromObj(pem, &pem_str_len);
 	Tcl_InitStringRep(obj, pem_str, pem_str_len);
 	replace_tclobj(&pem, NULL);
@@ -97,12 +97,12 @@ int GetECCKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, ecc_key_type_t expect_typ
 	Tcl_ObjInternalRep*	ir = Tcl_FetchInternalRep(obj, &ecc_key_objtype);
 	ecc_key*			newkey = NULL;
 	int					key_initialized = 0;
+	uint8_t*			der_buf = NULL;
 
 	if (ir == NULL) {
 		newkey = ckalloc(sizeof(ecc_key));
 		*newkey = (ecc_key){0};
 		unsigned long			der_len = 4096;
-		uint8_t*				der_buf = NULL;
 		int						is_private_key = -1;
 		const unsigned char*	bytes_to_import = NULL;
 		unsigned long			import_len = 0;
@@ -127,7 +127,7 @@ int GetECCKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, ecc_key_type_t expect_typ
 			import_len = der_len;
 		} else {
 			// Try it as raw DER bytes
-			int tmplen;
+			Tcl_Size tmplen;
 			bytes_to_import = Tcl_GetBytesFromObj(interp, obj, &tmplen);
 			if (bytes_to_import == NULL) { code = TCL_ERROR; goto finally; }
 			import_len = tmplen;
@@ -166,6 +166,10 @@ int GetECCKeyFromObj(Tcl_Interp* interp, Tcl_Obj* obj, ecc_key_type_t expect_typ
 	newkey = NULL;
 
 finally:
+	if (der_buf) {
+		ckfree(der_buf);
+		der_buf = NULL;
+	}
 	if (newkey) {
 		if (key_initialized) ecc_free(newkey);
 		ckfree(newkey);

@@ -19,15 +19,18 @@ static int setup_cipher_md(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj* sp
 {
 	int				code = TCL_OK;
 	int				err = CRYPT_OK;
-	int				keylen, ivlen;
+	Tcl_Size		keylen, ivlen;
 	cipher_spec*	spec = NULL;
+
+	// Put md into a teardownable state immediately so callers can
+	// unconditionally invoke teardown_cipher_md(&md) even if we exit early
+	// (e.g. GetCipherSpecFromObj fails before the per-mode init below).
+	*md = (struct cipher_md){0};
 
 	// Get cipher specification
 	TEST_OK_LABEL(finally, code, GetCipherSpecFromObj(interp, spec_obj, &spec));
 
-	*md = (struct cipher_md){
-		.mode = spec->mode,
-	};
+	md->mode = spec->mode;
 	replace_tclobj(&md->spec_obj, spec_obj);
 
 	const unsigned char*	key = Tcl_GetBytesFromObj(interp, key_obj, &keylen);
@@ -72,7 +75,7 @@ static int setup_cipher_md(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj* sp
 		case CM_F8:
 			{
 				// F8 mode takes salt
-				int						saltlen;
+				Tcl_Size				saltlen;
 				const unsigned char*	salt = Tcl_GetByteArrayFromObj(spec->salt, &saltlen);
 				err = f8_start(spec->cipher_idx, iv, key, keylen, salt, saltlen, 0/*num_rounds, default*/, &md->state_f8);
 			}
@@ -126,12 +129,12 @@ static int encrypt_chunk(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj* plai
 {
 	int						code = TCL_OK;
 	Tcl_Obj*				res = NULL;
-	const unsigned char*	in = NULL;
-	int						inlen;
+	unsigned char*			in = NULL;
+	Tcl_Size				inlen;
 	cipher_spec*			spec = NULL;
 
 	// Get input data
-	int datalen;
+	Tcl_Size datalen;
 	const unsigned char* data = Tcl_GetBytesFromObj(interp, plaintext, &datalen);
 	if (data == NULL) { code = TCL_ERROR; goto finally; }
 
@@ -144,11 +147,11 @@ static int encrypt_chunk(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj* plai
 				if (md->residual_length) {
 					inlen = md->residual_length + datalen;
 					in = ckalloc(inlen);
-					memcpy((char*)in, md->residual, md->residual_length);
-					memcpy((char*)in+md->residual_length, data, datalen);
+					memcpy(in, md->residual, md->residual_length);
+					memcpy(in+md->residual_length, data, datalen);
 					md->residual_length = 0;
 				} else {
-					in = data;
+					in = (unsigned char*)data;
 					inlen = datalen;
 				}
 				if (inlen % blocksize) {
@@ -160,7 +163,7 @@ static int encrypt_chunk(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj* plai
 			break;
 
 		default:
-			in = data;
+			in = (unsigned char*)data;
 			inlen = datalen;
 	}
 
@@ -184,9 +187,7 @@ static int encrypt_chunk(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj* plai
 
 finally:
 	replace_tclobj(&res, NULL);
-	if (in && in != data) {
-		ckfree(in);
-	}
+	if (in && in != data) ckfree(in);
 	in = NULL;
 	return code;
 }
@@ -244,18 +245,18 @@ static int decrypt_chunk(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj* ciph
 {
 	int						code = TCL_OK;
 	Tcl_Obj*				res = NULL;
-	const unsigned char*	in = NULL;
-	int						inlen;
+	unsigned char*			in = NULL;
+	Tcl_Size				inlen;
 	cipher_spec*			spec = NULL;
 
 	// Get input data
-	int datalen;
+	Tcl_Size datalen;
 	const unsigned char* data = Tcl_GetBytesFromObj(interp, ciphertext, &datalen);
 	if (data == NULL) { code = TCL_ERROR; goto finally; }
 
 	TEST_OK_LABEL(finally, code, GetCipherSpecFromObj(interp, md->spec_obj, &spec));
 
-	in = data;
+	in = (unsigned char*)data;
 	inlen = datalen;
 
 	replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, inlen));
@@ -295,7 +296,7 @@ static int decrypt_final(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj** pla
 	switch (md->mode) {
 		case CM_CBC:	// Unpad
 			{
-				int						len;
+				Tcl_Size				len;
 				const unsigned char*	bytes = Tcl_GetBytesFromObj(interp, *plaintext, &len);
 				if (len > 0) { // len should never be zero, but protect against underflow
 					const unsigned char	last = bytes[len-1];
@@ -319,6 +320,7 @@ finally:
 //>>>
 OBJCMD(cipher_encrypt_cmd) //<<<
 {
+	(void)cdata;
 	int					code = TCL_OK;
 	struct cipher_md	md;
 	Tcl_Obj*			res = NULL;
@@ -344,6 +346,7 @@ finally:
 //>>>
 OBJCMD(cipher_decrypt_cmd) //<<<
 {
+	(void)cdata;
 	int					code = TCL_OK;
 	struct cipher_md	md;
 	Tcl_Obj*			res = NULL;

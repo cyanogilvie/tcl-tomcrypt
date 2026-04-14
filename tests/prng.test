@@ -14,11 +14,11 @@ test rng-1.2 {rng_bytes, too many args} -body { #<<<
 #>>>
 test rng-1.3 {rng_bytes, not an integer} -body { #<<<
 	tomcrypt::rng_bytes a
-} -result {expected integer but got "a"} -returnCodes error -errorCode {TCL VALUE NUMBER}
+} -match glob -result {expected * but got "a"} -returnCodes error -errorCode {TCL VALUE *}
 #>>>
 test rng-1.4 {rng_bytes, not an integer} -body { #<<<
 	tomcrypt::rng_bytes 1.5
-} -result {expected integer but got "1.5"} -returnCodes error -errorCode {TCL VALUE NUMBER}
+} -match glob -result {expected * but got "1.5"} -returnCodes error -errorCode {TCL VALUE *}
 #>>>
 test rng-1.5 {rng_bytes, negative count} -body { #<<<
 	tomcrypt::rng_bytes -1
@@ -193,7 +193,7 @@ test prng-3.5 {prng bytes, not an integer} -body { #<<<
 		rename $prng {}
 	}
 	unset -nocomplain prng
-} -result {expected integer but got "a"} -returnCodes error -errorCode {TCL VALUE NUMBER}
+} -match glob -result {expected * but got "a"} -returnCodes error -errorCode {TCL VALUE *}
 #>>>
 test prng-3.6 {prng bytes, not an integer} -body { #<<<
 	set prng	[tomcrypt::prng new fortuna $fake_entropy]
@@ -203,7 +203,7 @@ test prng-3.6 {prng bytes, not an integer} -body { #<<<
 		rename $prng {}
 	}
 	unset -nocomplain prng
-} -result {expected integer but got "1.5"} -returnCodes error -errorCode {TCL VALUE NUMBER}
+} -match glob -result {expected * but got "1.5"} -returnCodes error -errorCode {TCL VALUE *}
 #>>>
 test prng-3.7 {prng bytes, negative count} -body { #<<<
 	set prng	[tomcrypt::prng new fortuna $fake_entropy]
@@ -320,7 +320,7 @@ test prng-5.4 {prng integer, lower not an integer} -body { #<<<
 		rename $testname {}
 	}
 	unset -nocomplain testname
-} -result {expected number but got "a"} -returnCodes error -errorCode {TCL VALUE NUMBER}
+} -match glob -result {expected * but got "a"} -returnCodes error -errorCode {TCL VALUE *}
 #>>>
 test prng-5.5 {prng integer, lower not an integer} -body { #<<<
 	set testname	prng-5.5
@@ -331,7 +331,7 @@ test prng-5.5 {prng integer, lower not an integer} -body { #<<<
 		rename $testname {}
 	}
 	unset -nocomplain testname
-} -result {expected integer but got "1.5"} -returnCodes error -errorCode {TCL VALUE NUMBER}
+} -match glob -result {expected * but got "1.5"} -returnCodes error -errorCode {TCL VALUE *}
 #>>>
 test prng-5.6 {prng integer, upper not an integer} -body { #<<<
 	set testname	prng-5.6
@@ -342,7 +342,7 @@ test prng-5.6 {prng integer, upper not an integer} -body { #<<<
 		rename $testname {}
 	}
 	unset -nocomplain testname
-} -result {expected number but got "a"} -returnCodes error -errorCode {TCL VALUE NUMBER}
+} -match glob -result {expected * but got "a"} -returnCodes error -errorCode {TCL VALUE *}
 #>>>
 test prng-5.7 {prng integer, upper not an integer} -body { #<<<
 	set testname	prng-5.7
@@ -353,7 +353,7 @@ test prng-5.7 {prng integer, upper not an integer} -body { #<<<
 		rename $testname {}
 	}
 	unset -nocomplain testname
-} -result {expected integer but got "1.5"} -returnCodes error -errorCode {TCL VALUE NUMBER}
+} -match glob -result {expected * but got "1.5"} -returnCodes error -errorCode {TCL VALUE *}
 #>>>
 test prng-5.8 {prng integer, lower greater than upper} -body { #<<<
 	set testname	prng-5.8
@@ -703,7 +703,7 @@ test prng-8.2 {prng implementation: fortuna} -body { #<<<
 	}
 } -result 3
 #>>>
-test prng-8.2.1 {Basic prng output test} -setup {
+test prng-8.2.1 {Basic prng output test} -setup { #<<<
 	tomcrypt::prng create prng fortuna
 } -body {
 	expr {[prng bytes 32] ne [prng bytes 32]}
@@ -750,6 +750,32 @@ test prng-8.6 {prng implementation: sprng} -body { #<<<
 		rename $testname {}
 	}
 } -result 3
+#>>>
+test prng-9.1 {exercise case: range fits in BUF_BIGVAL_STATIC_BYTES} -constraints testMode -body { #<<<
+	set testname	prng-9.1
+	tomcrypt::prng create $testname fortuna $fake_entropy
+	set lower	0
+	set upper	[expr {2**([tomcrypt::_testmode_BUF_BIGVAL_STATIC_BYTES]*8)-1}]
+	tcl::mathop::<= $lower [$testname integer $lower $upper] $upper
+} -cleanup {
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
+	}
+	unset -nocomplain testname
+} -result 1
+#>>>
+test prng-9.2 {exercise case: range exceeds BUF_BIGVAL_STATIC_BYTES} -constraints testMode -body { #<<<
+	set testname	prng-9.2
+	tomcrypt::prng create $testname fortuna $fake_entropy
+	set lower	0
+	set upper	[expr {2**([tomcrypt::_testmode_BUF_BIGVAL_STATIC_BYTES]*8)}]
+	tcl::mathop::<= $lower [$testname integer $lower $upper] $upper
+} -cleanup {
+	if {[info exists testname] && [llength [info commands $testname]]} {
+		rename $testname {}
+	}
+	unset -nocomplain testname
+} -result 1
 #>>>
 
 # Coverage golf:

@@ -312,7 +312,7 @@ test ecc-x963-3.4 {Import can work with existing X9.63 public keys} -setup { #<<
 test ecc-x963-3.5 {Child interp} -body { #<<<
 	set child [interp create]
 	$child eval {
-		load {} tomcrypt
+		load {} Tomcrypt
 		tomcrypt::prng create rng fortuna
 		set privkey [tomcrypt::ecc_generate_key secp256r1 rng]
 		set pubkey [tomcrypt::ecc_extract_pubkey $privkey]
@@ -415,7 +415,7 @@ test ecc-10.9 {duplicate ecc_key intrep} -constraints testMode -body { #<<<
 test ecc-10.10 {child interp} -body { #<<<
 	set child	[interp create]
 	$child eval {
-		load {} tomcrypt
+		load {} Tomcrypt
 		tomcrypt::ecc_verify \
 			[binary decode base64 MEUCIQDr/iC/fbEVKDydJ6/Jw95f53b6SGOXo7dMQtVGR48lMQIgeSKKZOph5MMqqj1p/e8NIgIghAe6AoNXir8D6NVwMOo=] \
 			[binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda] \
@@ -532,7 +532,7 @@ test ecc-20.10 {ecc_generate_key: invalid prng object} -body { #<<<
 test ecc-20.11 {ecc_generate_key: child interp} -body { #<<<
 	set child [interp create]
 	$child eval {
-		load {} tomcrypt
+		load {} Tomcrypt
 		set key [tomcrypt::ecc_generate_key secp256r1]
 		expr {[string length $key] > 0}
 	}
@@ -625,7 +625,7 @@ test ecc-30.8 {ecc_sign: invalid PRNG object} -setup { #<<<
 test ecc-30.9 {child interp} -body { #<<<
 	set child	[interp create]
 	$child eval {
-		load {} tomcrypt
+		load {} Tomcrypt
 		tomcrypt::prng create prng fortuna
 		set private_key	[tomcrypt::ecc_generate_key secp256r1 prng]
 		set public_key	[tomcrypt::ecc_extract_pubkey $private_key]
@@ -764,7 +764,7 @@ test ecc-40.9 {ecc_shared_secret: different shared secrets for different key pai
 test ecc-40.10 {ecc_shared_secret: child interp} -body { #<<<
 	set child [interp create]
 	$child eval {
-		load {} tomcrypt
+		load {} Tomcrypt
 		tomcrypt::prng create prng fortuna
 		set key1 [tomcrypt::ecc_generate_key secp256r1 prng]
 		set key2 [tomcrypt::ecc_generate_key secp256r1 prng]

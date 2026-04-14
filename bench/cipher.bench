@@ -16,8 +16,8 @@ proc main {} {
 			set ks	[crypto::blowfish::init_key $key]
 		}
 	} -deps {
-		crypto			{package require crypto}
-		crypto_preinit	{package require crypto}
+		crypto			{package require crypto; crypto::blowfish::csprng 72}
+		crypto_preinit	{package require crypto; crypto::blowfish::csprng 72}
 	} -compare {
 		crypto			{crypto::blowfish::decrypt_cbc [crypto::blowfish::init_key $key] [crypto::blowfish::encrypt_cbc [crypto::blowfish::init_key $key] $data $iv] $iv}
 		crypto_preinit	{crypto::blowfish::decrypt_cbc $ks [crypto::blowfish::encrypt_cbc $ks  $data $iv] $iv}
@@ -36,8 +36,8 @@ proc main {} {
 			set ks	[crypto::blowfish::init_key $key]
 		}
 	} -deps {
-		crypto			{package require crypto}
-		crypto_preinit	{package require crypto}
+		crypto			{package require crypto; crypto::blowfish::csprng 72}
+		crypto_preinit	{package require crypto; crypto::blowfish::csprng 72}
 	} -compare {
 		crypto			{crypto::blowfish::decrypt_cbc [crypto::blowfish::init_key $key] [crypto::blowfish::encrypt_cbc [crypto::blowfish::init_key $key] $data $iv] $iv}
 		crypto_preinit	{crypto::blowfish::decrypt_cbc $ks [crypto::blowfish::encrypt_cbc $ks  $data $iv] $iv}

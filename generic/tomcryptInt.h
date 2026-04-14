@@ -1,17 +1,30 @@
 #ifndef _TOMCRYPTINT_H
 #define _TOMCRYPTINT_H
-#include <tommath.h>
+#include <config.h>
 #include <tcl.h>
 #include <tclOO.h>
-#include "tclstuff.h"
+#include <tclstuff.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <math.h>
 #include <string.h>
-#include "tip445.h"
-#include "libtomcrypt/tomcrypt.h"
+#include <tip445.h>
+#include <getbytes.h>
+#include <libtomcrypt/tomcrypt.h>
+
+/* Tcl_Size compat for Tcl 8.  config.h may provide it as a #define. */
+#ifndef TCL_SIZE_MAX
+# ifndef Tcl_Size
+typedef int Tcl_Size;
+# endif
+# define Tcl_GetSizeIntFromObj Tcl_GetIntFromObj
+# define TCL_SIZE_MAX      INT_MAX
+# define TCL_SIZE_MODIFIER ""
+#endif
 
 #define NS	"::tomcrypt"
+
+#define BUF_BIGVAL_STATIC_BYTES 512
 
 #define LITSTRS \
 	X(L_EMPTY,			"") \
@@ -121,8 +134,6 @@ OBJCMD(rsa_verify_hash_cmd);
 OBJCMD(rsa_encrypt_key_cmd);
 OBJCMD(rsa_decrypt_key_cmd);
 // rsa functions >>>
-
-EXTERN int Tomcrypt_Init _ANSI_ARGS_((Tcl_Interp * interp));
 
 #ifdef __cplusplus
 }

@@ -114,11 +114,11 @@ test rsa_make_key-error-8 {Missing option value for prng} -body { #<<<
 #>>>
 test rsa_make_key-error-9 {Non-integer keysize} -body { #<<<
 	tomcrypt::rsa_make_key -keysize notanumber
-} -returnCodes error -errorCode {TCL VALUE NUMBER} -result {expected integer but got "notanumber"}
+} -returnCodes error -match glob -errorCode {TCL VALUE *} -result {expected * but got "notanumber"}
 #>>>
 test rsa_make_key-error-10 {Non-integer exponent} -body { #<<<
 	tomcrypt::rsa_make_key -exponent notanumber
-} -returnCodes error -errorCode {TCL VALUE NUMBER} -result {expected integer but got "notanumber"}
+} -returnCodes error -match glob -errorCode {TCL VALUE *} -result {expected * but got "notanumber"}
 #>>>
 test rsa_make_key-error-11 {rsa_make_key with unknown option} -body { #<<<
 	tomcrypt::rsa_make_key extra arg
@@ -302,7 +302,7 @@ test rsa_sign_hash-error-13 {Missing option value for saltlen in sign_hash} -bod
 #>>>
 test rsa_sign_hash-error-14 {Non-integer saltlen in sign_hash} -body { #<<<
 	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding pss -saltlen notanumber
-} -returnCodes error -errorCode {TCL VALUE NUMBER} -result {expected integer but got "notanumber"}
+} -returnCodes error -match glob -errorCode {TCL VALUE *} -result {expected * but got "notanumber"}
 #>>>
 test rsa_sign_hash-error-15 {Salt length too large} -body { #<<<
 	tomcrypt::rsa_sign_hash -key $default_key -hash [tomcrypt::hash sha256 test] -padding pss -saltlen 4294967296
@@ -420,7 +420,7 @@ test rsa_verify_hash-error-11 {Missing option value for saltlen in verify_hash} 
 #>>>
 test rsa_verify_hash-error-12 {Non-integer saltlen in verify_hash} -body { #<<<
 	tomcrypt::rsa_verify_hash -key $default_pubkey -sig test -hash [tomcrypt::hash sha256 test] -padding pss -saltlen notanumber
-} -returnCodes error -errorCode {TCL VALUE NUMBER} -result {expected integer but got "notanumber"}
+} -returnCodes error -match glob -errorCode {TCL VALUE *} -result {expected * but got "notanumber"}
 #>>>
 test rsa_verify_hash-error-13 {rsa_verify_hash with invalid option} -body { #<<<
 	tomcrypt::rsa_verify_hash -invalid option

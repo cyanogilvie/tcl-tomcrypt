@@ -41,7 +41,7 @@ test hmac-1.7 {hmac: too many args} -body { #<<<
 test hmac-1.8 {hmac: child interp} -body { #<<<
 	set child	[interp create]
 	$child eval {
-		load {} tomcrypt
+		load {} Tomcrypt
 		binary encode hex [tomcrypt::hmac sha256 \
 			[binary decode hex 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b] \
 			"Hi There"]

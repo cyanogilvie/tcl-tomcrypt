@@ -1,0 +1,8 @@
+option('unload', type: 'boolean', value: true,
+  description: 'Allow unloading of the tomcrypt extension')
+
+option('testmode', type: 'boolean', value: false,
+  description: 'Build with whitebox testing hooks exposed')
+
+option('debugmode', type: 'boolean', value: false,
+  description: 'Build with debug checks and assertions enabled')

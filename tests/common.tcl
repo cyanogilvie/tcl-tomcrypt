@@ -4,7 +4,6 @@ if {"::tcltest" ni [namespace children]} {
 }
 
 ::tcltest::loadTestedCommands
-package require tomcrypt
 
 tcltest::testConstraint testMode [expr {[llength [info commands ::tomcrypt::_testmode_hasGetBytesFromObj]]>0}]
 
@@ -13,4 +12,4 @@ tcltest::testConstraint hasGetBytesFromObj	[expr {
 	[tomcrypt::_testmode_hasGetBytesFromObj]
 }]
 
-
+tcltest::testConstraint have_crypto [expr {![catch {package require crypto}]}]

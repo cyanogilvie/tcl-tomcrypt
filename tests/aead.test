@@ -129,6 +129,90 @@ test aead-eax-3.1 {EAX works with various cipher block sizes} -body { #<<<
 #>>>
 # EAX Tests >>>
 
+# OCB (OCB1) Tests <<<
+# Earlier releases of this package shipped a libtomcrypt that had an aliasing
+# bug in s_ocb_done's decrypt path: the checksum was XORed against the
+# not-yet-written output buffer, which only worked when callers passed the
+# same buffer for input and output (in-place decryption, as libtomcrypt's
+# own self-test did).  Our wrapper allocates separate buffers, so OCB1
+# decrypt always failed.  Fixed in libtomcrypt commit 8c68d992 on
+# cyanogilvie/libtomcrypt, branch fix/ocb-decrypt-aliasing.
+test aead-ocb-1.1 {OCB1 encrypt and decrypt round trip} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	set aad		{}
+	set pt		{Hello, OCB1!}
+
+	lassign [tomcrypt::aead encrypt ocb aes $key $iv $aad $pt] ct tag
+	tomcrypt::aead decrypt ocb aes $key $iv $aad $ct $tag
+} -cleanup {
+	unset -nocomplain key iv aad pt ct tag
+} -result {Hello, OCB1!}
+#>>>
+test aead-ocb-1.2 {OCB1 encrypt produces output of expected length} -body { #<<<
+	set key		[binary decode hex 00000000000000000000000000000000]
+	set iv		[binary decode hex 000000000000000000000000]
+	set pt		{Hello, OCB1!}
+
+	lassign [tomcrypt::aead encrypt ocb aes $key $iv {} $pt] ct tag
+	list [string length $ct] [string length $tag]
+} -cleanup {
+	unset -nocomplain key iv pt ct tag
+} -result {12 16}
+#>>>
+test aead-ocb-1.3 {OCB1 round-trip across plaintext lengths} -body { #<<<
+	# Exercise the s_ocb_done aliasing fix at every length category:
+	# 0 bytes (special-case skipping the loop), partial block (3),
+	# exactly one block (16), one full + partial (20), exactly two blocks
+	# (32), and two full + partial (34).
+	set key		[binary decode hex 000102030405060708090a0b0c0d0e0f]
+	set nonce	[binary decode hex 00000000000000000000000000000001]
+	set results	{}
+	foreach ptlen {0 3 16 20 32 34} {
+		set bytes {}
+		for {set i 0} {$i < $ptlen} {incr i} {lappend bytes $i}
+		set pt [binary format c* $bytes]
+		lassign [tomcrypt::aead encrypt ocb aes $key $nonce {} $pt] ct tag
+		set rt [tomcrypt::aead decrypt ocb aes $key $nonce {} $ct $tag]
+		lappend results [expr {$rt eq $pt}]
+	}
+	set results
+} -cleanup {
+	unset -nocomplain key nonce results bytes pt ct tag rt i
+} -result {1 1 1 1 1 1}
+#>>>
+test aead-ocb-1.4 {OCB1 known answer test (libtomcrypt OCB-AES-128-3B vector)} -body { #<<<
+	# Vector from deps/libtomcrypt/src/encauth/ocb/ocb_test.c, exercising
+	# both the canonical ciphertext+tag and the round-trip.
+	set key		[binary decode hex 000102030405060708090a0b0c0d0e0f]
+	set nonce	[binary decode hex 00000000000000000000000000000001]
+	set pt		[binary decode hex 000102]
+	set exp_ct	[binary decode hex fcd37d]
+	set exp_tag	[binary decode hex 02254739a5e3565ae2dcd62c659746ba]
+
+	lassign [tomcrypt::aead encrypt ocb aes $key $nonce {} $pt] ct tag
+	list \
+		[expr {$ct eq $exp_ct}] \
+		[expr {$tag eq $exp_tag}] \
+		[expr {[tomcrypt::aead decrypt ocb aes $key $nonce {} $exp_ct $exp_tag] eq $pt}]
+} -cleanup {
+	unset -nocomplain key nonce pt exp_ct exp_tag ct tag
+} -result {1 1 1}
+#>>>
+test aead-ocb-1.5 {OCB1 tag verification rejects tampered ciphertext} -body { #<<<
+	set key		[binary decode hex 000102030405060708090a0b0c0d0e0f]
+	set nonce	[binary decode hex 00000000000000000000000000000001]
+	set pt		[binary decode hex 000102]
+	lassign [tomcrypt::aead encrypt ocb aes $key $nonce {} $pt] ct tag
+	# Flip a bit in the tag
+	set bad_tag [binary format ca* [expr {[scan [string index $tag 0] %c] ^ 0x01}] [string range $tag 1 end]]
+	tomcrypt::aead decrypt ocb aes $key $nonce {} $ct $bad_tag
+} -cleanup {
+	unset -nocomplain key nonce pt ct tag bad_tag
+} -returnCodes error -errorCode {TOMCRYPT AEAD DECRYPT ocb} -match glob -result {*ocb decryption failed*}
+#>>>
+# OCB (OCB1) Tests >>>
+
 # OCB3 Tests <<<
 test aead-ocb3-1.1 {OCB3 encrypt and decrypt} -body { #<<<
 	set key		[binary decode hex 00000000000000000000000000000000]

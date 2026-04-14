@@ -104,7 +104,7 @@ static int parse_custom_curve_dict(Tcl_Interp* interp, Tcl_Obj* dict, ltc_ecc_cu
 	int				code = TCL_OK;
 	ltc_ecc_curve*	curve = NULL;
 	Tcl_Obj*		value = NULL;
-	int				dict_size = 0;
+	Tcl_Size		dict_size = 0;
 	Tcl_Obj*		key = NULL;
 
 	// Check if it's a valid dict

@@ -1,4 +1,9 @@
-#include "tomcryptInt.h"
+#include <tomcryptInt.h>
+#include <hedley.h>
+
+// Case ranges is strictly a c23 thing, but gcc and clang support it long before that
+HEDLEY_DIAGNOSTIC_PUSH
+#pragma GCC diagnostic ignored "-Wpedantic"
 
 int pem_load_first_key(Tcl_Interp* interp, Tcl_Obj* obj, uint8_t** der_buf, unsigned long* der_len, int* is_private_key, const char** type) //<<<
 {
@@ -77,7 +82,7 @@ int pem_load_first_key(Tcl_Interp* interp, Tcl_Obj* obj, uint8_t** der_buf, unsi
 			strncmp((const char*)s1, (const char*)s2, e1-s1) != 0
 		) {
 			Tcl_SetErrorCode(interp, "TOMCRYPT", "FORMAT", "PEM", NULL);
-			THROW_PRINTF_LABEL(finally, code, "PEM labels do not match");
+			THROW_ERROR_LABEL(finally, code, "PEM labels do not match");
 		}
 
 		*is_private_key = strncmp((const char*)p, "PRIVATE", 7) == 0;
@@ -95,7 +100,7 @@ int pem_load_first_key(Tcl_Interp* interp, Tcl_Obj* obj, uint8_t** der_buf, unsi
 		);
 		if (decode_rc != CRYPT_OK) {
 			Tcl_SetErrorCode(interp, "TOMCRYPT", "FORMAT", "BASE64", NULL);
-			THROW_PRINTF_LABEL(finally, code, "Invalid base64 content in PEM");
+			THROW_ERROR_LABEL(finally, code, "Invalid base64 content in PEM");
 		}
 		break;
 	}
@@ -111,5 +116,7 @@ finally:
 }
 
 //>>>
+
+HEDLEY_DIAGNOSTIC_POP
 
 // vim: ft=c foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4 noexpandtab

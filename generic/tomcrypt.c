@@ -1,4 +1,5 @@
 #include "tomcryptInt.h"
+#include <tclTomMath.h>	/* for Tcl_TomMath_InitStubs */
 
 // Must be kept in sync with the enum in tomcryptInt.tcl
 static const char* lit_str[L_size] = {
@@ -7,17 +8,18 @@ static const char* lit_str[L_size] = {
 #undef X
 };
 
-TCL_DECLARE_MUTEX(g_register_mutex);
+TCL_DECLARE_MUTEX(g_register_mutex)
 static int				g_register_init = 0;
 static int				g_sprng = -1;
 
-TCL_DECLARE_MUTEX(g_intreps_mutex);
+TCL_DECLARE_MUTEX(g_intreps_mutex)
 static Tcl_HashTable	g_intreps;
 static int				g_intreps_init = 0;
 
 // Internal API <<<
 void free_interp_cx(ClientData cdata, Tcl_Interp* interp) //<<<
 {
+	(void)interp;
 	struct interp_cx*	l = (struct interp_cx*)cdata;
 
 	for (int i=0; i<L_size; i++) replace_tclobj(&l->lit[i], NULL);
@@ -55,6 +57,7 @@ void forget_intrep(Tcl_Obj* obj) //<<<
 // Script API <<<
 OBJCMD(hash_cmd) //<<<
 {
+	(void)cdata;
 	int			code = TCL_OK;
 
 	enum {A_cmd, A_HASH, A_BYTES, A_objc};
@@ -69,7 +72,7 @@ OBJCMD(hash_cmd) //<<<
 	hash_state		md;
 	const int		hashlen = hash_descriptor[idx].hashsize;
 	uint8_t			hash[MAXBLOCKSIZE];
-	int				bytes_len;
+	Tcl_Size		bytes_len;
 	const uint8_t*	bytes = Tcl_GetBytesFromObj(interp, objv[A_BYTES], &bytes_len);
 	if (bytes == NULL) { code = TCL_ERROR; goto finally; }
 
@@ -86,6 +89,7 @@ finally:
 //>>>
 OBJCMD(hmac_cmd) //<<<
 {
+	(void)cdata;
 	int				code = TCL_OK;
 	unsigned char*	out = NULL;
 	unsigned long	outlen;
@@ -102,12 +106,12 @@ OBJCMD(hmac_cmd) //<<<
 	}
 
 	// Get key
-	int keylen;
+	Tcl_Size keylen;
 	const unsigned char* key = Tcl_GetBytesFromObj(interp, objv[A_KEY], &keylen);
 	if (key == NULL) { code = TCL_ERROR; goto finally; }
 
 	// Get message
-	int msglen;
+	Tcl_Size msglen;
 	const unsigned char* msg = Tcl_GetBytesFromObj(interp, objv[A_MSG], &msglen);
 	if (msg == NULL) { code = TCL_ERROR; goto finally; }
 
@@ -133,6 +137,7 @@ finally:
 //>>>
 OBJCMD(hkdf_cmd) //<<<
 {
+	(void)cdata;
 	int				code = TCL_OK;
 	Tcl_Obj*		res = NULL;
 
@@ -147,23 +152,23 @@ OBJCMD(hkdf_cmd) //<<<
 	}
 
 	// Get salt
-	int saltlen;
+	Tcl_Size saltlen;
 	const unsigned char* salt = Tcl_GetBytesFromObj(interp, objv[A_SALT], &saltlen);
 	if (salt == NULL) { code = TCL_ERROR; goto finally; }
 
 	// Get info
-	int infolen;
+	Tcl_Size infolen;
 	const unsigned char* info = Tcl_GetBytesFromObj(interp, objv[A_INFO], &infolen);
 	if (info == NULL) { code = TCL_ERROR; goto finally; }
 
 	// Get input keying material
-	int inlen;
+	Tcl_Size inlen;
 	const unsigned char* in = Tcl_GetBytesFromObj(interp, objv[A_IN], &inlen);
 	if (in == NULL) { code = TCL_ERROR; goto finally; }
 
 	// Get output length
-	long outlen;
-	TEST_OK_LABEL(finally, code, Tcl_GetLongFromObj(interp, objv[A_LENGTH], &outlen));
+	Tcl_WideInt outlen;
+	TEST_OK_LABEL(finally, code, Tcl_GetWideIntFromObj(interp, objv[A_LENGTH], &outlen));
 	if (outlen < 0) {
 		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
 		THROW_ERROR_LABEL(finally, code, "length must be non-negative");
@@ -190,6 +195,7 @@ finally:
 //>>>
 OBJCMD(base64url_cmd) // Base64 URL encode / decode <<<
 {
+	(void)cdata;
 	int					code = TCL_OK;
 	Tcl_Obj*			res = NULL;
 	static const char*	modes[] = {
@@ -199,16 +205,18 @@ OBJCMD(base64url_cmd) // Base64 URL encode / decode <<<
 		"strict_decode",
 		NULL
 	};
-	enum {
+	enum modeval {
 		M_ENCODE,
 		M_STRICT_ENCODE,
 		M_DECODE,
 		M_STRICT_DECODE,
 	} mode;
+	int		mode_idx;
 
 	enum {A_cmd, A_MODE, A_args};
 	CHECK_MIN_ARGS_LABEL(finally, code, "mode ?arg ...?");
-	TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[A_MODE], modes, "mode", TCL_EXACT, &mode));
+	TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[A_MODE], modes, "mode", TCL_EXACT, &mode_idx));
+	mode = mode_idx;
 	switch (mode) {
 		case M_ENCODE:
 		case M_STRICT_ENCODE:
@@ -216,7 +224,7 @@ OBJCMD(base64url_cmd) // Base64 URL encode / decode <<<
 				enum {A_cmd=1, A_BYTES, A_objc};
 				CHECK_ARGS_LABEL(finally, code, "bytes");
 
-				int				inlen;
+				Tcl_Size		inlen;
 				const uint8_t*	in = Tcl_GetBytesFromObj(interp, objv[A_BYTES], &inlen);
 				if (in == NULL) { code = TCL_ERROR; goto finally; }
 
@@ -245,7 +253,7 @@ OBJCMD(base64url_cmd) // Base64 URL encode / decode <<<
 				enum {A_cmd=1, A_STR, A_objc};
 				CHECK_ARGS_LABEL(finally, code, "string");
 
-				int						inlen;
+				Tcl_Size	inlen;
 				const char*	in = Tcl_GetStringFromObj(objv[A_STR], &inlen);
 				unsigned long			outlen = ((inlen+3)/4) * 3;
 				replace_tclobj(&res, Tcl_NewByteArrayObj(NULL, outlen));
@@ -276,6 +284,7 @@ finally:
 //>>>
 OBJCMD(ecc_generate_key_cmd) //<<<
 {
+	(void)cdata;
 	int						code = TCL_OK;
 	ecc_key*				key = NULL;
 	int						key_initialized = 0;
@@ -332,6 +341,7 @@ finally:
 //>>>
 OBJCMD(ecc_extract_pubkey_cmd) //<<<
 {
+	(void)cdata;
 	int						code = TCL_OK;
 	ecc_key*				key = NULL;
 	ecc_key*				pubkey = NULL;
@@ -375,6 +385,7 @@ finally:
 //>>>
 OBJCMD(ecc_ansi_x963_import_cmd) //<<<
 {
+	(void)cdata;
 	int						code = TCL_OK;
 	ecc_key*				key = NULL;
 	int						key_initialized = 0;
@@ -385,7 +396,7 @@ OBJCMD(ecc_ansi_x963_import_cmd) //<<<
 	CHECK_RANGE_ARGS_LABEL(finally, code, "der ?curve?");
 
 	// Get the DER bytes
-	int derlen;
+	Tcl_Size derlen;
 	const uint8_t* der = Tcl_GetBytesFromObj(interp, objv[A_DER], &derlen);
 	if (der == NULL) { code = TCL_ERROR; goto finally; }
 
@@ -412,7 +423,7 @@ OBJCMD(ecc_ansi_x963_import_cmd) //<<<
 			case (256/8)*2+1: err = ecc_find_curve("secp256r1", &curve); break;
 			case (384/8)*2+1: err = ecc_find_curve("secp384r1", &curve); break;
 			case ((521+7)/8)*2+1: err = ecc_find_curve("secp521r1", &curve); break;
-			default: THROW_PRINTF_LABEL(finally, code, "Cannot infer curve from key size %d; please specify the curve", derlen);
+			default: THROW_PRINTF_LABEL(finally, code, "Cannot infer curve from key size %" TCL_SIZE_MODIFIER "d; please specify the curve", derlen);
 		}
 		if (err != CRYPT_OK) THROW_ERROR_LABEL(finally, code, "ecc_find_curve failed");
 	}
@@ -443,6 +454,7 @@ finally:
 //>>>
 OBJCMD(ecc_ansi_x963_export_cmd) //<<<
 {
+	(void)cdata;
 	int			code = TCL_OK;
 	ecc_key*	key = NULL;
 	Tcl_Obj*	res = NULL;
@@ -486,7 +498,8 @@ OBJCMD(ecc_verify) //<<<
 	ecc_key*	key = NULL;
 	TEST_OK_LABEL(finally, code, GetECCKeyFromObj(interp, objv[A_KEY], ECC_EXPECT_PUBLIC, &key));
 
-	int				siglen, msglen, stat;
+	Tcl_Size		siglen, msglen;
+	int				stat;
 	const uint8_t*	sig = Tcl_GetBytesFromObj(interp, objv[A_SIG],  &siglen);
 	if (sig == NULL) { code = TCL_ERROR; goto finally; }
 	const uint8_t*	msg = Tcl_GetBytesFromObj(interp, objv[A_HASH], &msglen);
@@ -507,6 +520,7 @@ finally:
 //>>>
 OBJCMD(ecc_sign_cmd) //<<<
 {
+	(void)cdata;
 	int			code = TCL_OK;
 	ecc_key*	key = NULL;
 	prng_state*	prng = NULL;
@@ -525,7 +539,7 @@ OBJCMD(ecc_sign_cmd) //<<<
 	}
 
 	// Get message to sign
-	int msglen;
+	Tcl_Size msglen;
 	const unsigned char* msg = Tcl_GetBytesFromObj(interp, objv[A_MSG], &msglen);
 	if (msg == NULL) { code = TCL_ERROR; goto finally; }
 
@@ -567,6 +581,7 @@ finally:
 //>>>
 OBJCMD(ecc_shared_secret_cmd) //<<<
 {
+	(void)cdata;
 	int			code = TCL_OK;
 	ecc_key*	private_key = NULL;
 	ecc_key*	public_key = NULL;
@@ -609,6 +624,7 @@ finally:
 //>>>
 OBJCMD(rng_bytes) //<<<
 {
+	(void)cdata;
 	int				code = TCL_OK;
 	Tcl_Obj*		res = NULL;
 
@@ -640,6 +656,7 @@ finally:
 //>>>
 OBJCMD(rsa_make_key_cmd) //<<<
 {
+	(void)cdata;
 	int			code = TCL_OK;
 	rsa_key*	key = NULL;
 	int			key_initialized = 0;
@@ -725,6 +742,7 @@ finally:
 //>>>
 OBJCMD(rsa_extract_pubkey_cmd) //<<<
 {
+	(void)cdata;
 	int			code = TCL_OK;
 	rsa_key*	key = NULL;
 	rsa_key*	pbkey = NULL;
@@ -765,16 +783,17 @@ finally:
 //>>>
 OBJCMD(rsa_sign_hash_cmd) //<<<
 {
+	(void)cdata;
 	int						code = TCL_OK;
 	rsa_key*				key = NULL;
 	prng_state*				prng = NULL;
 	int						prng_desc_idx = -1;
 	Tcl_Obj*				res = NULL;
 	const unsigned char*	in = NULL;
-	int						inlen = 0;
+	Tcl_Size				inlen = 0;
 	int						padding = LTC_PKCS_1_PSS;
 	int						hash_idx = -1;
-	unsigned long			saltlen = 0;
+	int						saltlen = 0;
 
 	for (int i=1; i<objc; i++) {
 		static const char *opts[] = {
@@ -822,7 +841,7 @@ OBJCMD(rsa_sign_hash_cmd) //<<<
 				static int padding_map[] = {LTC_PKCS_1_V1_5, LTC_PKCS_1_PSS, LTC_PKCS_1_V1_5_NA1};
 				int padding_idx;
 				TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[++i], padding_types, "padding", TCL_EXACT, &padding_idx));
-				if (padding_idx < 0 || padding_idx > sizeof(padding_map)/sizeof(padding_map[0])) {
+				if (padding_idx < 0 || (unsigned int)padding_idx > sizeof(padding_map)/sizeof(padding_map[0])) {
 					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
 					THROW_ERROR_LABEL(finally, code, "Invalid padding type");
 				}
@@ -854,7 +873,7 @@ OBJCMD(rsa_sign_hash_cmd) //<<<
 					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
 					THROW_ERROR_LABEL(finally, code, "salt length too large");
 				}
-				saltlen = (unsigned long)tmpint;
+				saltlen = tmpint;
 			}
 		}
 #undef REQUIRE_OPT_VAL
@@ -884,7 +903,7 @@ OBJCMD(rsa_sign_hash_cmd) //<<<
 
 	if (padding == LTC_PKCS_1_PSS && saltlen > rsa_sign_saltlen_get_max(hash_idx, key)) {
 		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", "-saltlen", NULL);
-		THROW_PRINTF_LABEL(finally, code, "salt length %lu exceeds maximum %u", saltlen, rsa_sign_saltlen_get_max(hash_idx, key));
+		THROW_PRINTF_LABEL(finally, code, "salt length %d exceeds maximum %d", saltlen, rsa_sign_saltlen_get_max(hash_idx, key));
 	}
 
 	// Allocate signature buffer
@@ -914,9 +933,9 @@ OBJCMD(rsa_verify_hash_cmd) //<<<
 	int						code = TCL_OK;
 	rsa_key*				key = NULL;
 	const unsigned char*	sig = NULL;
-	int						siglen = 0;
+	Tcl_Size				siglen = 0;
 	const unsigned char*	hash = NULL;
-	int						hashlen = 0;
+	Tcl_Size				hashlen = 0;
 	int						padding = LTC_PKCS_1_PSS;
 	int						hash_idx = -1;
 	unsigned long			saltlen = 0;
@@ -972,7 +991,7 @@ OBJCMD(rsa_verify_hash_cmd) //<<<
 				static int padding_map[] = {LTC_PKCS_1_V1_5, LTC_PKCS_1_PSS, LTC_PKCS_1_V1_5_NA1};
 				int padding_idx;
 				TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[++i], padding_types, "padding", TCL_EXACT, &padding_idx));
-				if (padding_idx < 0 || padding_idx >= sizeof(padding_map)/sizeof(padding_map[0])) {
+				if (padding_idx < 0 || (unsigned int)padding_idx >= sizeof(padding_map)/sizeof(padding_map[0])) {
 					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
 					THROW_ERROR_LABEL(finally, code, "Invalid padding type");
 				}
@@ -1042,17 +1061,18 @@ finally:
 //>>>
 OBJCMD(rsa_encrypt_key_cmd) //<<<
 {
+	(void)cdata;
 	int						code = TCL_OK;
 	rsa_key*				key = NULL;
 	prng_state*				prng = NULL;
 	int						prng_desc_idx = -1;
 	Tcl_Obj*				res = NULL;
 	const unsigned char*	msg = NULL;
-	int						msglen = 0;
+	Tcl_Size				msglen = 0;
 	int						padding = LTC_PKCS_1_OAEP;
 	int						hash_idx = -1;
 	const unsigned char*	lparam = NULL;
-	int						lparamlen = 0;
+	Tcl_Size				lparamlen = 0;
 
 	for (int i=1; i<objc; i++) {
 		static const char *opts[] = {
@@ -1100,7 +1120,7 @@ OBJCMD(rsa_encrypt_key_cmd) //<<<
 				static int padding_map[] = {LTC_PKCS_1_V1_5, LTC_PKCS_1_OAEP};
 				int padding_idx;
 				TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[++i], padding_types, "padding", TCL_EXACT, &padding_idx));
-				if (padding_idx < 0 || padding_idx >= sizeof(padding_map)/sizeof(padding_map[0])) {
+				if (padding_idx < 0 || (unsigned int)padding_idx >= sizeof(padding_map)/sizeof(padding_map[0])) {
 					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
 					THROW_ERROR_LABEL(finally, code, "Invalid padding type");
 				}
@@ -1173,15 +1193,16 @@ finally:
 //>>>
 OBJCMD(rsa_decrypt_key_cmd) //<<<
 {
+	(void)cdata;
 	int						code = TCL_OK;
 	rsa_key*				key = NULL;
 	Tcl_Obj*				res = NULL;
 	const unsigned char*	ciphertext = NULL;
-	int						ctlen = 0;
+	Tcl_Size				ctlen = 0;
 	int						padding = LTC_PKCS_1_OAEP;
 	int						hash_idx = -1;
 	const unsigned char*	lparam = NULL;
-	int						lparamlen = 0;
+	Tcl_Size				lparamlen = 0;
 
 	for (int i=1; i<objc; i++) {
 		static const char *opts[] = {
@@ -1227,7 +1248,7 @@ OBJCMD(rsa_decrypt_key_cmd) //<<<
 				static int padding_map[] = {LTC_PKCS_1_V1_5, LTC_PKCS_1_OAEP};
 				int padding_idx;
 				TEST_OK_LABEL(finally, code, Tcl_GetIndexFromObj(interp, objv[++i], padding_types, "padding", TCL_EXACT, &padding_idx));
-				if (padding_idx < 0 || padding_idx >= sizeof(padding_map)/sizeof(padding_map[0])) {
+				if (padding_idx < 0 || (unsigned int)padding_idx >= sizeof(padding_map)/sizeof(padding_map[0])) {
 					Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", NULL);
 					THROW_ERROR_LABEL(finally, code, "Invalid padding type");
 				}
@@ -1300,7 +1321,7 @@ OBJCMD(hasGetBytesFromObj) //<<<
 	struct interp_cx*	l = cdata;
 
 	enum {A_cmd, A_objc};
-	CHECK_ARGS_LABEL(finally, code);
+	CHECK_ARGS_LABEL(finally, code, "");
 
 	// For now - we don't implement a polyfill yet
 	Tcl_SetObjResult(interp, l->lit[L_TRUE]);
@@ -1318,22 +1339,14 @@ OBJCMD(isByteArray) // Snoop on the objtype, use this rather than parse tcl::uns
 	enum {A_cmd, A_OBJ, A_objc};
 	CHECK_ARGS_LABEL(finally, code, "value");
 
-#if TCL_MAJOR_VERSION < 9
-	// Have to assume old typePtr handling because 8.7 registers the legacy bytearray type for "bytearray",
-	// and leaves out the properByteArrayType, so we can't test for it.
+	// In Tcl 9 the byte array types (legacy and proper) are not registered
+	// via Tcl_GetObjType, so compare the typePtr->name directly.
 	Tcl_SetObjResult(interp, l->lit[
 			objv[A_OBJ]->typePtr &&
 			strcmp(objv[A_OBJ]->typePtr->name, "bytearray") == 0
 				? L_TRUE
 				: L_FALSE
 	]);
-#else
-	const Tcl_ObjType*		tclByteArrayType = Tcl_GetObjType("bytearray");
-	if (tclByteArrayType == NULL) THROW_ERROR_LABEL(finally, code, "Failed to lookup bytearray type");
-
-	Tcl_ObjInternalRep*	ir = Tcl_FetchInternalRep(objv[A_OBJ], tclByteArrayType);
-	Tcl_SetObjResult(interp, l->lit[ir ? L_TRUE : L_FALSE]);
-#endif
 
 finally:
 	return code;
@@ -1342,6 +1355,7 @@ finally:
 //>>>
 OBJCMD(leakObj) // Deliberately leak a Tcl_Obj <<<
 {
+	(void)cdata;
 	int					code = TCL_OK;
 	Tcl_Obj*			leaked = NULL;
 
@@ -1350,11 +1364,11 @@ OBJCMD(leakObj) // Deliberately leak a Tcl_Obj <<<
 
 	// Duplicate this obj so that this function is in the call stack for the
 	// allocation, so we can write a valgrind suppression for it
-	int				len;
+	Tcl_Size		len;
 	const uint8_t*	bytes = Tcl_GetBytesFromObj(interp, objv[A_OBJ], &len);
 	if (bytes == NULL) { code = TCL_ERROR; goto finally; }
 	replace_tclobj(&leaked, Tcl_NewByteArrayObj(bytes, len));
-	fprintf(stderr, "Deliberately leaking %p\n", leaked);
+	fprintf(stderr, "Deliberately leaking %p\n", (void*)leaked);
 
 	Tcl_SetObjResult(interp, leaked);
 
@@ -1365,6 +1379,7 @@ finally:
 //>>>
 OBJCMD(dupObj) // Force duplicate a Tcl_Obj <<<
 {
+	(void)cdata;
 	int					code = TCL_OK;
 
 	enum {A_cmd, A_OBJ, A_objc};
@@ -1379,6 +1394,7 @@ finally:
 //>>>
 OBJCMD(refCount) // Inspect a Tcl_Obj's refCount <<<
 {
+	(void)cdata;
 	int					code = TCL_OK;
 
 	enum {A_cmd, A_OBJ, A_objc};
@@ -1393,6 +1409,7 @@ finally:
 //>>>
 OBJCMD(doubleMatissaHist) // Somewhat inaccurately named, returns the bit==1 count histogram for d, for the double arg as if it were in the form d/(52<<5), in 5 bit fractional part fixed point int.  To meet the claimed uniform distribution and uniform spacing, this histogram should have .5 probability for bits 0 through 52 in the whole portion (<<5) and 0 everywhere else <<<
 {
+	(void)cdata;
 	int					code = TCL_OK;
 	Tcl_Obj*			get_double = NULL;
 	Tcl_Obj*			res = NULL;
@@ -1454,6 +1471,7 @@ finally:
 //>>>
 OBJCMD(getECCCurveFromObj) // Test GetECCCurveFromObj conversion <<<
 {
+	(void)cdata;
 	int						code = TCL_OK;
 	const ltc_ecc_curve*	curve = NULL;
 
@@ -1468,6 +1486,16 @@ OBJCMD(getECCCurveFromObj) // Test GetECCCurveFromObj conversion <<<
 
 finally:
 	return code;
+}
+
+//>>>
+OBJCMD(report_static_bytes_size) // Make BUF_BIGVAL_STATIC_BYTES available to the test suite <<<
+{
+	(void)cdata;
+	enum {A_cmd, A_objc};
+	CHECK_ARGS("");
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(BUF_BIGVAL_STATIC_BYTES));
+	return TCL_OK;
 }
 
 //>>>
@@ -1507,6 +1535,7 @@ static struct cmd {
 	{NS "::_testmode_refCount",				refCount,				NULL},
 	{NS "::_testmode_doubleMantissaHist",	doubleMatissaHist,		NULL},
 	{NS "::_testmode_getECCCurveFromObj",	getECCCurveFromObj,		NULL},
+	{NS "::_testmode_BUF_BIGVAL_STATIC_BYTES",	report_static_bytes_size,	NULL},
 #endif
 	{0}
 };
@@ -1523,6 +1552,7 @@ DLLEXPORT int Tomcrypt_Init(Tcl_Interp* interp) //<<<
 #if USE_TCL_STUBS
 	if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) return TCL_ERROR;
 	if (Tcl_OOInitStubs(interp) == NULL) return TCL_ERROR;
+	if (Tcl_TomMath_InitStubs(interp, TCL_VERSION) == NULL) return TCL_ERROR;
 #endif
 
 	Tcl_MutexLock(&g_register_mutex);
@@ -1630,10 +1660,7 @@ DLLEXPORT int Tomcrypt_Unload(Tcl_Interp* interp, int flags) //<<<
 		}
 		Tcl_MutexUnlock(&g_intreps_mutex);
 		Tcl_MutexFinalize(&g_intreps_mutex);
-		g_intreps_mutex = NULL;
-
 		Tcl_MutexFinalize(&g_register_mutex);
-		g_register_mutex = NULL;
 	}
 
 	return code;
