@@ -298,6 +298,7 @@ static int decrypt_final(Tcl_Interp* interp, struct cipher_md* md, Tcl_Obj** pla
 			{
 				Tcl_Size				len;
 				const unsigned char*	bytes = Tcl_GetBytesFromObj(interp, *plaintext, &len);
+				if (!bytes) { code = TCL_ERROR; goto finally; }
 				if (len > 0) { // len should never be zero, but protect against underflow
 					const unsigned char	last = bytes[len-1];
 					len--;
