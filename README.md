@@ -4,7 +4,7 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 
 ## SYNOPSIS
 
-**package require tomcrypt** ?0.9.0?
+**package require tomcrypt** ?0.9.1?
 
 **tomcrypt::hash** *algorithm* *bytes*  
 **tomcrypt::hmac** *algorithm* *key* *message*  
@@ -630,13 +630,13 @@ cross-compilation and for CI where no Tcl is installed.
 ### From a Release Tarball
 
 Download and extract [the
-release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.0/tomcrypt-0.9.0.tar.gz),
+release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.1/tomcrypt-0.9.1.tar.gz),
 then build:
 
 ``` sh
-wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.0/tomcrypt-0.9.0.tar.gz
-tar xf tomcrypt-0.9.0.tar.gz
-cd tomcrypt-0.9.0
+wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.1/tomcrypt-0.9.1.tar.gz
+tar xf tomcrypt-0.9.1.tar.gz
+cd tomcrypt-0.9.1
 meson setup build
 meson compile -C build
 sudo meson install -C build
@@ -670,12 +670,12 @@ to minimise image size:
 
 ``` dockerfile
 WORKDIR /tmp/tcl-tomcrypt
-RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.0/tomcrypt-0.9.0.tar.gz -O - | tar xz --strip-components=1 && \
+RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.1/tomcrypt-0.9.1.tar.gz -O - | tar xz --strip-components=1 && \
     meson setup build && \
     meson compile -C build && \
     meson test -C build && \
     meson install -C build && \
-    strip /usr/local/lib/tomcrypt-0.9.0/*.so && \
+    strip /usr/local/lib/tomcrypt-0.9.1/*.so && \
     cd .. && rm -rf tcl-tomcrypt
 ```
 
