@@ -147,6 +147,11 @@ static int eax_decrypt_wrapper(int cipher, //<<<
 //>>>
 // EAX wrappers >>>
 // OCB wrappers <<<
+// libtomcrypt's ocb_init reads exactly block_len bytes from the nonce without
+// a length parameter, so the caller must provide a nonce equal to the cipher's
+// block length (16 bytes for AES).  A shorter nonce causes an out-of-bounds
+// read in ocb_init; a longer nonce silently drops the excess.  Validate here
+// so that misuse is a clean Tcl error rather than undefined behaviour.
 static int ocb_encrypt_wrapper(int cipher, //<<<
 	const unsigned char *key, unsigned long keylen,
 	const unsigned char *nonce, unsigned long noncelen,
@@ -155,9 +160,10 @@ static int ocb_encrypt_wrapper(int cipher, //<<<
 	unsigned char *ct,
 	unsigned char *tag, unsigned long *taglen)
 {
-	(void)noncelen; // OCB nonce doesn't have explicit length parameter
 	(void)header; // OCB doesn't support AAD
 	(void)headerlen;
+	if ((int)noncelen != cipher_descriptor[cipher].block_length)
+		return CRYPT_INVALID_ARG;
 	return ocb_encrypt_authenticate_memory(cipher, key, keylen, nonce, pt, ptlen, ct,
 										   tag, taglen);
 }
@@ -171,9 +177,10 @@ static int ocb_decrypt_wrapper(int cipher, //<<<
 	unsigned char *pt,
 	unsigned char *tag, unsigned long *taglen)
 {
-	(void)noncelen; // OCB nonce doesn't have explicit length parameter
 	(void)header; // OCB doesn't support AAD
 	(void)headerlen;
+	if ((int)noncelen != cipher_descriptor[cipher].block_length)
+		return CRYPT_INVALID_ARG;
 	int stat;
 	int err = ocb_decrypt_verify_memory(cipher, key, keylen, nonce, ct, ctlen, pt,
 										tag, *taglen, &stat);

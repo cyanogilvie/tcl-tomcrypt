@@ -31,24 +31,18 @@ interned = custom_target('interned-deps',
   build_by_default: true,
 )
 
-# Hide the interned libtomcrypt/libtommath symbols from the final shared
-# module's dynamic symbol table.  Without this, symbols like mp_prime_is_prime
-# collide with the copy that Tcl's own bundled libtommath exports from
-# libtcl9.0.so, and the dynamic loader can resolve libtomcrypt-internal
-# calls to Tcl's older libtommath-1.3.0, which (at least in the version
-# pinned by the Tcl 9.0.3 wrap) has an alignment bug in mp_prime_is_prime
-# that trips the stack protector on rsa_make_key.  We only need these
-# libraries for internal use -- nothing in our public C API exposes them.
-#
-# --exclude-libs is a GNU ld / lld / gold extension; skip gracefully on
-# linkers that don't support it (e.g. macOS ld64).
-interned_hide_args = cc.get_supported_link_arguments([
-  # GNU ld requires colon (or repeated flag) to delimit multiple archive
-  # names here -- comma gets split into separate linker inputs and the
-  # second archive is treated as a file to link, which fails to find it.
-  '-Wl,--exclude-libs=libtomcrypt.a:libtommath.a',
-])
-
+# The interned libtomcrypt and libtommath are built via their CMake builds
+# with CMAKE_C_VISIBILITY_PRESET=hidden + CMAKE_VISIBILITY_INLINES_HIDDEN=ON
+# (see tools/interned_deps.json), so every symbol from the two archives
+# carries STV_HIDDEN into the final shared module and never enters its
+# dynamic symbol table.  That keeps libtomcrypt's internal mp_* calls
+# bound to its own bundled libtommath at static-link time and makes ELF
+# symbol interposition impossible at load time -- so an older libtommath
+# living in libtcl9.0.so (e.g. the 1.3.0 copy in the Tcl wrap-fallback
+# build, which differs from the newer copy interned here) can't hijack
+# libtomcrypt's internal arithmetic.  No linker-level symbol hiding
+# needed, which keeps us portable to linkers without --exclude-libs
+# (macOS ld64, etc.).
 interned_deps_dep = declare_dependency(
   sources:      interned,
   compile_args: [
@@ -58,7 +52,7 @@ interned_deps_dep = declare_dependency(
   link_args: [
     interned[0].full_path(),   # libtomcrypt.a
     interned[1].full_path(),   # libtommath.a
-  ] + interned_hide_args,
+  ],
 )
 
 run_target('deps-clean',

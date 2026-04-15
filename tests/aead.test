@@ -139,7 +139,8 @@ test aead-eax-3.1 {EAX works with various cipher block sizes} -body { #<<<
 # cyanogilvie/libtomcrypt, branch fix/ocb-decrypt-aliasing.
 test aead-ocb-1.1 {OCB1 encrypt and decrypt round trip} -body { #<<<
 	set key		[binary decode hex 00000000000000000000000000000000]
-	set iv		[binary decode hex 000000000000000000000000]
+	# OCB1 requires a nonce equal to the cipher block length (16 bytes for AES).
+	set iv		[binary decode hex 00000000000000000000000000000000]
 	set aad		{}
 	set pt		{Hello, OCB1!}
 
@@ -151,7 +152,7 @@ test aead-ocb-1.1 {OCB1 encrypt and decrypt round trip} -body { #<<<
 #>>>
 test aead-ocb-1.2 {OCB1 encrypt produces output of expected length} -body { #<<<
 	set key		[binary decode hex 00000000000000000000000000000000]
-	set iv		[binary decode hex 000000000000000000000000]
+	set iv		[binary decode hex 00000000000000000000000000000000]
 	set pt		{Hello, OCB1!}
 
 	lassign [tomcrypt::aead encrypt ocb aes $key $iv {} $pt] ct tag

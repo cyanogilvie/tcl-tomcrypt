@@ -7,4 +7,4 @@
 	url = https://github.com/libtom/libtommath
 [submodule "deps/libtomcrypt"]
 	path = deps/libtomcrypt
-	url = https://github.com/cyanogilvie/libtomcrypt
+	url = https://github.com/libtom/libtomcrypt
