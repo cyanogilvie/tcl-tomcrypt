@@ -342,10 +342,12 @@ finally:
 OBJCMD(ecc_extract_pubkey_cmd) //<<<
 {
 	(void)cdata;
-	int						code = TCL_OK;
-	ecc_key*				key = NULL;
-	ecc_key*				pubkey = NULL;
-	int						key_initialized = 0;
+	int				code = TCL_OK;
+	ecc_key*		key = NULL;
+	ecc_key*		pubkey = NULL;
+	int				key_initialized = 0;
+	uint8_t			staticbuf[512];
+	uint8_t*		buf = staticbuf;
 
 	enum {A_cmd, A_PRIVKEY, A_objc};
 	CHECK_ARGS_LABEL(finally, code, "privkey");
@@ -357,11 +359,21 @@ OBJCMD(ecc_extract_pubkey_cmd) //<<<
 		THROW_ERROR_LABEL(finally, code, "key is not a private key");
 	}
 
-	uint8_t			buf[512];
-	unsigned long	buflen = sizeof(buf);
+	unsigned long	buflen = sizeof(staticbuf);
 
-	if (ecc_export_openssl(buf, &buflen, PK_PUBLIC, key) != CRYPT_OK)
-		THROW_ERROR_LABEL(finally, code, "ecc_export_openssl failed");
+	// ecc_export_openssl with PK_PUBLIC for secp521r1 inlines the full
+	// ECParameters (prime, A, B, base, order, cofactor) and exceeds the
+	// static buffer. On CRYPT_BUFFER_OVERFLOW the function writes the
+	// required length into *buflen, so we retry on the heap.
+	int		export_rc = ecc_export_openssl(buf, &buflen, PK_PUBLIC, key);
+	if (export_rc == CRYPT_BUFFER_OVERFLOW) {
+		buf = ckalloc(buflen);
+		export_rc = ecc_export_openssl(buf, &buflen, PK_PUBLIC, key);
+	}
+	if (export_rc != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "EXPORT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_export_openssl failed: %s", error_to_string(export_rc));
+	}
 
 	pubkey = ckalloc(sizeof(*key));
 	*pubkey = (ecc_key){0};
@@ -378,6 +390,11 @@ finally:
 		if (key_initialized) ecc_free(pubkey);
 		ckfree(pubkey);
 		pubkey = NULL;
+	}
+
+	if (buf != staticbuf) {
+		ckfree(buf);
+		buf = staticbuf;
 	}
 	return code;
 }

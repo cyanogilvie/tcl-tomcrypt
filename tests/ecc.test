@@ -803,6 +803,56 @@ test ecc-40.11 {ecc_shared_secret: use with HKDF for key derivation} -setup { #<
 } -result {1 1 32}
 #>>>
 
+# ecc_extract_pubkey sizing regression: secp521r1 SubjectPublicKeyInfo (inlined
+# ECParameters) exceeds 512 bytes, which used to blow up the fixed stack buffer.
+test ecc-extract-pubkey-1.1 {ecc_extract_pubkey: secp521r1 fits} -setup { #<<<
+	tomcrypt::prng create rng fortuna
+	set privkey [tomcrypt::ecc_generate_key secp521r1 rng]
+} -body {
+	set pubkey [tomcrypt::ecc_extract_pubkey $privkey]
+	# Must be a well-formed PEM public key
+	string match "-----BEGIN EC PUBLIC KEY-----\n*\n-----END EC PUBLIC KEY-----\n" $pubkey
+} -cleanup {
+	rename rng {}
+	unset -nocomplain privkey pubkey
+} -result 1
+#>>>
+test ecc-extract-pubkey-1.2 {ecc_extract_pubkey: secp521r1 round-trip sign/verify via pubkey} -setup { #<<<
+	tomcrypt::prng create rng fortuna
+	set privkey [tomcrypt::ecc_generate_key secp521r1 rng]
+	set pubkey  [tomcrypt::ecc_extract_pubkey $privkey]
+	set msg     [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+} -body {
+	set sig [tomcrypt::ecc_sign $privkey $msg rng]
+	tomcrypt::ecc_verify $sig $msg $pubkey
+} -cleanup {
+	rename rng {}
+	unset -nocomplain privkey pubkey msg sig
+} -result 1
+#>>>
+test ecc-extract-pubkey-1.3 {ecc_extract_pubkey: secp384r1 still works (under-threshold)} -setup { #<<<
+	tomcrypt::prng create rng fortuna
+	set privkey [tomcrypt::ecc_generate_key secp384r1 rng]
+} -body {
+	set pubkey [tomcrypt::ecc_extract_pubkey $privkey]
+	string match "-----BEGIN EC PUBLIC KEY-----\n*\n-----END EC PUBLIC KEY-----\n" $pubkey
+} -cleanup {
+	rename rng {}
+	unset -nocomplain privkey pubkey
+} -result 1
+#>>>
+test ecc-extract-pubkey-1.4 {ecc_extract_pubkey: secp256r1 still works (no heap fallback needed)} -setup { #<<<
+	tomcrypt::prng create rng fortuna
+	set privkey [tomcrypt::ecc_generate_key secp256r1 rng]
+} -body {
+	set pubkey [tomcrypt::ecc_extract_pubkey $privkey]
+	string match "-----BEGIN EC PUBLIC KEY-----\n*\n-----END EC PUBLIC KEY-----\n" $pubkey
+} -cleanup {
+	rename rng {}
+	unset -nocomplain privkey pubkey
+} -result 1
+#>>>
+
 # ecc_import_raw_private
 test ecc-raw-import-1.1 {ecc_import_raw_private: scalar 1 on secp256r1 yields G} -setup { #<<<
 	# For P-256, scalar=1 means pubkey = G (the base point)
