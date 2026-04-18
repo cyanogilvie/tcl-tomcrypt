@@ -452,6 +452,70 @@ finally:
 }
 
 //>>>
+OBJCMD(ecc_import_raw_private_cmd) //<<<
+{
+	(void)cdata;
+	int						code = TCL_OK;
+	ecc_key*				key = NULL;
+	int						key_initialized = 0;
+	const ltc_ecc_curve*	curve = NULL;
+
+	enum {A_cmd, A_CURVE, A_SCALAR, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "curve scalar_bytes");
+
+	// Resolve the curve (name / alias / OID / custom dict)
+	TEST_OK_LABEL(finally, code, GetECCCurveFromObj(interp, objv[A_CURVE], &curve));
+
+	// Get the raw big-endian scalar bytes
+	Tcl_Size scalar_len;
+	const uint8_t* scalar = Tcl_GetBytesFromObj(interp, objv[A_SCALAR], &scalar_len);
+	if (scalar == NULL) { code = TCL_ERROR; goto finally; }
+
+	// Allocate and initialize the key with the curve set
+	key = ckalloc(sizeof(*key));
+	*key = (ecc_key){0};
+
+	int err;
+	if ((err = ecc_set_curve(curve, key)) != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "CURVE", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_set_curve failed: %s", error_to_string(err));
+	}
+	key_initialized = 1;
+
+	// Caller owns left-padding — require an exact field-size match so KDF
+	// truncation / padding bugs surface here instead of silently producing
+	// a key on the wrong scalar.
+	if (scalar_len != (Tcl_Size)key->dp.size) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", "SCALAR_LENGTH", NULL);
+		THROW_PRINTF_LABEL(finally, code,
+			"scalar length %" TCL_SIZE_MODIFIER "d does not match curve size %d",
+			scalar_len, key->dp.size);
+	}
+
+	// ecc_set_key(PK_PRIVATE) reads k, enforces 0 < k < n, derives pubkey,
+	// verifies on-curve. CRYPT_INVALID_PACKET here means range violation
+	// (pubkey derived from base point is always on curve).
+	if ((err = ecc_set_key(scalar, scalar_len, PK_PRIVATE, key)) != CRYPT_OK) {
+		if (err == CRYPT_INVALID_PACKET) {
+			Tcl_SetErrorCode(interp, "TOMCRYPT", "VALUE", "SCALAR_RANGE", NULL);
+			THROW_ERROR_LABEL(finally, code, "scalar is zero or >= curve order");
+		}
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "ECC", "IMPORT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "ecc_set_key failed: %s", error_to_string(err));
+	}
+
+	Tcl_SetObjResult(interp, NewECCKeyObj(&key));
+
+finally:
+	if (key) {
+		if (key_initialized) ecc_free(key);
+		ckfree(key);
+		key = NULL;
+	}
+	return code;
+}
+
+//>>>
 OBJCMD(ecc_ansi_x963_export_cmd) //<<<
 {
 	(void)cdata;
@@ -1513,6 +1577,7 @@ static struct cmd {
 	{NS "::ecc_extract_pubkey",				ecc_extract_pubkey_cmd,	NULL},
 	{NS "::ecc_ansi_x963_import",			ecc_ansi_x963_import_cmd,	NULL},
 	{NS "::ecc_ansi_x963_export",			ecc_ansi_x963_export_cmd,	NULL},
+	{NS "::ecc_import_raw_private",			ecc_import_raw_private_cmd,	NULL},
 	{NS "::ecc_verify",						ecc_verify,				NULL},
 	{NS "::ecc_sign",						ecc_sign_cmd,			NULL},
 	{NS "::ecc_shared_secret",				ecc_shared_secret_cmd,	NULL},

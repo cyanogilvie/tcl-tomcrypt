@@ -104,6 +104,7 @@ Modes (registered in `aead.c`):
 
 ```tcl
 set privkey [tomcrypt::ecc_generate_key secp256r1 ?$prng?]    ;# PEM string out
+set privkey [tomcrypt::ecc_import_raw_private $curve $scalar] ;# PEM from raw scalar
 set pubkey  [tomcrypt::ecc_extract_pubkey $privkey]           ;# PEM string out
 set sig     [tomcrypt::ecc_sign $privkey $hash ?$prng?]       ;# ANSI X9.62 sig
 set ok      [tomcrypt::ecc_verify $sig $hash $pubkey]         ;# 1/0
@@ -141,6 +142,33 @@ set k   [tomcrypt::ecc_ansi_x963_import $raw ?$curve?]
 ```
 
 When `curve` is omitted, the curve is **inferred from the byte length** and only works for: secp112r1, secp128r1, secp160r1, secp192r1, secp224r1, secp256r1, secp384r1, secp521r1. For anything else, pass the curve explicitly.
+
+### Loading a raw private scalar
+
+```tcl
+set privkey [tomcrypt::ecc_import_raw_private $curve $scalar_bytes]
+```
+
+Builds an ECC private key from a raw big-endian scalar and derives the public point internally. Output is shape-identical to `ecc_generate_key` (same PEM format, usable everywhere a private key is accepted).
+
+Use when the scalar is **given**, not generated: KDF-derived keys (AWS SigV4-A, HKDF-to-scalar), JWK `d` field, deterministic test vectors, secret-sharing reconstruction.
+
+- `scalar_bytes` must be **exactly** the curve's field size (32 for secp256r1 / secp256k1 / P-256, 48 for secp384r1 / P-384, 66 for secp521r1 / P-521). Left-padding shorter values is the caller's job — the command rejects wrong lengths rather than guess, so KDF truncation / padding bugs surface here instead of silently producing a key on the wrong scalar.
+- Wrong length → `{TOMCRYPT VALUE SCALAR_LENGTH}`.
+- Scalar is zero or ≥ curve order `n` → `{TOMCRYPT VALUE SCALAR_RANGE}`. This is the signal SigV4-A's counter loop needs: trap it and advance the counter.
+
+```tcl
+# SigV4-A KDF loop sketch
+for {set counter 1} {$counter <= 254} {incr counter} {
+    set scalar [derive_scalar $ikm $counter]   ;# 32-byte KDF output
+    try {
+        set privkey [tomcrypt::ecc_import_raw_private secp256r1 $scalar]
+        break
+    } trap {TOMCRYPT VALUE SCALAR_RANGE} {} {
+        continue
+    }
+}
+```
 
 ### ECDH key agreement
 `ecc_shared_secret` returns the raw x-coordinate of the shared point. Always feed it through `hkdf` (or another KDF) before using as a key:

@@ -803,6 +803,195 @@ test ecc-40.11 {ecc_shared_secret: use with HKDF for key derivation} -setup { #<
 } -result {1 1 32}
 #>>>
 
+# ecc_import_raw_private
+test ecc-raw-import-1.1 {ecc_import_raw_private: scalar 1 on secp256r1 yields G} -setup { #<<<
+	# For P-256, scalar=1 means pubkey = G (the base point)
+	set one [binary decode hex "0000000000000000000000000000000000000000000000000000000000000001"]
+} -body {
+	set priv [tomcrypt::ecc_import_raw_private secp256r1 $one]
+	set pub  [tomcrypt::ecc_extract_pubkey $priv]
+	binary encode hex [tomcrypt::ecc_ansi_x963_export $pub]
+} -cleanup {
+	unset -nocomplain one priv pub
+} -result 046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5
+#>>>
+test ecc-raw-import-1.2 {ecc_import_raw_private: sign/verify round trip} -setup { #<<<
+	tomcrypt::prng create rng fortuna
+	# secp256r1 scalar = [1..32] — arbitrary but in range
+	set scalar [binary decode hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"]
+	set msg [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+} -body {
+	set priv [tomcrypt::ecc_import_raw_private secp256r1 $scalar]
+	set pub  [tomcrypt::ecc_extract_pubkey $priv]
+	set sig  [tomcrypt::ecc_sign $priv $msg rng]
+	tomcrypt::ecc_verify $sig $msg $pub
+} -cleanup {
+	rename rng {}
+	unset -nocomplain scalar msg priv pub sig
+} -result 1
+#>>>
+test ecc-raw-import-1.3 {ecc_import_raw_private: result is PEM private key} -setup { #<<<
+	set scalar [binary decode hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"]
+} -body {
+	tomcrypt::ecc_import_raw_private secp256r1 $scalar
+} -cleanup {
+	unset -nocomplain scalar
+} -match glob -result "-----BEGIN EC PRIVATE KEY-----\n*\n-----END EC PRIVATE KEY-----\n"
+#>>>
+test ecc-raw-import-1.4 {ecc_import_raw_private: determinism} -setup { #<<<
+	set scalar [binary decode hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"]
+} -body {
+	# Same scalar must produce the same key (pubkey is a deterministic function of scalar)
+	set a [tomcrypt::ecc_ansi_x963_export [tomcrypt::ecc_extract_pubkey [tomcrypt::ecc_import_raw_private secp256r1 $scalar]]]
+	set b [tomcrypt::ecc_ansi_x963_export [tomcrypt::ecc_extract_pubkey [tomcrypt::ecc_import_raw_private secp256r1 $scalar]]]
+	expr {$a eq $b}
+} -cleanup {
+	unset -nocomplain scalar a b
+} -result 1
+#>>>
+test ecc-raw-import-2.1 {ecc_import_raw_private: secp384r1 (48 bytes)} -setup { #<<<
+	tomcrypt::prng create rng fortuna
+	set scalar [rng bytes 48]
+	set msg [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+} -body {
+	set priv [tomcrypt::ecc_import_raw_private secp384r1 $scalar]
+	set pub  [tomcrypt::ecc_extract_pubkey $priv]
+	set sig  [tomcrypt::ecc_sign $priv $msg rng]
+	tomcrypt::ecc_verify $sig $msg $pub
+} -cleanup {
+	rename rng {}
+	unset -nocomplain scalar msg priv pub sig
+} -result 1
+#>>>
+test ecc-raw-import-2.2 {ecc_import_raw_private: secp521r1 (66 bytes)} -setup { #<<<
+	tomcrypt::prng create rng fortuna
+	# top byte forced to 0x00 so value < n with overwhelming probability
+	set scalar "\x00[rng bytes 65]"
+	set msg [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+} -body {
+	set priv [tomcrypt::ecc_import_raw_private secp521r1 $scalar]
+	# Use priv for both sign and verify — ecc_extract_pubkey has a
+	# pre-existing 512-byte-buffer overflow for secp521r1 unrelated to this primitive.
+	set sig  [tomcrypt::ecc_sign $priv $msg rng]
+	tomcrypt::ecc_verify $sig $msg $priv
+} -cleanup {
+	rename rng {}
+	unset -nocomplain scalar msg priv sig
+} -result 1
+#>>>
+test ecc-raw-import-2.3 {ecc_import_raw_private: secp256k1 (32 bytes)} -setup { #<<<
+	tomcrypt::prng create rng fortuna
+	set scalar [rng bytes 32]
+	set msg [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+} -body {
+	set priv [tomcrypt::ecc_import_raw_private secp256k1 $scalar]
+	set pub  [tomcrypt::ecc_extract_pubkey $priv]
+	set sig  [tomcrypt::ecc_sign $priv $msg rng]
+	tomcrypt::ecc_verify $sig $msg $pub
+} -cleanup {
+	rename rng {}
+	unset -nocomplain scalar msg priv pub sig
+} -result 1
+#>>>
+test ecc-raw-import-2.4 {ecc_import_raw_private: curve by alias (P-256)} -setup { #<<<
+	set scalar [binary decode hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"]
+} -body {
+	set a [tomcrypt::ecc_import_raw_private secp256r1 $scalar]
+	set b [tomcrypt::ecc_import_raw_private P-256      $scalar]
+	expr {$a eq $b}
+} -cleanup {
+	unset -nocomplain scalar a b
+} -result 1
+#>>>
+test ecc-raw-import-2.5 {ecc_import_raw_private: curve by OID} -setup { #<<<
+	set scalar [binary decode hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"]
+} -body {
+	set a [tomcrypt::ecc_import_raw_private secp256r1            $scalar]
+	set b [tomcrypt::ecc_import_raw_private 1.2.840.10045.3.1.7 $scalar]
+	expr {$a eq $b}
+} -cleanup {
+	unset -nocomplain scalar a b
+} -result 1
+#>>>
+# Error cases
+test ecc-raw-import-3.1 {ecc_import_raw_private: zero scalar rejected} -body { #<<<
+	set zero [binary decode hex "0000000000000000000000000000000000000000000000000000000000000000"]
+	tomcrypt::ecc_import_raw_private secp256r1 $zero
+} -cleanup {
+	unset -nocomplain zero
+} -returnCodes error -errorCode {TOMCRYPT VALUE SCALAR_RANGE} -result {scalar is zero or >= curve order}
+#>>>
+test ecc-raw-import-3.2 {ecc_import_raw_private: scalar = n rejected} -body { #<<<
+	# secp256r1 curve order n
+	set n [binary decode hex "FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551"]
+	tomcrypt::ecc_import_raw_private secp256r1 $n
+} -cleanup {
+	unset -nocomplain n
+} -returnCodes error -errorCode {TOMCRYPT VALUE SCALAR_RANGE} -result {scalar is zero or >= curve order}
+#>>>
+test ecc-raw-import-3.3 {ecc_import_raw_private: scalar > n rejected} -body { #<<<
+	set huge [binary decode hex "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"]
+	tomcrypt::ecc_import_raw_private secp256r1 $huge
+} -cleanup {
+	unset -nocomplain huge
+} -returnCodes error -errorCode {TOMCRYPT VALUE SCALAR_RANGE} -result {scalar is zero or >= curve order}
+#>>>
+test ecc-raw-import-3.4 {ecc_import_raw_private: too short} -body { #<<<
+	tomcrypt::ecc_import_raw_private secp256r1 [binary decode hex 0102]
+} -returnCodes error -errorCode {TOMCRYPT VALUE SCALAR_LENGTH} \
+	-result {scalar length 2 does not match curve size 32}
+#>>>
+test ecc-raw-import-3.5 {ecc_import_raw_private: too long} -body { #<<<
+	# 33 bytes for a 32-byte curve
+	tomcrypt::ecc_import_raw_private secp256r1 [binary decode hex "00000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"]
+} -returnCodes error -errorCode {TOMCRYPT VALUE SCALAR_LENGTH} \
+	-result {scalar length 33 does not match curve size 32}
+#>>>
+test ecc-raw-import-3.6 {ecc_import_raw_private: wrong curve size (32 bytes for secp384r1)} -body { #<<<
+	set scalar [binary decode hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"]
+	tomcrypt::ecc_import_raw_private secp384r1 $scalar
+} -cleanup {
+	unset -nocomplain scalar
+} -returnCodes error -errorCode {TOMCRYPT VALUE SCALAR_LENGTH} \
+	-result {scalar length 32 does not match curve size 48}
+#>>>
+test ecc-raw-import-3.7 {ecc_import_raw_private: unknown curve} -body { #<<<
+	tomcrypt::ecc_import_raw_private not_a_curve [binary decode hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"]
+} -returnCodes error -errorCode {TOMCRYPT ECC CURVE NOT_FOUND} \
+	-result {Unknown ECC curve: "not_a_curve"}
+#>>>
+test ecc-raw-import-3.8 {ecc_import_raw_private: scalar not bytes} -body { #<<<
+	tomcrypt::ecc_import_raw_private secp256r1 \u306f
+} -returnCodes error -errorCode {TCL VALUE BYTES} \
+	-result "expected byte sequence but character 0 was '\u306f' (U+00306F)"
+#>>>
+test ecc-raw-import-3.9 {ecc_import_raw_private: too few args} -body { #<<<
+	tomcrypt::ecc_import_raw_private secp256r1
+} -returnCodes error -errorCode {TCL WRONGARGS} \
+	-result {wrong # args: should be "tomcrypt::ecc_import_raw_private curve scalar_bytes"}
+#>>>
+test ecc-raw-import-3.10 {ecc_import_raw_private: too many args} -body { #<<<
+	tomcrypt::ecc_import_raw_private secp256r1 abc extra
+} -returnCodes error -errorCode {TCL WRONGARGS} \
+	-result {wrong # args: should be "tomcrypt::ecc_import_raw_private curve scalar_bytes"}
+#>>>
+test ecc-raw-import-4.1 {ecc_import_raw_private: child interp memory handling} -body { #<<<
+	set child [interp create]
+	$child eval {
+		load {} Tomcrypt
+		set scalar [binary decode hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"]
+		set priv   [tomcrypt::ecc_import_raw_private secp256r1 $scalar]
+		set pub    [tomcrypt::ecc_extract_pubkey $priv]
+		set msg    [binary decode hex 41091b1b32c6cd42f06b36f72801e01915bd99115f120c119ef7b781f7140dda]
+		set sig    [tomcrypt::ecc_sign $priv $msg]
+		tomcrypt::ecc_verify $sig $msg $pub
+	}
+} -cleanup {
+	if {[info exists child]} { interp delete $child }
+	unset -nocomplain child
+} -result 1
+#>>>
+
 # cleanup
 ::tcltest::cleanupTests
 return
