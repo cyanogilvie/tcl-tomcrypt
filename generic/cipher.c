@@ -323,7 +323,7 @@ OBJCMD(cipher_encrypt_cmd) //<<<
 {
 	(void)cdata;
 	int					code = TCL_OK;
-	struct cipher_md	md;
+	struct cipher_md	md = {0};
 	Tcl_Obj*			res = NULL;
 
 	enum {A_cmd, A_SPEC, A_KEY, A_IV, A_DATA, A_objc};
@@ -349,7 +349,7 @@ OBJCMD(cipher_decrypt_cmd) //<<<
 {
 	(void)cdata;
 	int					code = TCL_OK;
-	struct cipher_md	md;
+	struct cipher_md	md = {0};
 	Tcl_Obj*			res = NULL;
 
 	enum {A_cmd, A_SPEC, A_KEY, A_IV, A_DATA, A_objc};

@@ -1,5 +1,14 @@
 #ifndef _TOMCRYPTINT_H
 #define _TOMCRYPTINT_H
+#include <hedley.h>
+#if defined(__has_c_attribute)
+#	if __has_c_attribute(clang::suppress)
+#		define SUPPRESS_DEADSTORE [[clang::suppress]]
+#	endif
+#endif
+#ifndef SUPPRESS_DEADSTORE
+#	define SUPPRESS_DEADSTORE
+#endif
 #include <config.h>
 #include <tcl.h>
 #include <tclOO.h>

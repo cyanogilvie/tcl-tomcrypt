@@ -394,7 +394,7 @@ finally:
 
 	if (buf != staticbuf) {
 		ckfree(buf);
-		buf = staticbuf;
+		SUPPRESS_DEADSTORE buf = staticbuf;
 	}
 	return code;
 }

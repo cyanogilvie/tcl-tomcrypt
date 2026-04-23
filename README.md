@@ -4,7 +4,7 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 
 ## SYNOPSIS
 
-**package require tomcrypt** ?0.9.1?
+**package require tomcrypt** ?0.9.3?
 
 **tomcrypt::hash** *algorithm* *bytes*  
 **tomcrypt::hmac** *algorithm* *key* *message*  
@@ -21,6 +21,7 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 **tomcrypt::ecc_extract_pubkey** *privkey*  
 **tomcrypt::ecc_ansi_x963_import** *bytes* ?*curve*?  
 **tomcrypt::ecc_ansi_x963_export** *pubkey*  
+**tomcrypt::ecc_import_raw_private** *curve* *scalar_bytes*  
 **tomcrypt::ecc_verify** *sig* *message* *pubkey*  
 **tomcrypt::ecc_sign** *privkey* *message* ?*prng*?  
 **tomcrypt::ecc_shared_secret** *privkey* *pubkey*  
@@ -251,6 +252,24 @@ key suitable for use with **ecc_verify** and **ecc_shared_secret**.
 **tomcrypt::ecc_ansi_x963_export** *pubkey*  
 Export an ECC public key *pubkey* to ANSI X9.63 section 4.3.6 format (a
 bytearray starting with 0x04 followed by the x and y coordinates).
+
+**tomcrypt::ecc_import_raw_private** *curve* *scalar_bytes*  
+Construct an ECC private key from a raw big-endian scalar *scalar_bytes*
+on the given *curve* (see **CURVE SPEC**). The public point is derived
+internally via scalar multiplication of the curve’s base point.
+*scalar_bytes* must be exactly the curve’s field size (32 bytes for
+secp256r1 / secp256k1 / P-256, 48 for secp384r1 / P-384, 66 for
+secp521r1 / P-521); left-padding shorter values is the caller’s
+responsibility. The scalar must satisfy `0 < k < n` where `n` is the
+curve order. Returns a PEM-encoded private key in the same format as
+**ecc_generate_key**, suitable for use with **ecc_sign**,
+**ecc_extract_pubkey**, and **ecc_shared_secret**. Intended for loading
+a scalar derived from a KDF (e.g. AWS SigV4-A), deterministic test
+vectors, JWK import, or secret-sharing reconstruction. Throws
+`{TOMCRYPT VALUE SCALAR_LENGTH}` if the length is wrong and
+`{TOMCRYPT VALUE SCALAR_RANGE}` if the scalar is zero or not less than
+the curve order — callers that iterate scalars (e.g. SigV4-A’s KDF
+counter loop) can trap the latter to advance to the next candidate.
 
 **tomcrypt::rsa_sign_hash** **-key** *privkey* **-hash** *hash* ?**-padding** *type*? ?**-hashalg** *algorithm*? ?**-saltlen** *bytes*? ?**-prng** *prng*?  
 Sign a message hash using the RSA private key *privkey* (in PKCS#1
@@ -630,13 +649,13 @@ cross-compilation and for CI where no Tcl is installed.
 ### From a Release Tarball
 
 Download and extract [the
-release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.1/tomcrypt-0.9.1.tar.gz),
+release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.3/tomcrypt-0.9.3.tar.gz),
 then build:
 
 ``` sh
-wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.1/tomcrypt-0.9.1.tar.gz
-tar xf tomcrypt-0.9.1.tar.gz
-cd tomcrypt-0.9.1
+wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.3/tomcrypt-0.9.3.tar.gz
+tar xf tomcrypt-0.9.3.tar.gz
+cd tomcrypt-0.9.3
 meson setup build
 meson compile -C build
 sudo meson install -C build
@@ -670,12 +689,12 @@ to minimise image size:
 
 ``` dockerfile
 WORKDIR /tmp/tcl-tomcrypt
-RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.1/tomcrypt-0.9.1.tar.gz -O - | tar xz --strip-components=1 && \
+RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.3/tomcrypt-0.9.3.tar.gz -O - | tar xz --strip-components=1 && \
     meson setup build && \
     meson compile -C build && \
     meson test -C build && \
     meson install -C build && \
-    strip /usr/local/lib/tomcrypt-0.9.1/*.so && \
+    strip /usr/local/lib/tomcrypt-0.9.3/*.so && \
     cd .. && rm -rf tcl-tomcrypt
 ```
 

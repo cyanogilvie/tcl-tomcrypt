@@ -450,11 +450,11 @@ mp_finally:
 		if (mp_inited & 0x8) mp_clear(&value_bigval);
 		if (buf_bigval != buf_bigval_static) {
 			ckfree(buf_bigval);
-			buf_bigval = buf_bigval_static;
+			SUPPRESS_DEADSTORE buf_bigval = buf_bigval_static;
 		}
 		if (hexrep != hexrep_static) {
 			ckfree(hexrep);
-			hexrep = hexrep_static;
+			SUPPRESS_DEADSTORE hexrep = hexrep_static;
 		}
 		goto finally;
 

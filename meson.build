@@ -1,6 +1,6 @@
 project('tomcrypt', 'c',
-  version:          '0.9.2',
-  default_options:  ['c_std=c11', 'warning_level=3', 'werror=true'],
+  version:          '0.9.3',
+  default_options:  ['c_std=c23', 'warning_level=3', 'werror=true'],
   meson_version:    '>=1.3.0',
 )
 
@@ -32,6 +32,8 @@ add_project_arguments('-DHAVE_CONFIG_H', language: 'c')
 
 deps = []
 inc  = []
+
+deps += dependency('hedley', version: '>=15', allow_fallback: true)
 
 subdir('interned_deps')
 subdir('generic')
