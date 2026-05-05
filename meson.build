@@ -1,5 +1,5 @@
 project('tomcrypt', 'c',
-  version:          '0.9.6',
+  version:          '0.9.7',
   default_options:  ['c_std=c2y,c23,c2x', 'warning_level=3', 'werror=true'],
   meson_version:    '>=1.3.0',
 )
@@ -49,8 +49,9 @@ configure_file(
   input:          meson.project_name() + '.pc.in',
   output:         meson.project_name() + '.pc',
   configuration:  pc_conf,
-  install:        not meson.is_subproject(),
+  install:        true,
   install_dir:    tcl_dep.get_variable('libdir') / 'pkgconfig',
+  install_tag:    meson.is_subproject() ? 'deps' : 'runtime',
 )
 
 tomcrypt_dep = declare_dependency(
