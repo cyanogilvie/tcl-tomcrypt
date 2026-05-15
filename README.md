@@ -4,7 +4,7 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 
 ## SYNOPSIS
 
-**package require tomcrypt** ?0.9.3?
+**package require tomcrypt** ?0.9.8?
 
 **tomcrypt::hash** *algorithm* *bytes*  
 **tomcrypt::hmac** *algorithm* *key* *message*  
@@ -40,6 +40,7 @@ libtomcrypt Tcl wrapper - use cryptographic primitives in Tcl scripts
 **tomcrypt::rsa_decrypt_key** **-key** *privkey* **-ciphertext**
 *ciphertext* ?**-padding** *type*? ?**-hashalg** *algorithm*?
 ?**-lparam** *label*?  
+**tomcrypt::pem_decrypt** *encrypted_pem* *passphrase*  
 **tomcrypt::rng_bytes** *count*  
 **tomcrypt::prng** **create** *prngInstance* *type* ?*entropy*?  
 **tomcrypt::prng** **new** *type* ?*entropy*?
@@ -308,6 +309,27 @@ DER/PEM format). The **-padding** (defaults to “oaep”), **-hashalg**
 (defaults to “sha256”), and **-lparam** options must match those used
 during encryption. Returns the decrypted message bytes, or throws an
 error if decryption fails or padding is invalid.
+
+**tomcrypt::pem_decrypt** *encrypted_pem* *passphrase*  
+Decrypt a PEM-encoded encrypted PKCS#8 private key
+(`-----BEGIN ENCRYPTED PRIVATE KEY-----`) using *passphrase* (a
+bytearray). Supports the PBES2 scheme with PBKDF2-HMAC-SHA*n* key
+derivation and AES-128/192/256-CBC encryption — the combination emitted
+by recent OpenSSL
+(`openssl pkcs8 -topk8 -v2 aes-256-cbc -v2prf hmacWithSHA256`) and by
+AWS Certificate Manager. Older PBES1 and 3DES variants supported by
+libtomcrypt are also accepted.
+
+Returns an RSA or EC key value whose string representation is the
+corresponding plain (unencrypted) PEM —
+`-----BEGIN RSA PRIVATE KEY-----` for RSA,
+`-----BEGIN EC PRIVATE KEY-----` for EC — so the result can be written
+straight to disk for consumers that expect plain PEM (e.g. postfix
+STARTTLS), or used directly with **rsa_sign_hash**, **ecc_sign**, etc.
+
+On a wrong passphrase or a malformed/unsupported PEM, raises an error
+with errorCode `{TOMCRYPT PEM DECRYPT}`. PKCS#8 payloads carrying key
+types other than RSA or EC raise `{TOMCRYPT PEM TYPE}`.
 
 **tomcrypt::prng** **create** *prngInstance* *type* ?*entropy*?  
 Create a PRNG (pseudorandom number generator) instance accessed by the
@@ -649,13 +671,13 @@ cross-compilation and for CI where no Tcl is installed.
 ### From a Release Tarball
 
 Download and extract [the
-release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.3/tomcrypt-0.9.3.tar.gz),
+release](https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.8/tomcrypt-0.9.8.tar.gz),
 then build:
 
 ``` sh
-wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.3/tomcrypt-0.9.3.tar.gz
-tar xf tomcrypt-0.9.3.tar.gz
-cd tomcrypt-0.9.3
+wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.8/tomcrypt-0.9.8.tar.gz
+tar xf tomcrypt-0.9.8.tar.gz
+cd tomcrypt-0.9.8
 meson setup build
 meson compile -C build
 sudo meson install -C build
@@ -689,12 +711,12 @@ to minimise image size:
 
 ``` dockerfile
 WORKDIR /tmp/tcl-tomcrypt
-RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.3/tomcrypt-0.9.3.tar.gz -O - | tar xz --strip-components=1 && \
+RUN wget https://github.com/cyanogilvie/tcl-tomcrypt/releases/download/v0.9.8/tomcrypt-0.9.8.tar.gz -O - | tar xz --strip-components=1 && \
     meson setup build && \
     meson compile -C build && \
     meson test -C build && \
     meson install -C build && \
-    strip /usr/local/lib/tomcrypt-0.9.3/*.so && \
+    strip /usr/local/lib/tomcrypt-0.9.8/*.so && \
     cd .. && rm -rf tcl-tomcrypt
 ```
 

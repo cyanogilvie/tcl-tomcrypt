@@ -1395,6 +1395,117 @@ finally:
 }
 
 //>>>
+struct pem_pw_cbdata { const uint8_t* pw; Tcl_Size pwlen; };
+static int pem_pw_callback(void** str, unsigned long* len, void* userdata) //<<<
+{
+	const struct pem_pw_cbdata*	d = userdata;
+	// libtomcrypt takes ownership; it frees with the password_ctx::free hook
+	// (which is set to NULL below, meaning it will use XFREE == free).
+	char*	dup = XMALLOC(d->pwlen + 1);
+	if (!dup) return CRYPT_MEM;
+	memcpy(dup, d->pw, d->pwlen);
+	dup[d->pwlen] = 0;
+	*str = dup;
+	*len = (unsigned long)d->pwlen;
+	return CRYPT_OK;
+}
+
+//>>>
+OBJCMD(pem_decrypt_cmd) // Decrypt a PEM-encoded encrypted PKCS#8 private key <<<
+{
+	(void)cdata;
+	int				code = TCL_OK;
+	ltc_pka_key		pka = {0};
+	int				pka_owned = 0;
+	rsa_key*		rkey = NULL;
+	int				rkey_initialized = 0;
+	ecc_key*		ekey = NULL;
+	int				ekey_initialized = 0;
+
+	enum {A_cmd, A_PEM, A_PASS, A_objc};
+	CHECK_ARGS_LABEL(finally, code, "encrypted_pem passphrase");
+
+	Tcl_Size		pem_len, pass_len;
+	const char*		pem_str = Tcl_GetStringFromObj(objv[A_PEM], &pem_len);
+	const uint8_t*	pass = Tcl_GetBytesFromObj(interp, objv[A_PASS], &pass_len);
+	if (!pass) { code = TCL_ERROR; goto finally; }
+
+	struct pem_pw_cbdata cbdata = { .pw = pass, .pwlen = pass_len };
+	password_ctx pw_ctx = {
+		.callback	= pem_pw_callback,
+		.free		= NULL,
+		.userdata	= &cbdata,
+	};
+
+	const int rc = pem_decode_pkcs(pem_str, (unsigned long)pem_len, &pka, &pw_ctx);
+	if (rc != CRYPT_OK) {
+		Tcl_SetErrorCode(interp, "TOMCRYPT", "PEM", "DECRYPT", NULL);
+		THROW_PRINTF_LABEL(finally, code, "pem_decode_pkcs failed: %s", error_to_string(rc));
+	}
+	pka_owned = 1;
+
+	// Re-export to DER and re-import into a fresh key, so the resulting
+	// key value is constructed by the same code paths as rsa_make_key /
+	// GetRSAKeyFromObj — no shallow-copy of libtomcrypt-allocated structs
+	// across ownership boundaries, and pka_key_free disposes the temporary
+	// cleanly on every exit path.
+	unsigned long	der_len = 4096;
+	uint8_t			der_buf[4096];
+	int				err;
+
+	switch (pka.id) {
+		case LTC_PKA_RSA:
+			err = rsa_export(der_buf, &der_len, PK_PRIVATE, &pka.u.rsa);
+			if (err != CRYPT_OK) {
+				Tcl_SetErrorCode(interp, "TOMCRYPT", "PEM", "EXPORT", NULL);
+				THROW_PRINTF_LABEL(finally, code, "rsa_export failed: %s", error_to_string(err));
+			}
+			rkey = ckalloc(sizeof *rkey);
+			*rkey = (rsa_key){0};
+			if ((err = rsa_import(der_buf, der_len, rkey)) != CRYPT_OK) {
+				Tcl_SetErrorCode(interp, "TOMCRYPT", "PEM", "IMPORT", NULL);
+				THROW_PRINTF_LABEL(finally, code, "rsa_import failed: %s", error_to_string(err));
+			}
+			rkey_initialized = 1;
+			Tcl_SetObjResult(interp, NewRSAKeyObj(&rkey));
+			break;
+
+		case LTC_PKA_EC:
+			err = ecc_export_openssl(der_buf, &der_len, PK_PRIVATE, &pka.u.ecc);
+			if (err != CRYPT_OK) {
+				Tcl_SetErrorCode(interp, "TOMCRYPT", "PEM", "EXPORT", NULL);
+				THROW_PRINTF_LABEL(finally, code, "ecc_export_openssl failed: %s", error_to_string(err));
+			}
+			ekey = ckalloc(sizeof *ekey);
+			*ekey = (ecc_key){0};
+			if ((err = ecc_import_openssl(der_buf, der_len, ekey)) != CRYPT_OK) {
+				Tcl_SetErrorCode(interp, "TOMCRYPT", "PEM", "IMPORT", NULL);
+				THROW_PRINTF_LABEL(finally, code, "ecc_import_openssl failed: %s", error_to_string(err));
+			}
+			ekey_initialized = 1;
+			Tcl_SetObjResult(interp, NewECCKeyObj(&ekey));
+			break;
+
+		default:
+			Tcl_SetErrorCode(interp, "TOMCRYPT", "PEM", "TYPE", NULL);
+			THROW_ERROR_LABEL(finally, code, "Unsupported PKCS#8 key type (expected RSA or EC)");
+	}
+
+finally:
+	zeromem(der_buf, sizeof der_buf);
+	if (pka_owned) pka_key_free(&pka);
+	if (rkey) {
+		if (rkey_initialized) rsa_free(rkey);
+		ckfree(rkey);
+	}
+	if (ekey) {
+		if (ekey_initialized) ecc_free(ekey);
+		ckfree(ekey);
+	}
+	return code;
+}
+
+//>>>
 #if TESTMODE
 OBJCMD(hasGetBytesFromObj) //<<<
 {
@@ -1609,6 +1720,7 @@ static struct cmd {
 	{NS "::decrypt",						cipher_decrypt_cmd,		NULL},
 	{NS "::aead",							aead_cmd,				NULL},
 	{NS "::base64url",						base64url_cmd,			NULL},
+	{NS "::pem_decrypt",					pem_decrypt_cmd,		NULL},
 #if TESTMODE
 	{NS "::_testmode_hasGetBytesFromObj",	hasGetBytesFromObj,		NULL},
 	{NS "::_testmode_isByteArray",			isByteArray,			NULL},

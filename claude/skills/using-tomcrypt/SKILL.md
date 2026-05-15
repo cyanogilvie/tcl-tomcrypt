@@ -230,6 +230,24 @@ set h   [tomcrypt::hash sha1 [encoding convertto utf-8 $policy]]
 set sig [tomcrypt::rsa_sign_hash -key $privkey -hash $h -padding v1.5 -hashalg sha1]
 ```
 
+## Encrypted PKCS#8 private keys
+
+`tomcrypt::pem_decrypt $encrypted_pem $passphrase` decrypts a PEM-encoded encrypted PKCS#8
+private key (`-----BEGIN ENCRYPTED PRIVATE KEY-----`) and returns a usable RSA or EC key.
+PBES2 with PBKDF2-HMAC-SHA*n* + AES-CBC is supported — the combo emitted by AWS Certificate
+Manager and by `openssl pkcs8 -topk8 -v2 aes-256-cbc -v2prf hmacWithSHA256`.
+
+```tcl
+set keyobj [tomcrypt::pem_decrypt $encrypted_pem $passphrase]
+# Stringifies as plain PEM ("-----BEGIN RSA PRIVATE KEY-----" or
+# "-----BEGIN EC PRIVATE KEY-----"), ready to hand to consumers that
+# expect plain PEM (postfix STARTTLS, etc.) or use directly:
+tomcrypt::rsa_sign_hash -key $keyobj -hash $h
+```
+
+Wrong passphrase or unsupported payload → errorCode `{TOMCRYPT PEM DECRYPT}`.
+Non-RSA/EC key types → `{TOMCRYPT PEM TYPE}`.
+
 ## PRNG
 
 Two flavours of randomness:

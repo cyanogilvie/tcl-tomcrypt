@@ -1,0 +1,106 @@
+source [file join [file dirname [info script]] common.tcl]
+
+# Encrypted PKCS#8 fixtures produced with:
+#   openssl pkcs8 -topk8 -in plain.pem -v2 aes-256-cbc \
+#       -v2prf hmacWithSHA256 -passout pass:correct-horse-battery-staple
+# i.e. PBES2 / PBKDF2-HMAC-SHA256 / AES-256-CBC — the combo ACM emits.
+
+set enc_rsa {-----BEGIN ENCRYPTED PRIVATE KEY-----
+MIIFLTBXBgkqhkiG9w0BBQ0wSjApBgkqhkiG9w0BBQwwHAQI7ako43s7BV4CAggA
+MAwGCCqGSIb3DQIJBQAwHQYJYIZIAWUDBAEqBBA2yw90dYudcUmIjmOtCbSTBIIE
+0LFMkGUN86dlsPFBronnFMMnsgcyf/LWREm03aJ4xzMC4ugg7S2ZiPmdmwhNeIO2
+T4fuv+luOjQsyBIZIMNGZ7jtNE0AD18AbMwApmmRHFrjdtZhTWrCfUke5HbXA1e0
+dySBEDxt2zJqAksXdRm1KXtQ51iWelKE3m2wCfrrgzNfi0XGYB2weUOwxrgTAcFr
+pCGSOsRcXNz7+v2pk7AnN6Omdc5+4PyrACABKChZQKhPtJGYXv5+jtlKU+wbWOEu
+13sBYqRj3c2MmiGV8FpZDpMeCqRvXjuQhlbGpS1hxA9WdXZPQuYz6xzS0SQ1r9r3
+C+fHm6PZUG8ScpcKB1HVWgkHW/Lsr1b5m4/gAt84fJOACboqwAdg6Jv/XDYvkwEu
+eR8NbrGXpVdxdGueEHh2RwTo86cdLac6d9bLHuXQZaYci311HciCBJngyMreiWtu
+JepQsCJzlvPGq26E2ahnrPG1hDPEQbgU8A2T+vOwEo7XEJIPTLZJlXa9X9QOqPce
+1VEDYkj8BbZj9GXn0SNwi/M655pYOJAs4lfQgT0y1HFl5M8w2BNTYta5h9bNoKGX
+846f/WiuotI5eWpIeFX0EdfwuxVa1kgH30S9AmuBuGCDFUw1z4uOjSz07gW7fXPK
+Ylw2WaQU7Kk25B9jfeswuuNLG1OhMxdO6w/ZEdWlC3bhwO0T4dbeNuW9w0+nAvCI
+kld9yJ6QE745GkBnAlVubI2dXsCI33yKajRxg7alQ5I+kgsumBNLobIyUVlEkkRJ
+L8/eCwNqEtJ/CfzGtWtmEztL/G8sTog7U2ctVLerLr5prlfXia+i1Orq4m9H7R/l
+CRzdL8jpo7GwSzaFhj7EtFVG64V2a+l8b79f8fMsVA6lICUleb8QDVj2hZVR8kWP
+x4KVglhTX3m2bGq/cSptvnZXV12t8sG4rk5wor0W0vzdgfm6UmOW6RQZkclOk6jT
+Pl/os1vDMqMDRIXGH0KewYSVZepRl9SGwszmbeW9xjf+/CKdG2K/bp0JjEpNiorQ
+Zn18CgBtjJPhYLZaWImfL8sB7f0959vwiOtjDwzjSd4xtjuNu1sm+dizk43Q/gQw
+yrtav382IFDTB9g0HjuTj6zpjQJ0e61QDZkyea0eWrILlIHOG8rYSYkFxdKYrAFg
+wgTKBFz56djFgATbFkB9ybCqgHwxie92dkPNz4Ml8CyUVboAWqDIuTDpjrt11JFU
+QEgBXb7F8f6ZRQ+z49/xlODp9Q+hQVsra5D3IiOjh5FEKXym7sfjGlhJDuTUB2LA
+fDe9+Lseu7pDcHmL/8Jr2epwOOGTkLn9DcYLtCYu5IK2qqhYmuKypHByS8C1GCKM
+SBt6NKP8RU+HI+msg2nNkWUBVYuR+EJQVoeNZImF9rYTxUatM4/NPnhvRrZjPswP
+WvhmvJBbJp0ikQrxMSG3HpaM8yJN3wyil05DHks/Q0/+ZAWTqHsxTepSjGrY79hP
+A6oCZYEEP4lwupykiuB1Renf4KdfzFR763I16n7UxsJYhnXGPYk7gYAEu2PF2DBz
+Il5mTjnhnLvmN/95WuWpObbFQttuSVJ5gZXfpsarS5NC1L8hknQyTEpKP444AJug
+qUobM1yZ9RmOzILc3LePZ6Qd/83Mq7YPSi+hZ6AD98O2
+-----END ENCRYPTED PRIVATE KEY-----
+}
+
+set enc_ec {-----BEGIN ENCRYPTED PRIVATE KEY-----
+MIHsMFcGCSqGSIb3DQEFDTBKMCkGCSqGSIb3DQEFDDAcBAj5Oy3H24yp5AICCAAw
+DAYIKoZIhvcNAgkFADAdBglghkgBZQMEASoEEISHAc//z1RgEqOB3FE5QU4EgZCs
+7RrsqFbtPI52R//lEioEjMuDrKhO4FKkZ3RDgFd+UO3NkG0VuyD2xCIRtPfqEIvq
+8umZWqoiq4YkvwzG2jzhtu8NeIWOJZy4bDcz9M9Fqsu2DE+IO/W2zUy1n6jRcPkf
+u4Uw5SqQLr0weBVNxDG77dBCne3nZQc38I9bpSi6yYYHJhMe9elXxF5M4asLbP4=
+-----END ENCRYPTED PRIVATE KEY-----
+}
+
+set passphrase correct-horse-battery-staple
+
+test pem_decrypt-1.1 {decrypt an encrypted PKCS#8 RSA private key} -body { #<<<
+	set key [tomcrypt::pem_decrypt $enc_rsa $passphrase]
+	# Stringifies as plain PEM, ready to write out for postfix etc.
+	string match "-----BEGIN RSA PRIVATE KEY-----\n*-----END RSA PRIVATE KEY-----\n" $key
+} -cleanup {
+	unset -nocomplain key
+} -result 1
+#>>>
+test pem_decrypt-1.2 {decrypted RSA key is usable for sign/verify} -body { #<<<
+	set key [tomcrypt::pem_decrypt $enc_rsa $passphrase]
+	set pub [tomcrypt::rsa_extract_pubkey $key]
+	set h   [tomcrypt::hash sha256 "hello world"]
+	set sig [tomcrypt::rsa_sign_hash -key $key -hash $h]
+	tomcrypt::rsa_verify_hash -key $pub -sig $sig -hash $h
+} -cleanup {
+	unset -nocomplain key pub h sig
+} -result 1
+#>>>
+test pem_decrypt-1.3 {decrypt an encrypted PKCS#8 EC private key} -body { #<<<
+	set key [tomcrypt::pem_decrypt $enc_ec $passphrase]
+	string match "-----BEGIN EC PRIVATE KEY-----\n*-----END EC PRIVATE KEY-----\n" $key
+} -cleanup {
+	unset -nocomplain key
+} -result 1
+#>>>
+test pem_decrypt-1.4 {decrypted EC key is usable for sign/verify} -body { #<<<
+	set key [tomcrypt::pem_decrypt $enc_ec $passphrase]
+	set pub [tomcrypt::ecc_extract_pubkey $key]
+	set sig [tomcrypt::ecc_sign $key "hello world"]
+	tomcrypt::ecc_verify $sig "hello world" $pub
+} -cleanup {
+	unset -nocomplain key pub sig
+} -result 1
+#>>>
+test pem_decrypt-2.1 {wrong passphrase raises a clean error} -body { #<<<
+	tomcrypt::pem_decrypt $enc_rsa wrong-password
+} -returnCodes error -errorCode {TOMCRYPT PEM DECRYPT} \
+  -match glob -result {pem_decode_pkcs failed: *}
+#>>>
+test pem_decrypt-2.2 {malformed PEM raises a clean error} -body { #<<<
+	tomcrypt::pem_decrypt "not a pem at all" $passphrase
+} -returnCodes error -errorCode {TOMCRYPT PEM DECRYPT} \
+  -match glob -result {pem_decode_pkcs failed: *}
+#>>>
+test pem_decrypt-2.3 {wrong number of args} -body { #<<<
+	tomcrypt::pem_decrypt $enc_rsa
+} -returnCodes error -result {wrong # args: should be "tomcrypt::pem_decrypt encrypted_pem passphrase"}
+#>>>
+
+unset -nocomplain enc_rsa enc_ec passphrase
+
+# cleanup
+::tcltest::cleanupTests
+return
+
+# vim: ft=tcl foldmethod=marker foldmarker=<<<,>>> ts=4 shiftwidth=4 noexpandtab
